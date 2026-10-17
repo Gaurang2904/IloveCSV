@@ -1,0 +1,266 @@
+"""Column and sheet profiling: types, missing values, distinct values, distributions."""
+
+from __future__ import annotations
+
+import re
+from collections import Counter, defaultdict
+from dataclasses import asdict, dataclass, field
+from typing import Any
+
+import numpy as np
+
+from .models import jsonable
+from .reader import SheetData, WorkbookData
+from .values import (
+    DEFAULT_NULLS,
+    is_serial_candidate,
+    parse_number_text,
+    shape_pattern,
+    to_date,
+    to_number,
+    to_text,
+    value_kind,
+)
+
+_ID_NAME = re.compile(r"(^|[_\s-])(id|code|no|num|number|ref|key)$", re.IGNORECASE)
+_CAMEL_ID = re.compile(r"[a-z]ID$")
+_PLAIN_NUMBER = re.compile(r"^-?\d+(\.\d+)?$")
+_ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+@dataclass
+class ColumnProfile:
+    name: str
+    letter: str
+    inferred_type: str  # empty|int|float|date|bool|category|text|mixed
+    type_share: float
+    n_rows: int
+    n_missing: int
+    missing_rate: float
+    n_distinct: int
+    top_values: list[dict[str, Any]]
+    kinds: dict[str, int]
+    numeric: dict[str, Any] | None = None
+    dates: dict[str, Any] | None = None
+    lengths: dict[str, Any] | None = None
+    patterns: list[dict[str, Any]] = field(default_factory=list)
+    n_whitespace: int = 0
+    case_variants: list[dict[str, Any]] = field(default_factory=list)
+    n_numeric_text: int = 0
+    n_date_text: int = 0
+    n_serial_dates: int = 0
+    is_identifier: bool = False
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class SheetProfile:
+    name: str
+    n_rows: int
+    n_cols: int
+    header_row: int
+    duplicate_rows: list[int]  # Excel rows that repeat an earlier row exactly
+    dropped_blank_rows: list[int]
+    dropped_blank_cols: list[str]
+    columns: dict[str, ColumnProfile]
+
+    @property
+    def n_duplicate_rows(self) -> int:
+        return len(self.duplicate_rows)
+
+    def to_dict(self) -> dict[str, Any]:
+        d = asdict(self)
+        d["n_duplicate_rows"] = self.n_duplicate_rows
+        d["columns"] = [c.to_dict() for c in self.columns.values()]
+        return d
+
+
+def profile_workbook(
+    wb: WorkbookData, nulls: frozenset[str] | tuple[str, ...] = DEFAULT_NULLS
+) -> dict[str, SheetProfile]:
+    profiles = {name: profile_sheet(s, nulls) for name, s in wb.sheets.items()}
+    if wb.file_type == "csv":
+        # Every CSV value is text: only count numbers/dates written in a non-standard way.
+        for name, prof in profiles.items():
+            df = wb.sheets[name].df
+            for col, c in prof.columns.items():
+                vals = [v for v in df[col] if isinstance(v, str)]
+                c.n_numeric_text = sum(1 for v in vals if value_kind(v, nulls) == "numeric_text"
+                                       and not _PLAIN_NUMBER.match(v.strip()))
+                c.n_date_text = sum(1 for v in vals if value_kind(v, nulls) == "date_text"
+                                    and not _ISO_DATE.match(v.strip()))
+    return profiles
+
+
+def profile_sheet(
+    sheet: SheetData, nulls: frozenset[str] | tuple[str, ...] = DEFAULT_NULLS
+) -> SheetProfile:
+    df = sheet.df
+    cols = {c: profile_column(c, sheet.col_letters[c], df[c].tolist(), nulls) for c in df.columns}
+    return SheetProfile(
+        name=sheet.name,
+        n_rows=len(df),
+        n_cols=len(df.columns),
+        header_row=sheet.header_row,
+        duplicate_rows=duplicate_rows(sheet, nulls),
+        dropped_blank_rows=list(sheet.dropped_blank_rows),
+        dropped_blank_cols=list(sheet.dropped_blank_cols),
+        columns=cols,
+    )
+
+
+def duplicate_rows(sheet: SheetData, nulls=DEFAULT_NULLS) -> list[int]:
+    seen: set[tuple] = set()
+    dups: list[int] = []
+    for xl_row, row in zip(sheet.df.index, sheet.df.itertuples(index=False), strict=True):
+        key = tuple(to_text(v, nulls) for v in row)
+        if all(k is None for k in key):
+            continue
+        if key in seen:
+            dups.append(int(xl_row))
+        else:
+            seen.add(key)
+    return dups
+
+
+def infer_type(kinds: Counter, values: list[Any], n_distinct: int) -> tuple[str, float]:
+    n = sum(v for k, v in kinds.items() if k != "null")
+    if n == 0:
+        return "empty", 1.0
+    dates = kinds["date"] + kinds["date_text"]
+    if dates / n >= 0.5:
+        dates += sum(1 for v in values if is_serial_candidate(v))
+    numeric = kinds["int"] + kinds["float"] + kinds["numeric_text"]
+    bools = kinds["bool"] + kinds["bool_text"]
+    if dates / n >= 0.8:
+        return "date", dates / n
+    if numeric / n >= 0.8:
+        integral = kinds["float"] == 0 and all(
+            (parse_number_text(v) or 0).is_integer()
+            for v in values
+            if isinstance(v, str) and parse_number_text(v) is not None
+        )
+        return ("int" if integral else "float"), numeric / n
+    if bools / n >= 0.8:
+        return "bool", bools / n
+    text = kinds["text"]
+    if text / n >= 0.8:
+        if n_distinct <= 20 and n_distinct <= 0.5 * n:
+            return "category", text / n
+        return "text", text / n
+    best = max(("date", dates), ("number", numeric), ("text", text), key=lambda t: t[1])
+    return "mixed", best[1] / n
+
+
+def profile_column(name: str, letter: str, values: list[Any], nulls=DEFAULT_NULLS) -> ColumnProfile:
+    kinds: Counter = Counter(value_kind(v, nulls) for v in values)
+    n_rows = len(values)
+    n_missing = kinds["null"]
+    texts = [to_text(v, nulls) for v in values]
+    non_null_texts = [t for t in texts if t is not None]
+    counts = Counter(non_null_texts)
+    n_distinct = len(counts)
+    inferred, share = infer_type(kinds, values, n_distinct)
+
+    prof = ColumnProfile(
+        name=name,
+        letter=letter,
+        inferred_type=inferred,
+        type_share=round(share, 4),
+        n_rows=n_rows,
+        n_missing=n_missing,
+        missing_rate=round(n_missing / n_rows, 4) if n_rows else 0.0,
+        n_distinct=n_distinct,
+        top_values=[{"value": v, "count": c} for v, c in counts.most_common(10)],
+        kinds={k: v for k, v in kinds.items()},
+        n_numeric_text=kinds["numeric_text"],
+        n_date_text=kinds["date_text"],
+    )
+
+    if inferred in ("int", "float"):
+        nums = np.array([x for x in (to_number(v, nulls) for v in values) if x is not None])
+        if nums.size:
+            # Bin the 1st-99th percentile so one outlier does not squash the whole chart.
+            lo, hi = np.quantile(nums, [0.01, 0.99]) if nums.size >= 50 else (nums.min(), nums.max())
+            inside = nums[(nums >= lo) & (nums <= hi)]
+            counts_h, edges = np.histogram(inside, bins=min(10, max(1, len(np.unique(inside)))))
+            q = np.quantile(nums, [0.05, 0.25, 0.5, 0.75, 0.95])
+            prof.numeric = {
+                "min": float(nums.min()),
+                "max": float(nums.max()),
+                "mean": float(nums.mean()),
+                "std": float(nums.std(ddof=1)) if nums.size > 1 else 0.0,
+                "p05": float(q[0]),
+                "p25": float(q[1]),
+                "median": float(q[2]),
+                "p75": float(q[3]),
+                "p95": float(q[4]),
+                "histogram": {
+                    "edges": [float(e) for e in edges],
+                    "counts": [int(c) for c in counts_h],
+                    "outside": int(nums.size - inside.size),
+                },
+            }
+    if inferred == "date":
+        ds = [d for d in (to_date(v, nulls) for v in values) if d is not None]
+        prof.n_serial_dates = sum(1 for v in values if is_serial_candidate(v))
+        if ds:
+            prof.dates = {"min": min(ds).isoformat(), "max": max(ds).isoformat()}
+
+    raw_strings = [v for v in values if isinstance(v, str) and not value_kind(v, nulls) == "null"]
+    if raw_strings:
+        lengths = [len(s) for s in raw_strings]
+        prof.lengths = {
+            "min": min(lengths),
+            "max": max(lengths),
+            "mean": round(sum(lengths) / len(lengths), 2),
+        }
+        prof.n_whitespace = sum(1 for s in raw_strings if has_whitespace_problem(s))
+        prof.patterns = [
+            {"pattern": p, "count": c}
+            for p, c in Counter(shape_pattern(s.strip()) for s in raw_strings).most_common(5)
+        ]
+        prof.case_variants = case_variant_groups(raw_strings)
+
+    prof.is_identifier = _looks_like_identifier(name, prof)
+    prof.top_values = [{"value": jsonable(t["value"]), "count": t["count"]} for t in prof.top_values]
+    return prof
+
+
+def has_whitespace_problem(s: str) -> bool:
+    return s != s.strip() or "  " in s
+
+
+def collapse_ws(s: str) -> str:
+    return " ".join(s.split())
+
+
+def case_variant_groups(strings: list[str], limit: int = 10) -> list[dict[str, Any]]:
+    groups: dict[str, Counter] = defaultdict(Counter)
+    for s in strings:
+        groups[collapse_ws(s).casefold()][s] += 1
+    out = []
+    for counter in groups.values():
+        if len(counter) > 1:
+            canonical = counter.most_common(1)[0][0]
+            out.append(
+                {
+                    "canonical": collapse_ws(canonical),
+                    "variants": [{"value": v, "count": c} for v, c in counter.most_common()],
+                }
+            )
+    out.sort(key=lambda g: -sum(v["count"] for v in g["variants"]))
+    return out[:limit]
+
+
+def _looks_like_identifier(name: str, prof: ColumnProfile) -> bool:
+    non_null = prof.n_rows - prof.n_missing
+    if non_null == 0:
+        return False
+    unique_ratio = prof.n_distinct / non_null
+    n = name.strip()
+    if (_ID_NAME.search(n) or _CAMEL_ID.search(n)) and unique_ratio > 0.5:
+        return True
+    return prof.inferred_type == "text" and unique_ratio > 0.98 and len(prof.patterns) <= 2

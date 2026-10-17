@@ -1,0 +1,674 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Data Quality Report: demo_orders.xlsx</title>
+<style>
+:root {
+  color-scheme: light;
+  --surface-0: #f4f4f2; --surface-1: #fcfcfb; --border: #e2e1dc;
+  --text-primary: #0b0b0b; --text-secondary: #52514e; --text-muted: #77766f;
+  --series-1: #2a78d6; --track: #ecebe7;
+  --critical: #d03b3b; --warning: #fab219; --good: #0ca30c; --info: #6250d6;
+  --chip-critical: #fbe5e5; --chip-warning: #fdf1d3; --chip-info: #ebe8fa; --chip-good: #e2f4e2;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --surface-0: #121211; --surface-1: #1a1a19; --border: #33332f;
+    --text-primary: #f0efec; --text-secondary: #c3c2b7; --text-muted: #9a998f;
+    --series-1: #3987e5; --track: #2a2a27; --info: #9085e9;
+    --chip-critical: #3a1f1f; --chip-warning: #3a3018; --chip-info: #27243d; --chip-good: #1c321c;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --surface-0: #121211; --surface-1: #1a1a19; --border: #33332f;
+  --text-primary: #f0efec; --text-secondary: #c3c2b7; --text-muted: #9a998f;
+  --series-1: #3987e5; --track: #2a2a27; --info: #9085e9;
+  --chip-critical: #3a1f1f; --chip-warning: #3a3018; --chip-info: #27243d; --chip-good: #1c321c;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--surface-0); color: var(--text-primary);
+  font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+main { max-width: 1180px; margin: 0 auto; padding: 32px 16px 64px; }
+h1 { font-size: 26px; margin: 0 0 4px; letter-spacing: -0.01em; }
+h2 { font-size: 18px; margin: 40px 0 12px; }
+.sub { color: var(--text-secondary); margin: 0; }
+.mono { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 12px; }
+.card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-top: 24px; }
+.tile .label { color: var(--text-secondary); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.tile .value { font-size: 28px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.tile .delta { color: var(--text-muted); font-size: 12px; }
+.chip { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border-radius: 999px;
+  font-size: 12px; font-weight: 600; white-space: nowrap; color: var(--text-primary); }
+.chip::before { font-weight: 800; }
+.chip.error { background: var(--chip-critical); } .chip.error::before { content: "✕"; color: var(--critical); }
+.chip.warning { background: var(--chip-warning); } .chip.warning::before { content: "!"; color: var(--warning); }
+.chip.info { background: var(--chip-info); } .chip.info::before { content: "?"; color: var(--info); }
+.chip.good { background: var(--chip-good); } .chip.good::before { content: "✓"; color: var(--good); }
+.bars { display: grid; grid-template-columns: minmax(140px, 220px) 1fr 48px; gap: 6px 12px; align-items: center; }
+.bars .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.track { background: var(--track); border-radius: 4px; height: 12px; }
+.fill { background: var(--series-1); height: 12px; border-radius: 0 4px 4px 0; min-width: 2px; }
+.bars .n { text-align: right; font-variant-numeric: tabular-nums; color: var(--text-secondary); }
+.scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+th { color: var(--text-secondary); font-weight: 600; position: sticky; top: 0; background: var(--surface-1); }
+td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.hist .bar { fill: var(--series-1); }
+.hist g:hover .bar { opacity: .75; }
+.why { color: var(--text-muted); font-size: 12px; }
+.filter { width: 100%; max-width: 360px; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--surface-1); color: var(--text-primary); margin-bottom: 10px; font: inherit; }
+dl.prov { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; margin: 0; }
+dl.prov dt { color: var(--text-secondary); } dl.prov dd { margin: 0; word-break: break-all; }
+details summary { cursor: pointer; color: var(--text-secondary); }
+pre { white-space: pre-wrap; background: var(--surface-0); padding: 12px; border-radius: 8px; overflow-x: auto; }
+.warn { border-left: 3px solid var(--warning); padding-left: 10px; }
+.empty { color: var(--text-muted); }
+</style>
+</head>
+<body>
+<main>
+  
+  <h1>Data Quality Report</h1>
+  <p class="sub">demo_orders.xlsx · sheets checked: Orders, Customers · 341 rows · run 534a0830d353</p>
+
+  
+  
+
+  <section class="tiles" aria-label="Summary">
+    <div class="card tile"><div class="label">Quality score</div><div class="value">99.48%</div>
+      <div class="delta">after fixes: 99.51%</div></div>
+    <div class="card tile"><div class="label">Errors</div><div class="value">18</div>
+      <div class="delta">remaining: 17</div></div>
+    <div class="card tile"><div class="label">Warnings</div><div class="value">8</div>
+      <div class="delta">remaining: 1</div></div>
+    <div class="card tile"><div class="label">Anomalies</div><div class="value">5</div>
+      <div class="delta">0 confirmed · 5 open</div></div>
+    <div class="card tile"><div class="label">Changes applied</div><div class="value">9</div>
+      <div class="delta">1 skipped · 11 suggested</div></div>
+  </section>
+
+  <h2>Issues by rule</h2>
+  <div class="card">
+    
+    <div class="bars">
+      
+      <div class="name"><span class="chip error">error</span> <span class="mono">range</span></div>
+      <div class="track" title="range: 3 issues"><div class="fill" style="width: 100.0%"></div></div>
+      <div class="n">3</div>
+      
+      <div class="name"><span class="chip error">error</span> <span class="mono">allowed</span></div>
+      <div class="track" title="allowed: 3 issues"><div class="fill" style="width: 100.0%"></div></div>
+      <div class="n">3</div>
+      
+      <div class="name"><span class="chip error">error</span> <span class="mono">required</span></div>
+      <div class="track" title="required: 2 issues"><div class="fill" style="width: 66.7%"></div></div>
+      <div class="n">2</div>
+      
+      <div class="name"><span class="chip error">error</span> <span class="mono">regex</span></div>
+      <div class="track" title="regex: 2 issues"><div class="fill" style="width: 66.7%"></div></div>
+      <div class="n">2</div>
+      
+      <div class="name"><span class="chip error">error</span> <span class="mono">type</span></div>
+      <div class="track" title="type: 2 issues"><div class="fill" style="width: 66.7%"></div></div>
+      <div class="n">2</div>
+      
+      <div class="name"><span class="chip warning">warning</span> <span class="mono">allowed.noncanonical</span></div>
+      <div class="track" title="allowed.noncanonical: 2 issues"><div class="fill" style="width: 66.7%"></div></div>
+      <div class="n">2</div>
+      
+      <div class="name"><span class="chip warning">warning</span> <span class="mono">type.stored_as_text</span></div>
+      <div class="track" title="type.stored_as_text: 2 issues"><div class="fill" style="width: 66.7%"></div></div>
+      <div class="n">2</div>
+      
+      <div class="name"><span class="chip warning">warning</span> <span class="mono">type.date_as_text</span></div>
+      <div class="track" title="type.date_as_text: 1 issues"><div class="fill" style="width: 33.3%"></div></div>
+      <div class="n">1</div>
+      
+      <div class="name"><span class="chip warning">warning</span> <span class="mono">type.date_serial</span></div>
+      <div class="track" title="type.date_serial: 1 issues"><div class="fill" style="width: 33.3%"></div></div>
+      <div class="n">1</div>
+      
+      <div class="name"><span class="chip error">error</span> <span class="mono">not_future</span></div>
+      <div class="track" title="not_future: 1 issues"><div class="fill" style="width: 33.3%"></div></div>
+      <div class="n">1</div>
+      
+      <div class="name"><span class="chip error">error</span> <span class="mono">key.duplicate</span></div>
+      <div class="track" title="key.duplicate: 1 issues"><div class="fill" style="width: 33.3%"></div></div>
+      <div class="n">1</div>
+      
+      <div class="name"><span class="chip warning">warning</span> <span class="mono">format.whitespace</span></div>
+      <div class="track" title="format.whitespace: 1 issues"><div class="fill" style="width: 33.3%"></div></div>
+      <div class="n">1</div>
+      
+      <div class="name"><span class="chip warning">warning</span> <span class="mono">row.duplicate</span></div>
+      <div class="track" title="row.duplicate: 1 issues"><div class="fill" style="width: 33.3%"></div></div>
+      <div class="n">1</div>
+      
+      <div class="name"><span class="chip error">error</span> <span class="mono">ship_after_order</span></div>
+      <div class="track" title="ship_after_order: 1 issues"><div class="fill" style="width: 33.3%"></div></div>
+      <div class="n">1</div>
+      
+      <div class="name"><span class="chip error">error</span> <span class="mono">total_matches</span></div>
+      <div class="track" title="total_matches: 1 issues"><div class="fill" style="width: 33.3%"></div></div>
+      <div class="n">1</div>
+      
+      <div class="name"><span class="chip error">error</span> <span class="mono">shipped_needs_date</span></div>
+      <div class="track" title="shipped_needs_date: 1 issues"><div class="fill" style="width: 33.3%"></div></div>
+      <div class="n">1</div>
+      
+      <div class="name"><span class="chip error">error</span> <span class="mono">customer_exists</span></div>
+      <div class="track" title="customer_exists: 1 issues"><div class="fill" style="width: 33.3%"></div></div>
+      <div class="n">1</div>
+      
+    </div>
+    
+  </div>
+
+  <h2>Column profile</h2>
+  
+  <div class="card scroll" style="margin-bottom:12px">
+    <strong>Orders</strong> <span class="sub">· 301 rows · 11 columns · header row 1 · 1 duplicate rows</span>
+    <table>
+      <thead><tr><th>Column</th><th>Type</th><th>Missing</th><th>Distinct</th><th>Range / top values</th><th>Distribution</th><th>Format notes</th></tr></thead>
+      <tbody>
+      
+      <tr>
+        <td><strong>order_id</strong> <span class="mono why">A</span> <span class="why">id</span></td>
+        <td>text <span class="why">100%</span></td>
+        <td class="num">1 <span class="why">0.3%</span></td>
+        <td class="num">299</td>
+        <td>ORD-00128 <span class="why">(2)</span>, ORD-00001 <span class="why">(1)</span>, ORD-00002 <span class="why">(1)</span></td>
+        <td></td>
+        <td class="why"></td>
+      </tr>
+      
+      <tr>
+        <td><strong>order_date</strong> <span class="mono why">B</span></td>
+        <td>date <span class="why">100%</span></td>
+        <td class="num">0 <span class="why">0.0%</span></td>
+        <td class="num">229</td>
+        <td>2019-05-01 … 2031-01-01
+            </td>
+        <td></td>
+        <td class="why">1 dates as text. </td>
+      </tr>
+      
+      <tr>
+        <td><strong>ship_date</strong> <span class="mono why">C</span></td>
+        <td>date <span class="why">100%</span></td>
+        <td class="num">82 <span class="why">27.2%</span></td>
+        <td class="num">173</td>
+        <td>2019-05-03 … 2025-05-22
+            </td>
+        <td></td>
+        <td class="why"></td>
+      </tr>
+      
+      <tr>
+        <td><strong>customer_id</strong> <span class="mono why">D</span></td>
+        <td>text <span class="why">100%</span></td>
+        <td class="num">1 <span class="why">0.3%</span></td>
+        <td class="num">41</td>
+        <td>C026 <span class="why">(16)</span>, C017 <span class="why">(12)</span>, C005 <span class="why">(11)</span></td>
+        <td></td>
+        <td class="why"></td>
+      </tr>
+      
+      <tr>
+        <td><strong>status</strong> <span class="mono why">E</span></td>
+        <td>category <span class="why">100%</span></td>
+        <td class="num">0 <span class="why">0.0%</span></td>
+        <td class="num">7</td>
+        <td>Delivered <span class="why">(126)</span>, Shipped <span class="why">(92)</span>, Pending <span class="why">(50)</span></td>
+        <td></td>
+        <td class="why">1 extra spaces. 2 case variant groups.</td>
+      </tr>
+      
+      <tr>
+        <td><strong>channel</strong> <span class="mono why">F</span></td>
+        <td>category <span class="why">100%</span></td>
+        <td class="num">0 <span class="why">0.0%</span></td>
+        <td class="num">4</td>
+        <td>Store <span class="why">(110)</span>, Web <span class="why">(101)</span>, Phone <span class="why">(89)</span></td>
+        <td></td>
+        <td class="why"></td>
+      </tr>
+      
+      <tr>
+        <td><strong>quantity</strong> <span class="mono why">G</span></td>
+        <td>int <span class="why">100%</span></td>
+        <td class="num">0 <span class="why">0.0%</span></td>
+        <td class="num">53</td>
+        <td>0 … 5,000 <span class="why">median 25</span>
+            </td>
+        <td><svg class="hist" viewBox="0 0 168 40" width="168" height="40" role="img" aria-label="Distribution histogram"><g><title>1 to 5.9: 40 rows</title><rect x="0.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="0.0" y="2.0" width="15.0" height="38.0" rx="1.5"/></g><g><title>5.9 to 10.8: 37 rows</title><rect x="17.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="17.0" y="4.9" width="15.0" height="35.1" rx="1.5"/></g><g><title>10.8 to 15.7: 37 rows</title><rect x="34.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="34.0" y="4.9" width="15.0" height="35.1" rx="1.5"/></g><g><title>15.7 to 20.6: 14 rows</title><rect x="51.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="51.0" y="26.7" width="15.0" height="13.3" rx="1.5"/></g><g><title>20.6 to 25.5: 26 rows</title><rect x="68.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="68.0" y="15.3" width="15.0" height="24.7" rx="1.5"/></g><g><title>25.5 to 30.4: 28 rows</title><rect x="85.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="85.0" y="13.4" width="15.0" height="26.6" rx="1.5"/></g><g><title>30.4 to 35.3: 27 rows</title><rect x="102.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="102.0" y="14.4" width="15.0" height="25.6" rx="1.5"/></g><g><title>35.3 to 40.2: 30 rows</title><rect x="119.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="119.0" y="11.5" width="15.0" height="28.5" rx="1.5"/></g><g><title>40.2 to 45.1: 30 rows</title><rect x="136.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="136.0" y="11.5" width="15.0" height="28.5" rx="1.5"/></g><g><title>45.1 to 50: 29 rows</title><rect x="153.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="153.0" y="12.4" width="15.0" height="27.6" rx="1.5"/></g></svg><div class="why">+2 outside the 1st–99th percentile</div></td>
+        <td class="why">1 numbers as text. </td>
+      </tr>
+      
+      <tr>
+        <td><strong>unit_price</strong> <span class="mono why">H</span></td>
+        <td>float <span class="why">100%</span></td>
+        <td class="num">0 <span class="why">0.0%</span></td>
+        <td class="num">300</td>
+        <td>101.5 … 9,800 <span class="why">median 525</span>
+            </td>
+        <td><svg class="hist" viewBox="0 0 168 40" width="168" height="40" role="img" aria-label="Distribution histogram"><g><title>106 to 195: 30 rows</title><rect x="0.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="0.0" y="8.3" width="15.0" height="31.7" rx="1.5"/></g><g><title>195 to 284.1: 33 rows</title><rect x="17.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="17.0" y="5.2" width="15.0" height="34.8" rx="1.5"/></g><g><title>284.1 to 373.2: 32 rows</title><rect x="34.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="34.0" y="6.2" width="15.0" height="33.8" rx="1.5"/></g><g><title>373.2 to 462.3: 36 rows</title><rect x="51.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="51.0" y="2.0" width="15.0" height="38.0" rx="1.5"/></g><g><title>462.3 to 551.4: 25 rows</title><rect x="68.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="68.0" y="13.6" width="15.0" height="26.4" rx="1.5"/></g><g><title>551.4 to 640.5: 26 rows</title><rect x="85.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="85.0" y="12.6" width="15.0" height="27.4" rx="1.5"/></g><g><title>640.5 to 729.6: 24 rows</title><rect x="102.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="102.0" y="14.7" width="15.0" height="25.3" rx="1.5"/></g><g><title>729.6 to 818.7: 28 rows</title><rect x="119.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="119.0" y="10.4" width="15.0" height="29.6" rx="1.5"/></g><g><title>818.7 to 907.7: 34 rows</title><rect x="136.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="136.0" y="4.1" width="15.0" height="35.9" rx="1.5"/></g><g><title>907.7 to 996.8: 27 rows</title><rect x="153.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="153.0" y="11.5" width="15.0" height="28.5" rx="1.5"/></g></svg><div class="why">+6 outside the 1st–99th percentile</div></td>
+        <td class="why">1 numbers as text. </td>
+      </tr>
+      
+      <tr>
+        <td><strong>shipping_cost</strong> <span class="mono why">I</span></td>
+        <td>float <span class="why">100%</span></td>
+        <td class="num">0 <span class="why">0.0%</span></td>
+        <td class="num">298</td>
+        <td>19.49 … 950 <span class="why">median 95.22</span>
+            </td>
+        <td><svg class="hist" viewBox="0 0 168 40" width="168" height="40" role="img" aria-label="Distribution histogram"><g><title>22 to 36.87: 41 rows</title><rect x="0.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="0.0" y="2.0" width="15.0" height="38.0" rx="1.5"/></g><g><title>36.87 to 51.73: 32 rows</title><rect x="17.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="17.0" y="10.3" width="15.0" height="29.7" rx="1.5"/></g><g><title>51.73 to 66.6: 36 rows</title><rect x="34.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="34.0" y="6.6" width="15.0" height="33.4" rx="1.5"/></g><g><title>66.6 to 81.47: 17 rows</title><rect x="51.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="51.0" y="24.2" width="15.0" height="15.8" rx="1.5"/></g><g><title>81.47 to 96.33: 24 rows</title><rect x="68.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="68.0" y="17.8" width="15.0" height="22.2" rx="1.5"/></g><g><title>96.33 to 111.2: 29 rows</title><rect x="85.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="85.0" y="13.1" width="15.0" height="26.9" rx="1.5"/></g><g><title>111.2 to 126.1: 23 rows</title><rect x="102.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="102.0" y="18.7" width="15.0" height="21.3" rx="1.5"/></g><g><title>126.1 to 140.9: 34 rows</title><rect x="119.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="119.0" y="8.5" width="15.0" height="31.5" rx="1.5"/></g><g><title>140.9 to 155.8: 29 rows</title><rect x="136.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="136.0" y="13.1" width="15.0" height="26.9" rx="1.5"/></g><g><title>155.8 to 170.7: 30 rows</title><rect x="153.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="153.0" y="12.2" width="15.0" height="27.8" rx="1.5"/></g></svg><div class="why">+6 outside the 1st–99th percentile</div></td>
+        <td class="why"></td>
+      </tr>
+      
+      <tr>
+        <td><strong>total</strong> <span class="mono why">J</span></td>
+        <td>float <span class="why">100%</span></td>
+        <td class="num">0 <span class="why">0.0%</span></td>
+        <td class="num">300</td>
+        <td>0 … 8.986e+05 <span class="why">median 1.033e+04</span>
+            </td>
+        <td><svg class="hist" viewBox="0 0 168 40" width="168" height="40" role="img" aria-label="Distribution histogram"><g><title>272.7 to 4,529: 78 rows</title><rect x="0.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="0.0" y="2.0" width="15.0" height="38.0" rx="1.5"/></g><g><title>4,529 to 8,786: 55 rows</title><rect x="17.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="17.0" y="13.2" width="15.0" height="26.8" rx="1.5"/></g><g><title>8,786 to 1.304e+04: 36 rows</title><rect x="34.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="34.0" y="22.5" width="15.0" height="17.5" rx="1.5"/></g><g><title>1.304e+04 to 1.73e+04: 37 rows</title><rect x="51.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="51.0" y="22.0" width="15.0" height="18.0" rx="1.5"/></g><g><title>1.73e+04 to 2.156e+04: 27 rows</title><rect x="68.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="68.0" y="26.8" width="15.0" height="13.2" rx="1.5"/></g><g><title>2.156e+04 to 2.581e+04: 19 rows</title><rect x="85.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="85.0" y="30.7" width="15.0" height="9.3" rx="1.5"/></g><g><title>2.581e+04 to 3.007e+04: 17 rows</title><rect x="102.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="102.0" y="31.7" width="15.0" height="8.3" rx="1.5"/></g><g><title>3.007e+04 to 3.433e+04: 10 rows</title><rect x="119.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="119.0" y="35.1" width="15.0" height="4.9" rx="1.5"/></g><g><title>3.433e+04 to 3.858e+04: 10 rows</title><rect x="136.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="136.0" y="35.1" width="15.0" height="4.9" rx="1.5"/></g><g><title>3.858e+04 to 4.284e+04: 6 rows</title><rect x="153.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="153.0" y="37.1" width="15.0" height="2.9" rx="1.5"/></g></svg><div class="why">+6 outside the 1st–99th percentile</div></td>
+        <td class="why"></td>
+      </tr>
+      
+      <tr>
+        <td><strong>email</strong> <span class="mono why">K</span></td>
+        <td>text <span class="why">100%</span></td>
+        <td class="num">0 <span class="why">0.0%</span></td>
+        <td class="num">300</td>
+        <td>customer128@example.com <span class="why">(2)</span>, customer1@example.com <span class="why">(1)</span>, customer2@example.com <span class="why">(1)</span></td>
+        <td></td>
+        <td class="why"></td>
+      </tr>
+      
+      </tbody>
+    </table>
+  </div>
+  
+  <div class="card scroll" style="margin-bottom:12px">
+    <strong>Customers</strong> <span class="sub">· 40 rows · 4 columns · header row 1 · 0 duplicate rows</span>
+    <table>
+      <thead><tr><th>Column</th><th>Type</th><th>Missing</th><th>Distinct</th><th>Range / top values</th><th>Distribution</th><th>Format notes</th></tr></thead>
+      <tbody>
+      
+      <tr>
+        <td><strong>customer_id</strong> <span class="mono why">A</span> <span class="why">id</span></td>
+        <td>text <span class="why">100%</span></td>
+        <td class="num">0 <span class="why">0.0%</span></td>
+        <td class="num">40</td>
+        <td>C001 <span class="why">(1)</span>, C002 <span class="why">(1)</span>, C003 <span class="why">(1)</span></td>
+        <td></td>
+        <td class="why"></td>
+      </tr>
+      
+      <tr>
+        <td><strong>name</strong> <span class="mono why">B</span> <span class="why">id</span></td>
+        <td>text <span class="why">100%</span></td>
+        <td class="num">0 <span class="why">0.0%</span></td>
+        <td class="num">40</td>
+        <td>Customer 1 <span class="why">(1)</span>, Customer 2 <span class="why">(1)</span>, Customer 3 <span class="why">(1)</span></td>
+        <td></td>
+        <td class="why"></td>
+      </tr>
+      
+      <tr>
+        <td><strong>region</strong> <span class="mono why">C</span></td>
+        <td>category <span class="why">100%</span></td>
+        <td class="num">0 <span class="why">0.0%</span></td>
+        <td class="num">6</td>
+        <td>South <span class="why">(13)</span>, East <span class="why">(11)</span>, North <span class="why">(8)</span></td>
+        <td></td>
+        <td class="why">1 case variant groups.</td>
+      </tr>
+      
+      <tr>
+        <td><strong>credit_limit</strong> <span class="mono why">D</span></td>
+        <td>int <span class="why">100%</span></td>
+        <td class="num">0 <span class="why">0.0%</span></td>
+        <td class="num">3</td>
+        <td>5e+04 … 2.5e+05 <span class="why">median 1e+05</span>
+            </td>
+        <td><svg class="hist" viewBox="0 0 168 40" width="168" height="40" role="img" aria-label="Distribution histogram"><g><title>5e+04 to 1.167e+05: 25 rows</title><rect x="0.0" y="0" width="54.7" height="40" fill="transparent"/><rect class="bar" x="0.0" y="2.0" width="54.7" height="38.0" rx="1.5"/></g><g><title>1.167e+05 to 1.833e+05: 0 rows</title><rect x="56.7" y="0" width="54.7" height="40" fill="transparent"/><rect class="bar" x="56.7" y="40.0" width="54.7" height="0.0" rx="1.5"/></g><g><title>1.833e+05 to 2.5e+05: 15 rows</title><rect x="113.3" y="0" width="54.7" height="40" fill="transparent"/><rect class="bar" x="113.3" y="17.2" width="54.7" height="22.8" rx="1.5"/></g></svg></td>
+        <td class="why"></td>
+      </tr>
+      
+      </tbody>
+    </table>
+  </div>
+  
+  <div class="card scroll" style="margin-bottom:12px">
+    <strong>Summary</strong> <span class="sub">· 2 rows · 2 columns · header row 1 · 0 duplicate rows</span>
+    <table>
+      <thead><tr><th>Column</th><th>Type</th><th>Missing</th><th>Distinct</th><th>Range / top values</th><th>Distribution</th><th>Format notes</th></tr></thead>
+      <tbody>
+      
+      <tr>
+        <td><strong>metric</strong> <span class="mono why">A</span> <span class="why">id</span></td>
+        <td>text <span class="why">100%</span></td>
+        <td class="num">0 <span class="why">0.0%</span></td>
+        <td class="num">2</td>
+        <td>total_revenue <span class="why">(1)</span>, orders <span class="why">(1)</span></td>
+        <td></td>
+        <td class="why"></td>
+      </tr>
+      
+      <tr>
+        <td><strong>value</strong> <span class="mono why">B</span></td>
+        <td>empty <span class="why">100%</span></td>
+        <td class="num">2 <span class="why">100.0%</span></td>
+        <td class="num">0</td>
+        <td></td>
+        <td></td>
+        <td class="why"></td>
+      </tr>
+      
+      </tbody>
+    </table>
+  </div>
+  
+
+  <h2>Errors and warnings (26)</h2>
+  <div class="card">
+    <input class="filter" type="search" placeholder="Filter by rule, cell, column or value…" data-table="issues-table" aria-label="Filter issues">
+    <div class="scroll"><table id="issues-table">
+      <thead><tr><th>Cell</th><th>Rule</th><th>Severity</th><th>Value</th><th>Problem</th></tr></thead>
+      <tbody>
+      
+      <tr><td class="mono">Orders!A38</td><td class="mono">required</td>
+        <td><span class="chip error">error</span></td>
+        <td class="mono"></td>
+        <td>&#39;order_id&#39; is required but empty.<div class="why">A required field is empty, so downstream reports and joins will miss this record.</div></td></tr>
+      
+      <tr><td class="mono">Orders!A156</td><td class="mono">regex</td>
+        <td><span class="chip error">error</span></td>
+        <td class="mono">ORD-12A4</td>
+        <td>&#39;ORD-12A4&#39; does not match the pattern ^ORD-\d{5}$.<div class="why">The value does not follow the required format.</div></td></tr>
+      
+      <tr><td class="mono">Orders!B20</td><td class="mono">type</td>
+        <td><span class="chip error">error</span></td>
+        <td class="mono">not a date</td>
+        <td>&#39;not a date&#39; is not a date.<div class="why">The value cannot be read as the expected type, so calculations or sorting on this column will fail or skip it.</div></td></tr>
+      
+      <tr><td class="mono">Orders!B235</td><td class="mono">type.date_as_text</td>
+        <td><span class="chip warning">warning</span></td>
+        <td class="mono">15/03/2024</td>
+        <td>Date stored as text: &#39;15/03/2024&#39;.<div class="why">The date is stored as text, so date filters, sorting and arithmetic will treat it as a string.</div></td></tr>
+      
+      <tr><td class="mono">Orders!B269</td><td class="mono">type.date_serial</td>
+        <td><span class="chip warning">warning</span></td>
+        <td class="mono">45000</td>
+        <td>Excel serial number 45000 where a date is expected.<div class="why">An Excel serial number sits where a date is expected; it is probably a date whose formatting was lost.</div></td></tr>
+      
+      <tr><td class="mono">Orders!B62</td><td class="mono">range</td>
+        <td><span class="chip error">error</span></td>
+        <td class="mono">2019-05-01T00:00:00</td>
+        <td>2019-05-01 is below the minimum 2020-01-01.<div class="why">The value is outside the range the rules allow, which usually means a typo or a unit mistake.</div></td></tr>
+      
+      <tr><td class="mono">Orders!B260</td><td class="mono">not_future</td>
+        <td><span class="chip error">error</span></td>
+        <td class="mono">2031-01-01T00:00:00</td>
+        <td>2031-01-01 is in the future.<div class="why">The date lies in the future, which is impossible for this field.</div></td></tr>
+      
+      <tr><td class="mono">Orders!D291</td><td class="mono">required</td>
+        <td><span class="chip error">error</span></td>
+        <td class="mono"></td>
+        <td>&#39;customer_id&#39; is required but empty.<div class="why">A required field is empty, so downstream reports and joins will miss this record.</div></td></tr>
+      
+      <tr><td class="mono">Orders!E17</td><td class="mono">allowed.noncanonical</td>
+        <td><span class="chip warning">warning</span></td>
+        <td class="mono">delivered</td>
+        <td>&#39;delivered&#39; should be written &#39;Delivered&#39;.<div class="why">The category is valid but spelled with different case or spacing, which splits one group into several.</div></td></tr>
+      
+      <tr><td class="mono">Orders!E75</td><td class="mono">allowed</td>
+        <td><span class="chip error">error</span></td>
+        <td class="mono">Shiped</td>
+        <td>&#39;Shiped&#39; is not an allowed value for &#39;status&#39;.<div class="why">The value is not in the list of allowed categories, so it will be miscounted in any grouping.</div></td></tr>
+      
+      <tr><td class="mono">Orders!E131</td><td class="mono">allowed</td>
+        <td><span class="chip error">error</span></td>
+        <td class="mono">Lost</td>
+        <td>&#39;Lost&#39; is not an allowed value for &#39;status&#39;.<div class="why">The value is not in the list of allowed categories, so it will be miscounted in any grouping.</div></td></tr>
+      
+      <tr><td class="mono">Orders!G100</td><td class="mono">type.stored_as_text</td>
+        <td><span class="chip warning">warning</span></td>
+        <td class="mono">12</td>
+        <td>Number stored as text: &#39;12&#39;.<div class="why">The value is a number or boolean stored as text; Excel and most tools will not sum or compare it correctly.</div></td></tr>
+      
+      <tr><td class="mono">Orders!G121</td><td class="mono">type</td>
+        <td><span class="chip error">error</span></td>
+        <td class="mono">abc</td>
+        <td>&#39;abc&#39; is not a number.<div class="why">The value cannot be read as the expected type, so calculations or sorting on this column will fail or skip it.</div></td></tr>
+      
+      <tr><td class="mono">Orders!G59</td><td class="mono">range</td>
+        <td><span class="chip error">error</span></td>
+        <td class="mono">5000</td>
+        <td>5000 is above the maximum 1000.<div class="why">The value is outside the range the rules allow, which usually means a typo or a unit mistake.</div></td></tr>
+      
+      <tr><td class="mono">Orders!G92</td><td class="mono">range</td>
+        <td><span class="chip error">error</span></td>
+        <td class="mono">0</td>
+        <td>0 is below the minimum 1.<div class="why">The value is outside the range the rules allow, which usually means a typo or a unit mistake.</div></td></tr>
+      
+      <tr><td class="mono">Orders!H166</td><td class="mono">type.stored_as_text</td>
+        <td><span class="chip warning">warning</span></td>
+        <td class="mono">1,200.50</td>
+        <td>Number stored as text: &#39;1,200.50&#39;.<div class="why">The value is a number or boolean stored as text; Excel and most tools will not sum or compare it correctly.</div></td></tr>
+      
+      <tr><td class="mono">Orders!K16</td><td class="mono">regex</td>
+        <td><span class="chip error">error</span></td>
+        <td class="mono">not-an-email</td>
+        <td>&#39;not-an-email&#39; does not match the pattern ^[\w.+-]+@[\w-]+\.[\w.]+$.<div class="why">The value does not follow the required format.</div></td></tr>
+      
+      <tr><td class="mono">Orders!A302</td><td class="mono">key.duplicate</td>
+        <td><span class="chip error">error</span></td>
+        <td class="mono">ORD-00128</td>
+        <td>Duplicate key (ORD-00128); first seen in row 129.<div class="why">Two rows share the same key, so lookups on this key are ambiguous.</div></td></tr>
+      
+      <tr><td class="mono">Orders!E52</td><td class="mono">format.whitespace</td>
+        <td><span class="chip warning">warning</span></td>
+        <td class="mono">Pending </td>
+        <td>Extra spaces in &#39;Pending &#39;.<div class="why">Leading, trailing or repeated spaces make equal values look different to filters and lookups.</div></td></tr>
+      
+      <tr><td class="mono">Orders!A302</td><td class="mono">row.duplicate</td>
+        <td><span class="chip warning">warning</span></td>
+        <td class="mono"></td>
+        <td>Row repeats row 129 exactly.<div class="why">The whole row repeats an earlier row; totals that include both will double-count.</div></td></tr>
+      
+      <tr><td class="mono">Orders!C278</td><td class="mono">ship_after_order</td>
+        <td><span class="chip error">error</span></td>
+        <td class="mono">2024-09-21T00:00:00</td>
+        <td>Ship date is before the order date (ship_date=2024-09-21, order_date=2024-09-24)<div class="why">A cross-column business rule from the rule file was not satisfied.</div></td></tr>
+      
+      <tr><td class="mono">Orders!J135</td><td class="mono">total_matches</td>
+        <td><span class="chip error">error</span></td>
+        <td class="mono">19848.4</td>
+        <td>Total does not equal quantity x unit price (total=19848.4, quantity=30, unit_price=658.28)<div class="why">A cross-column business rule from the rule file was not satisfied.</div></td></tr>
+      
+      <tr><td class="mono">Orders!C282</td><td class="mono">shipped_needs_date</td>
+        <td><span class="chip error">error</span></td>
+        <td class="mono"></td>
+        <td>&#39;ship_date&#39; is required when status == &#39;Shipped&#39;.<div class="why">A cross-column business rule from the rule file was not satisfied.</div></td></tr>
+      
+      <tr><td class="mono">Orders!D22</td><td class="mono">customer_exists</td>
+        <td><span class="chip error">error</span></td>
+        <td class="mono">C999</td>
+        <td>&#39;C999&#39; was not found in Customers.customer_id.<div class="why">A cross-column business rule from the rule file was not satisfied.</div></td></tr>
+      
+      <tr><td class="mono">Customers!C6</td><td class="mono">allowed</td>
+        <td><span class="chip error">error</span></td>
+        <td class="mono">Nort</td>
+        <td>&#39;Nort&#39; is not an allowed value for &#39;region&#39;.<div class="why">The value is not in the list of allowed categories, so it will be miscounted in any grouping.</div></td></tr>
+      
+      <tr><td class="mono">Customers!C11</td><td class="mono">allowed.noncanonical</td>
+        <td><span class="chip warning">warning</span></td>
+        <td class="mono">south</td>
+        <td>&#39;south&#39; should be written &#39;South&#39;.<div class="why">The category is valid but spelled with different case or spacing, which splits one group into several.</div></td></tr>
+      
+      </tbody>
+    </table></div>
+    
+  </div>
+
+  <h2>Anomalies (5)</h2>
+  <p class="sub">Statistically unusual values that break no rule. They are never corrected automatically. A reviewer marks each one as a confirmed error or dismisses it.</p>
+  <div class="card scroll" style="margin-top:12px">
+    <table>
+      <thead><tr><th>Cell</th><th>Detector</th><th>Score</th><th>Value</th><th>Why flagged</th><th>Status</th></tr></thead>
+      <tbody>
+      
+      <tr><td class="mono">Orders!H56</td><td class="mono">robust_z</td><td class="num">26.489</td>
+        <td class="mono">9800</td><td>9,800 is far from the typical value 525.02 (robust z = +26.5, threshold 3.5).</td>
+        <td><span class="chip info">open</span></td></tr>
+      
+      <tr><td class="mono">Orders!I106</td><td class="mono">robust_z</td><td class="num">13.933</td>
+        <td class="mono">950</td><td>950 is far from the typical value 95.22 (robust z = +13.9, threshold 3.5).</td>
+        <td><span class="chip info">open</span></td></tr>
+      
+      <tr><td class="mono">Orders!F274</td><td class="mono">rare_category</td><td class="num">0.0033</td>
+        <td class="mono">Fax</td><td>&#39;Fax&#39; appears only 1 time(s) in 301 rows (0.33%); possible typo or one-off category.</td>
+        <td><span class="chip info">open</span></td></tr>
+      
+      <tr><td class="mono">Orders!I140</td><td class="mono">isolation_forest</td><td class="num">9.566</td>
+        <td class="mono">165</td><td>Unusual combination of values (quantity=2, unit_price=136.33, shipping_cost=165); isolation score z = -9.6. Largest single deviation: shipping_cost (z +1.1).</td>
+        <td><span class="chip info">open</span></td></tr>
+      
+      <tr><td class="mono">Orders!I244</td><td class="mono">isolation_forest</td><td class="num">8.643</td>
+        <td class="mono">22</td><td>Unusual combination of values (quantity=49, unit_price=483.23, shipping_cost=22); isolation score z = -8.6. Largest single deviation: shipping_cost (z -1.2).</td>
+        <td><span class="chip info">open</span></td></tr>
+      
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Change log (9 applied)</h2>
+  <div class="card scroll">
+    <table>
+      <thead><tr><th>Cell</th><th>Action</th><th>Old</th><th>New</th><th>Method</th><th>Rule</th><th>Approved by</th></tr></thead>
+      <tbody>
+      
+      <tr><td class="mono">Orders!B235</td><td>set</td><td class="mono">15/03/2024</td>
+        <td class="mono">2024-03-15</td><td class="mono">text_to_date</td><td class="mono">type.date_as_text</td>
+        <td>demo-reviewer <span class="why">2026-10-17T20:10:46+00:00</span></td></tr>
+      
+      <tr><td class="mono">Orders!B269</td><td>set</td><td class="mono">45000</td>
+        <td class="mono">2023-03-15</td><td class="mono">serial_to_date</td><td class="mono">type.date_serial</td>
+        <td>demo-reviewer <span class="why">2026-10-17T20:10:46+00:00</span></td></tr>
+      
+      <tr><td class="mono">Orders!E17</td><td>set</td><td class="mono">delivered</td>
+        <td class="mono">Delivered</td><td class="mono">canonical_category</td><td class="mono">allowed.noncanonical</td>
+        <td>demo-reviewer <span class="why">2026-10-17T20:10:46+00:00</span></td></tr>
+      
+      <tr><td class="mono">Orders!E75</td><td>set</td><td class="mono">Shiped</td>
+        <td class="mono">Shipped</td><td class="mono">fuzzy_category</td><td class="mono">allowed</td>
+        <td>demo-reviewer <span class="why">2026-10-17T20:10:46+00:00</span></td></tr>
+      
+      <tr><td class="mono">Orders!G100</td><td>set</td><td class="mono">12</td>
+        <td class="mono">12</td><td class="mono">text_to_number</td><td class="mono">type.stored_as_text</td>
+        <td>demo-reviewer <span class="why">2026-10-17T20:10:46+00:00</span></td></tr>
+      
+      <tr><td class="mono">Orders!H166</td><td>set</td><td class="mono">1,200.50</td>
+        <td class="mono">1200.5</td><td class="mono">text_to_number</td><td class="mono">type.stored_as_text</td>
+        <td>demo-reviewer <span class="why">2026-10-17T20:10:46+00:00</span></td></tr>
+      
+      <tr><td class="mono">Orders!E52</td><td>set</td><td class="mono">Pending </td>
+        <td class="mono">Pending</td><td class="mono">trim_whitespace</td><td class="mono">format.whitespace</td>
+        <td>demo-reviewer <span class="why">2026-10-17T20:10:46+00:00</span></td></tr>
+      
+      <tr><td class="mono">Customers!C6</td><td>set</td><td class="mono">Nort</td>
+        <td class="mono">North</td><td class="mono">fuzzy_category</td><td class="mono">allowed</td>
+        <td>demo-reviewer <span class="why">2026-10-17T20:10:46+00:00</span></td></tr>
+      
+      <tr><td class="mono">Customers!C11</td><td>set</td><td class="mono">south</td>
+        <td class="mono">South</td><td class="mono">canonical_category</td><td class="mono">allowed.noncanonical</td>
+        <td>demo-reviewer <span class="why">2026-10-17T20:10:46+00:00</span></td></tr>
+      
+      </tbody>
+    </table>
+    
+    <h3 style="font-size:15px">Approved but not applied</h3>
+    <table><thead><tr><th>Cell</th><th>Method</th><th>Reason</th></tr></thead><tbody>
+      <tr><td class="mono">Orders!A302</td><td class="mono">remove_duplicate_row</td><td>workbook contains formulas; deleting rows could break references, so the row was kept and marked</td></tr>
+    </tbody></table>
+    
+  </div>
+
+  <h2>Provenance</h2>
+  <div class="card">
+    <dl class="prov">
+      <dt>Tool</dt><dd>IloveCSV 0.1.0</dd>
+      <dt>Validated</dt><dd>2026-10-17T20:10:46+00:00</dd>
+      <dt>Exported</dt><dd>2026-10-17T20:10:46+00:00</dd>
+      <dt>Input SHA-256</dt><dd class="mono">ced905d3588631ef78d0173be18e1ba8d41a5e1e468fa903360ed4973fdcc3e0</dd>
+      <dt>Rules SHA-256</dt><dd class="mono">1f44a51bf7cf6b2a3620a24fbfb93621b64c16548dd9146108ec2277281fc85d</dd>
+      <dt>Output</dt><dd>demo_orders_corrected.xlsx</dd>
+      <dt>Output SHA-256</dt><dd class="mono">f3f73502006f9c7743632524ffde2c2fd6bcaf64575ac881d4f1698fb7b3b7f4</dd>
+    </dl>
+    <details style="margin-top:12px"><summary>Rule file used</summary><pre class="mono">version: 1
+dayfirst: true
+anomalies:
+  exclude: [total]          # derived column, validated by the total_matches rule
+sheets:
+  - sheet: Orders
+    key: [order_id]
+    columns:
+      order_id:    {required: true, regex: &#34;^ORD-\\d{5}$&#34;}
+      order_date:  {required: true, type: date, min: 2020-01-01, not_future: true}
+      ship_date:   {type: date}
+      customer_id: {required: true}
+      status:      {required: true, allowed: [Pending, Shipped, Delivered, Cancelled]}
+      quantity:    {required: true, type: int, min: 1, max: 1000}
+      unit_price:  {required: true, type: float, min: 1, max: 10000}
+      shipping_cost: {type: float, min: 0}
+      total:       {type: float, min: 0}
+      email:       {regex: &#34;^[\\w.+-]+@[\\w-]+\\.[\\w.]+$&#34;}
+    rules:
+      - id: ship_after_order
+        when: &#34;ship_date is not null&#34;
+        check: &#34;ship_date &gt;= order_date&#34;
+        message: &#34;Ship date is before the order date&#34;
+      - id: total_matches
+        check: &#34;abs(total - quantity * unit_price) &lt;= 0.01&#34;
+        message: &#34;Total does not equal quantity x unit price&#34;
+        fix: {column: total, to: &#34;round(quantity * unit_price, 2)&#34;}
+      - id: shipped_needs_date
+        when: &#34;status == &#39;Shipped&#39;&#34;
+        require: [ship_date]
+      - id: customer_exists
+        lookup: {column: customer_id, sheet: Customers, key: customer_id}
+  - sheet: Customers
+    key: [customer_id]
+    columns:
+      customer_id: {required: true, regex: &#34;^C\\d{3}$&#34;}
+      name:        {required: true}
+      region:      {required: true, allowed: [North, South, East, West]}
+      credit_limit: {type: int, min: 0}
+</pre></details>
+  </div>
+</main>
+<script>
+document.querySelectorAll("input.filter").forEach(function (input) {
+  var rows = document.getElementById(input.dataset.table).tBodies[0].rows;
+  input.addEventListener("input", function () {
+    var q = input.value.toLowerCase();
+    for (var i = 0; i < rows.length; i++) {
+      rows[i].style.display = rows[i].textContent.toLowerCase().indexOf(q) === -1 ? "none" : "";
+    }
+  });
+});
+</script>
+</body>
+</html>

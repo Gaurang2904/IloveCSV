@@ -1,0 +1,2601 @@
+{
+  "tool": {
+    "name": "IloveCSV",
+    "version": "0.1.0"
+  },
+  "run": {
+    "id": "534a0830d353",
+    "created_at": "2026-10-17T20:10:46+00:00",
+    "exported_at": "2026-10-17T20:10:46+00:00"
+  },
+  "input": {
+    "filename": "demo_orders.xlsx",
+    "file_type": "xlsx",
+    "sha256": "ced905d3588631ef78d0173be18e1ba8d41a5e1e468fa903360ed4973fdcc3e0",
+    "sheets": [
+      {
+        "name": "Orders",
+        "rows": 301,
+        "columns": 11,
+        "header_row": 1,
+        "dropped_blank_rows": [],
+        "formula_cells": 0
+      },
+      {
+        "name": "Customers",
+        "rows": 40,
+        "columns": 4,
+        "header_row": 1,
+        "dropped_blank_rows": [],
+        "formula_cells": 0
+      },
+      {
+        "name": "Summary",
+        "rows": 2,
+        "columns": 2,
+        "header_row": 1,
+        "dropped_blank_rows": [],
+        "formula_cells": 2
+      }
+    ],
+    "warnings": []
+  },
+  "rules": {
+    "sha256": "1f44a51bf7cf6b2a3620a24fbfb93621b64c16548dd9146108ec2277281fc85d",
+    "text": "version: 1\ndayfirst: true\nanomalies:\n  exclude: [total]          # derived column, validated by the total_matches rule\nsheets:\n  - sheet: Orders\n    key: [order_id]\n    columns:\n      order_id:    {required: true, regex: \"^ORD-\\\\d{5}$\"}\n      order_date:  {required: true, type: date, min: 2020-01-01, not_future: true}\n      ship_date:   {type: date}\n      customer_id: {required: true}\n      status:      {required: true, allowed: [Pending, Shipped, Delivered, Cancelled]}\n      quantity:    {required: true, type: int, min: 1, max: 1000}\n      unit_price:  {required: true, type: float, min: 1, max: 10000}\n      shipping_cost: {type: float, min: 0}\n      total:       {type: float, min: 0}\n      email:       {regex: \"^[\\\\w.+-]+@[\\\\w-]+\\\\.[\\\\w.]+$\"}\n    rules:\n      - id: ship_after_order\n        when: \"ship_date is not null\"\n        check: \"ship_date >= order_date\"\n        message: \"Ship date is before the order date\"\n      - id: total_matches\n        check: \"abs(total - quantity * unit_price) <= 0.01\"\n        message: \"Total does not equal quantity x unit price\"\n        fix: {column: total, to: \"round(quantity * unit_price, 2)\"}\n      - id: shipped_needs_date\n        when: \"status == 'Shipped'\"\n        require: [ship_date]\n      - id: customer_exists\n        lookup: {column: customer_id, sheet: Customers, key: customer_id}\n  - sheet: Customers\n    key: [customer_id]\n    columns:\n      customer_id: {required: true, regex: \"^C\\\\d{3}$\"}\n      name:        {required: true}\n      region:      {required: true, allowed: [North, South, East, West]}\n      credit_limit: {type: int, min: 0}\n"
+  },
+  "summary": {
+    "sheets_checked": [
+      "Orders",
+      "Customers"
+    ],
+    "rows": 341,
+    "cells": 3471,
+    "errors": 18,
+    "warnings": 8,
+    "anomalies": 5,
+    "anomalies_open": 5,
+    "anomalies_confirmed": 0,
+    "cells_with_errors": 18,
+    "quality_score": 99.48,
+    "by_rule": {
+      "range": 3,
+      "allowed": 3,
+      "required": 2,
+      "regex": 2,
+      "type": 2,
+      "allowed.noncanonical": 2,
+      "type.stored_as_text": 2,
+      "type.date_as_text": 1,
+      "type.date_serial": 1,
+      "not_future": 1,
+      "key.duplicate": 1,
+      "format.whitespace": 1,
+      "row.duplicate": 1,
+      "ship_after_order": 1,
+      "total_matches": 1,
+      "shipped_needs_date": 1,
+      "customer_exists": 1
+    },
+    "suggestions": 11,
+    "suggestions_by_status": {
+      "pending": 1,
+      "approved": 10,
+      "rejected": 0
+    },
+    "rule_errors": []
+  },
+  "profiles": [
+    {
+      "name": "Orders",
+      "n_rows": 301,
+      "n_cols": 11,
+      "header_row": 1,
+      "duplicate_rows": [
+        302
+      ],
+      "dropped_blank_rows": [],
+      "dropped_blank_cols": [],
+      "columns": [
+        {
+          "name": "order_id",
+          "letter": "A",
+          "inferred_type": "text",
+          "type_share": 1.0,
+          "n_rows": 301,
+          "n_missing": 1,
+          "missing_rate": 0.0033,
+          "n_distinct": 299,
+          "top_values": [
+            {
+              "value": "ORD-00128",
+              "count": 2
+            },
+            {
+              "value": "ORD-00001",
+              "count": 1
+            },
+            {
+              "value": "ORD-00002",
+              "count": 1
+            },
+            {
+              "value": "ORD-00003",
+              "count": 1
+            },
+            {
+              "value": "ORD-00004",
+              "count": 1
+            },
+            {
+              "value": "ORD-00005",
+              "count": 1
+            },
+            {
+              "value": "ORD-00006",
+              "count": 1
+            },
+            {
+              "value": "ORD-00007",
+              "count": 1
+            },
+            {
+              "value": "ORD-00008",
+              "count": 1
+            },
+            {
+              "value": "ORD-00009",
+              "count": 1
+            }
+          ],
+          "kinds": {
+            "text": 300,
+            "null": 1
+          },
+          "numeric": null,
+          "dates": null,
+          "lengths": {
+            "min": 8,
+            "max": 9,
+            "mean": 9.0
+          },
+          "patterns": [
+            {
+              "pattern": "AAA-99999",
+              "count": 299
+            },
+            {
+              "pattern": "AAA-99A9",
+              "count": 1
+            }
+          ],
+          "n_whitespace": 0,
+          "case_variants": [],
+          "n_numeric_text": 0,
+          "n_date_text": 0,
+          "n_serial_dates": 0,
+          "is_identifier": true
+        },
+        {
+          "name": "order_date",
+          "letter": "B",
+          "inferred_type": "date",
+          "type_share": 0.9967,
+          "n_rows": 301,
+          "n_missing": 0,
+          "missing_rate": 0.0,
+          "n_distinct": 229,
+          "top_values": [
+            {
+              "value": "2024-05-11",
+              "count": 4
+            },
+            {
+              "value": "2024-05-25",
+              "count": 3
+            },
+            {
+              "value": "2024-02-23",
+              "count": 3
+            },
+            {
+              "value": "2024-11-25",
+              "count": 3
+            },
+            {
+              "value": "2024-09-01",
+              "count": 3
+            },
+            {
+              "value": "2024-02-18",
+              "count": 3
+            },
+            {
+              "value": "2024-09-11",
+              "count": 3
+            },
+            {
+              "value": "2024-09-24",
+              "count": 3
+            },
+            {
+              "value": "2024-01-21",
+              "count": 3
+            },
+            {
+              "value": "2025-01-04",
+              "count": 3
+            }
+          ],
+          "kinds": {
+            "date": 298,
+            "text": 1,
+            "date_text": 1,
+            "int": 1
+          },
+          "numeric": null,
+          "dates": {
+            "min": "2019-05-01",
+            "max": "2031-01-01"
+          },
+          "lengths": {
+            "min": 10,
+            "max": 10,
+            "mean": 10.0
+          },
+          "patterns": [
+            {
+              "pattern": "AAA_A_AAAA",
+              "count": 1
+            },
+            {
+              "pattern": "99/99/9999",
+              "count": 1
+            }
+          ],
+          "n_whitespace": 0,
+          "case_variants": [],
+          "n_numeric_text": 0,
+          "n_date_text": 1,
+          "n_serial_dates": 1,
+          "is_identifier": false
+        },
+        {
+          "name": "ship_date",
+          "letter": "C",
+          "inferred_type": "date",
+          "type_share": 1.0,
+          "n_rows": 301,
+          "n_missing": 82,
+          "missing_rate": 0.2724,
+          "n_distinct": 173,
+          "top_values": [
+            {
+              "value": "2024-05-15",
+              "count": 5
+            },
+            {
+              "value": "2025-01-06",
+              "count": 4
+            },
+            {
+              "value": "2024-07-01",
+              "count": 3
+            },
+            {
+              "value": "2025-03-06",
+              "count": 3
+            },
+            {
+              "value": "2024-04-23",
+              "count": 3
+            },
+            {
+              "value": "2024-07-08",
+              "count": 3
+            },
+            {
+              "value": "2025-03-27",
+              "count": 3
+            },
+            {
+              "value": "2025-02-11",
+              "count": 2
+            },
+            {
+              "value": "2024-09-09",
+              "count": 2
+            },
+            {
+              "value": "2024-05-31",
+              "count": 2
+            }
+          ],
+          "kinds": {
+            "null": 82,
+            "date": 219
+          },
+          "numeric": null,
+          "dates": {
+            "min": "2019-05-03",
+            "max": "2025-05-22"
+          },
+          "lengths": null,
+          "patterns": [],
+          "n_whitespace": 0,
+          "case_variants": [],
+          "n_numeric_text": 0,
+          "n_date_text": 0,
+          "n_serial_dates": 0,
+          "is_identifier": false
+        },
+        {
+          "name": "customer_id",
+          "letter": "D",
+          "inferred_type": "text",
+          "type_share": 1.0,
+          "n_rows": 301,
+          "n_missing": 1,
+          "missing_rate": 0.0033,
+          "n_distinct": 41,
+          "top_values": [
+            {
+              "value": "C026",
+              "count": 16
+            },
+            {
+              "value": "C017",
+              "count": 12
+            },
+            {
+              "value": "C005",
+              "count": 11
+            },
+            {
+              "value": "C004",
+              "count": 11
+            },
+            {
+              "value": "C033",
+              "count": 11
+            },
+            {
+              "value": "C007",
+              "count": 10
+            },
+            {
+              "value": "C009",
+              "count": 10
+            },
+            {
+              "value": "C029",
+              "count": 10
+            },
+            {
+              "value": "C032",
+              "count": 9
+            },
+            {
+              "value": "C016",
+              "count": 9
+            }
+          ],
+          "kinds": {
+            "text": 300,
+            "null": 1
+          },
+          "numeric": null,
+          "dates": null,
+          "lengths": {
+            "min": 4,
+            "max": 4,
+            "mean": 4.0
+          },
+          "patterns": [
+            {
+              "pattern": "A999",
+              "count": 300
+            }
+          ],
+          "n_whitespace": 0,
+          "case_variants": [],
+          "n_numeric_text": 0,
+          "n_date_text": 0,
+          "n_serial_dates": 0,
+          "is_identifier": false
+        },
+        {
+          "name": "status",
+          "letter": "E",
+          "inferred_type": "category",
+          "type_share": 1.0,
+          "n_rows": 301,
+          "n_missing": 0,
+          "missing_rate": 0.0,
+          "n_distinct": 7,
+          "top_values": [
+            {
+              "value": "Delivered",
+              "count": 126
+            },
+            {
+              "value": "Shipped",
+              "count": 92
+            },
+            {
+              "value": "Pending",
+              "count": 50
+            },
+            {
+              "value": "Cancelled",
+              "count": 30
+            },
+            {
+              "value": "delivered",
+              "count": 1
+            },
+            {
+              "value": "Shiped",
+              "count": 1
+            },
+            {
+              "value": "Lost",
+              "count": 1
+            }
+          ],
+          "kinds": {
+            "text": 301
+          },
+          "numeric": null,
+          "dates": null,
+          "lengths": {
+            "min": 4,
+            "max": 9,
+            "mean": 8.03
+          },
+          "patterns": [
+            {
+              "pattern": "AAAAAAAAA",
+              "count": 157
+            },
+            {
+              "pattern": "AAAAAAA",
+              "count": 142
+            },
+            {
+              "pattern": "AAAAAA",
+              "count": 1
+            },
+            {
+              "pattern": "AAAA",
+              "count": 1
+            }
+          ],
+          "n_whitespace": 1,
+          "case_variants": [
+            {
+              "canonical": "Delivered",
+              "variants": [
+                {
+                  "value": "Delivered",
+                  "count": 126
+                },
+                {
+                  "value": "delivered",
+                  "count": 1
+                }
+              ]
+            },
+            {
+              "canonical": "Pending",
+              "variants": [
+                {
+                  "value": "Pending",
+                  "count": 49
+                },
+                {
+                  "value": "Pending ",
+                  "count": 1
+                }
+              ]
+            }
+          ],
+          "n_numeric_text": 0,
+          "n_date_text": 0,
+          "n_serial_dates": 0,
+          "is_identifier": false
+        },
+        {
+          "name": "channel",
+          "letter": "F",
+          "inferred_type": "category",
+          "type_share": 1.0,
+          "n_rows": 301,
+          "n_missing": 0,
+          "missing_rate": 0.0,
+          "n_distinct": 4,
+          "top_values": [
+            {
+              "value": "Store",
+              "count": 110
+            },
+            {
+              "value": "Web",
+              "count": 101
+            },
+            {
+              "value": "Phone",
+              "count": 89
+            },
+            {
+              "value": "Fax",
+              "count": 1
+            }
+          ],
+          "kinds": {
+            "text": 301
+          },
+          "numeric": null,
+          "dates": null,
+          "lengths": {
+            "min": 3,
+            "max": 5,
+            "mean": 4.32
+          },
+          "patterns": [
+            {
+              "pattern": "AAAAA",
+              "count": 199
+            },
+            {
+              "pattern": "AAA",
+              "count": 102
+            }
+          ],
+          "n_whitespace": 0,
+          "case_variants": [],
+          "n_numeric_text": 0,
+          "n_date_text": 0,
+          "n_serial_dates": 0,
+          "is_identifier": false
+        },
+        {
+          "name": "quantity",
+          "letter": "G",
+          "inferred_type": "int",
+          "type_share": 0.9967,
+          "n_rows": 301,
+          "n_missing": 0,
+          "missing_rate": 0.0,
+          "n_distinct": 53,
+          "top_values": [
+            {
+              "value": "13",
+              "count": 13
+            },
+            {
+              "value": "4",
+              "count": 12
+            },
+            {
+              "value": "42",
+              "count": 11
+            },
+            {
+              "value": "2",
+              "count": 10
+            },
+            {
+              "value": "10",
+              "count": 10
+            },
+            {
+              "value": "28",
+              "count": 9
+            },
+            {
+              "value": "14",
+              "count": 9
+            },
+            {
+              "value": "6",
+              "count": 9
+            },
+            {
+              "value": "40",
+              "count": 9
+            },
+            {
+              "value": "22",
+              "count": 9
+            }
+          ],
+          "kinds": {
+            "int": 299,
+            "numeric_text": 1,
+            "text": 1
+          },
+          "numeric": {
+            "min": 0.0,
+            "max": 5000.0,
+            "mean": 40.82666666666667,
+            "std": 287.67744261967465,
+            "p05": 2.0,
+            "p25": 10.0,
+            "median": 25.0,
+            "p75": 38.0,
+            "p95": 48.0,
+            "histogram": {
+              "edges": [
+                1.0,
+                5.9,
+                10.8,
+                15.700000000000001,
+                20.6,
+                25.5,
+                30.400000000000002,
+                35.300000000000004,
+                40.2,
+                45.1,
+                50.0
+              ],
+              "counts": [
+                40,
+                37,
+                37,
+                14,
+                26,
+                28,
+                27,
+                30,
+                30,
+                29
+              ],
+              "outside": 2
+            }
+          },
+          "dates": null,
+          "lengths": {
+            "min": 2,
+            "max": 3,
+            "mean": 2.5
+          },
+          "patterns": [
+            {
+              "pattern": "99",
+              "count": 1
+            },
+            {
+              "pattern": "AAA",
+              "count": 1
+            }
+          ],
+          "n_whitespace": 0,
+          "case_variants": [],
+          "n_numeric_text": 1,
+          "n_date_text": 0,
+          "n_serial_dates": 0,
+          "is_identifier": false
+        },
+        {
+          "name": "unit_price",
+          "letter": "H",
+          "inferred_type": "float",
+          "type_share": 1.0,
+          "n_rows": 301,
+          "n_missing": 0,
+          "missing_rate": 0.0,
+          "n_distinct": 300,
+          "top_values": [
+            {
+              "value": "843.42",
+              "count": 2
+            },
+            {
+              "value": "685.84",
+              "count": 1
+            },
+            {
+              "value": "293.23",
+              "count": 1
+            },
+            {
+              "value": "153.2",
+              "count": 1
+            },
+            {
+              "value": "626.99",
+              "count": 1
+            },
+            {
+              "value": "229.83",
+              "count": 1
+            },
+            {
+              "value": "614.08",
+              "count": 1
+            },
+            {
+              "value": "657.11",
+              "count": 1
+            },
+            {
+              "value": "425.42",
+              "count": 1
+            },
+            {
+              "value": "572.68",
+              "count": 1
+            }
+          ],
+          "kinds": {
+            "float": 294,
+            "int": 6,
+            "numeric_text": 1
+          },
+          "numeric": {
+            "min": 101.52,
+            "max": 9800.0,
+            "mean": 570.7734883720931,
+            "std": 596.9555186891712,
+            "p05": 136.33,
+            "p25": 309.32,
+            "median": 525.02,
+            "p75": 787.88,
+            "p95": 958.55,
+            "histogram": {
+              "edges": [
+                105.95,
+                195.038,
+                284.126,
+                373.214,
+                462.30199999999996,
+                551.39,
+                640.4780000000001,
+                729.566,
+                818.654,
+                907.742,
+                996.83
+              ],
+              "counts": [
+                30,
+                33,
+                32,
+                36,
+                25,
+                26,
+                24,
+                28,
+                34,
+                27
+              ],
+              "outside": 6
+            }
+          },
+          "dates": null,
+          "lengths": {
+            "min": 8,
+            "max": 8,
+            "mean": 8.0
+          },
+          "patterns": [
+            {
+              "pattern": "9,999.99",
+              "count": 1
+            }
+          ],
+          "n_whitespace": 0,
+          "case_variants": [],
+          "n_numeric_text": 1,
+          "n_date_text": 0,
+          "n_serial_dates": 0,
+          "is_identifier": false
+        },
+        {
+          "name": "shipping_cost",
+          "letter": "I",
+          "inferred_type": "float",
+          "type_share": 1.0,
+          "n_rows": 301,
+          "n_missing": 0,
+          "missing_rate": 0.0,
+          "n_distinct": 298,
+          "top_values": [
+            {
+              "value": "150",
+              "count": 2
+            },
+            {
+              "value": "55.06",
+              "count": 2
+            },
+            {
+              "value": "28.16",
+              "count": 2
+            },
+            {
+              "value": "93.94",
+              "count": 1
+            },
+            {
+              "value": "118.18",
+              "count": 1
+            },
+            {
+              "value": "108.47",
+              "count": 1
+            },
+            {
+              "value": "126.47",
+              "count": 1
+            },
+            {
+              "value": "99.08",
+              "count": 1
+            },
+            {
+              "value": "129.97",
+              "count": 1
+            },
+            {
+              "value": "32.32",
+              "count": 1
+            }
+          ],
+          "kinds": {
+            "float": 289,
+            "int": 12
+          },
+          "numeric": {
+            "min": 19.49,
+            "max": 950.0,
+            "mean": 95.85518272425249,
+            "std": 67.3111672437531,
+            "p05": 27.49,
+            "p25": 51.43,
+            "median": 95.22,
+            "p75": 134.31,
+            "p95": 165.0,
+            "histogram": {
+              "edges": [
+                22.0,
+                36.867,
+                51.733999999999995,
+                66.601,
+                81.46799999999999,
+                96.335,
+                111.202,
+                126.06899999999999,
+                140.93599999999998,
+                155.803,
+                170.67
+              ],
+              "counts": [
+                41,
+                32,
+                36,
+                17,
+                24,
+                29,
+                23,
+                34,
+                29,
+                30
+              ],
+              "outside": 6
+            }
+          },
+          "dates": null,
+          "lengths": null,
+          "patterns": [],
+          "n_whitespace": 0,
+          "case_variants": [],
+          "n_numeric_text": 0,
+          "n_date_text": 0,
+          "n_serial_dates": 0,
+          "is_identifier": false
+        },
+        {
+          "name": "total",
+          "letter": "J",
+          "inferred_type": "float",
+          "type_share": 1.0,
+          "n_rows": 301,
+          "n_missing": 0,
+          "missing_rate": 0.0,
+          "n_distinct": 300,
+          "top_values": [
+            {
+              "value": "1686.84",
+              "count": 2
+            },
+            {
+              "value": "17831.84",
+              "count": 1
+            },
+            {
+              "value": "9676.59",
+              "count": 1
+            },
+            {
+              "value": "4289.6",
+              "count": 1
+            },
+            {
+              "value": "23198.63",
+              "count": 1
+            },
+            {
+              "value": "6205.41",
+              "count": 1
+            },
+            {
+              "value": "23335.04",
+              "count": 1
+            },
+            {
+              "value": "2628.44",
+              "count": 1
+            },
+            {
+              "value": "12762.6",
+              "count": 1
+            },
+            {
+              "value": "11453.6",
+              "count": 1
+            }
+          ],
+          "kinds": {
+            "float": 285,
+            "int": 16
+          },
+          "numeric": {
+            "min": 0.0,
+            "max": 898550.0,
+            "mean": 16060.147674418606,
+            "std": 52199.95542222033,
+            "p05": 989.55,
+            "p25": 4248.65,
+            "median": 10332.5,
+            "p75": 19847.3,
+            "p95": 35798.85,
+            "histogram": {
+              "edges": [
+                272.66,
+                4529.294,
+                8785.928,
+                13042.562,
+                17299.196,
+                21555.829999999998,
+                25812.464,
+                30069.098,
+                34325.732,
+                38582.366,
+                42839.0
+              ],
+              "counts": [
+                78,
+                55,
+                36,
+                37,
+                27,
+                19,
+                17,
+                10,
+                10,
+                6
+              ],
+              "outside": 6
+            }
+          },
+          "dates": null,
+          "lengths": null,
+          "patterns": [],
+          "n_whitespace": 0,
+          "case_variants": [],
+          "n_numeric_text": 0,
+          "n_date_text": 0,
+          "n_serial_dates": 0,
+          "is_identifier": false
+        },
+        {
+          "name": "email",
+          "letter": "K",
+          "inferred_type": "text",
+          "type_share": 1.0,
+          "n_rows": 301,
+          "n_missing": 0,
+          "missing_rate": 0.0,
+          "n_distinct": 300,
+          "top_values": [
+            {
+              "value": "customer128@example.com",
+              "count": 2
+            },
+            {
+              "value": "customer1@example.com",
+              "count": 1
+            },
+            {
+              "value": "customer2@example.com",
+              "count": 1
+            },
+            {
+              "value": "customer3@example.com",
+              "count": 1
+            },
+            {
+              "value": "customer4@example.com",
+              "count": 1
+            },
+            {
+              "value": "customer5@example.com",
+              "count": 1
+            },
+            {
+              "value": "customer6@example.com",
+              "count": 1
+            },
+            {
+              "value": "customer7@example.com",
+              "count": 1
+            },
+            {
+              "value": "customer8@example.com",
+              "count": 1
+            },
+            {
+              "value": "customer9@example.com",
+              "count": 1
+            }
+          ],
+          "kinds": {
+            "text": 301
+          },
+          "numeric": null,
+          "dates": null,
+          "lengths": {
+            "min": 12,
+            "max": 23,
+            "mean": 22.61
+          },
+          "patterns": [
+            {
+              "pattern": "AAAAAAAA999@AAAAAAA.AAA",
+              "count": 202
+            },
+            {
+              "pattern": "AAAAAAAA99@AAAAAAA.AAA",
+              "count": 89
+            },
+            {
+              "pattern": "AAAAAAAA9@AAAAAAA.AAA",
+              "count": 9
+            },
+            {
+              "pattern": "AAA-AA-AAAAA",
+              "count": 1
+            }
+          ],
+          "n_whitespace": 0,
+          "case_variants": [],
+          "n_numeric_text": 0,
+          "n_date_text": 0,
+          "n_serial_dates": 0,
+          "is_identifier": false
+        }
+      ],
+      "n_duplicate_rows": 1
+    },
+    {
+      "name": "Customers",
+      "n_rows": 40,
+      "n_cols": 4,
+      "header_row": 1,
+      "duplicate_rows": [],
+      "dropped_blank_rows": [],
+      "dropped_blank_cols": [],
+      "columns": [
+        {
+          "name": "customer_id",
+          "letter": "A",
+          "inferred_type": "text",
+          "type_share": 1.0,
+          "n_rows": 40,
+          "n_missing": 0,
+          "missing_rate": 0.0,
+          "n_distinct": 40,
+          "top_values": [
+            {
+              "value": "C001",
+              "count": 1
+            },
+            {
+              "value": "C002",
+              "count": 1
+            },
+            {
+              "value": "C003",
+              "count": 1
+            },
+            {
+              "value": "C004",
+              "count": 1
+            },
+            {
+              "value": "C005",
+              "count": 1
+            },
+            {
+              "value": "C006",
+              "count": 1
+            },
+            {
+              "value": "C007",
+              "count": 1
+            },
+            {
+              "value": "C008",
+              "count": 1
+            },
+            {
+              "value": "C009",
+              "count": 1
+            },
+            {
+              "value": "C010",
+              "count": 1
+            }
+          ],
+          "kinds": {
+            "text": 40
+          },
+          "numeric": null,
+          "dates": null,
+          "lengths": {
+            "min": 4,
+            "max": 4,
+            "mean": 4.0
+          },
+          "patterns": [
+            {
+              "pattern": "A999",
+              "count": 40
+            }
+          ],
+          "n_whitespace": 0,
+          "case_variants": [],
+          "n_numeric_text": 0,
+          "n_date_text": 0,
+          "n_serial_dates": 0,
+          "is_identifier": true
+        },
+        {
+          "name": "name",
+          "letter": "B",
+          "inferred_type": "text",
+          "type_share": 1.0,
+          "n_rows": 40,
+          "n_missing": 0,
+          "missing_rate": 0.0,
+          "n_distinct": 40,
+          "top_values": [
+            {
+              "value": "Customer 1",
+              "count": 1
+            },
+            {
+              "value": "Customer 2",
+              "count": 1
+            },
+            {
+              "value": "Customer 3",
+              "count": 1
+            },
+            {
+              "value": "Customer 4",
+              "count": 1
+            },
+            {
+              "value": "Customer 5",
+              "count": 1
+            },
+            {
+              "value": "Customer 6",
+              "count": 1
+            },
+            {
+              "value": "Customer 7",
+              "count": 1
+            },
+            {
+              "value": "Customer 8",
+              "count": 1
+            },
+            {
+              "value": "Customer 9",
+              "count": 1
+            },
+            {
+              "value": "Customer 10",
+              "count": 1
+            }
+          ],
+          "kinds": {
+            "text": 40
+          },
+          "numeric": null,
+          "dates": null,
+          "lengths": {
+            "min": 10,
+            "max": 11,
+            "mean": 10.78
+          },
+          "patterns": [
+            {
+              "pattern": "AAAAAAAA_99",
+              "count": 31
+            },
+            {
+              "pattern": "AAAAAAAA_9",
+              "count": 9
+            }
+          ],
+          "n_whitespace": 0,
+          "case_variants": [],
+          "n_numeric_text": 0,
+          "n_date_text": 0,
+          "n_serial_dates": 0,
+          "is_identifier": true
+        },
+        {
+          "name": "region",
+          "letter": "C",
+          "inferred_type": "category",
+          "type_share": 1.0,
+          "n_rows": 40,
+          "n_missing": 0,
+          "missing_rate": 0.0,
+          "n_distinct": 6,
+          "top_values": [
+            {
+              "value": "South",
+              "count": 13
+            },
+            {
+              "value": "East",
+              "count": 11
+            },
+            {
+              "value": "North",
+              "count": 8
+            },
+            {
+              "value": "West",
+              "count": 6
+            },
+            {
+              "value": "Nort",
+              "count": 1
+            },
+            {
+              "value": "south",
+              "count": 1
+            }
+          ],
+          "kinds": {
+            "text": 40
+          },
+          "numeric": null,
+          "dates": null,
+          "lengths": {
+            "min": 4,
+            "max": 5,
+            "mean": 4.55
+          },
+          "patterns": [
+            {
+              "pattern": "AAAAA",
+              "count": 22
+            },
+            {
+              "pattern": "AAAA",
+              "count": 18
+            }
+          ],
+          "n_whitespace": 0,
+          "case_variants": [
+            {
+              "canonical": "South",
+              "variants": [
+                {
+                  "value": "South",
+                  "count": 13
+                },
+                {
+                  "value": "south",
+                  "count": 1
+                }
+              ]
+            }
+          ],
+          "n_numeric_text": 0,
+          "n_date_text": 0,
+          "n_serial_dates": 0,
+          "is_identifier": false
+        },
+        {
+          "name": "credit_limit",
+          "letter": "D",
+          "inferred_type": "int",
+          "type_share": 1.0,
+          "n_rows": 40,
+          "n_missing": 0,
+          "missing_rate": 0.0,
+          "n_distinct": 3,
+          "top_values": [
+            {
+              "value": "250000",
+              "count": 15
+            },
+            {
+              "value": "50000",
+              "count": 14
+            },
+            {
+              "value": "100000",
+              "count": 11
+            }
+          ],
+          "kinds": {
+            "int": 40
+          },
+          "numeric": {
+            "min": 50000.0,
+            "max": 250000.0,
+            "mean": 138750.0,
+            "std": 89505.40737138706,
+            "p05": 50000.0,
+            "p25": 50000.0,
+            "median": 100000.0,
+            "p75": 250000.0,
+            "p95": 250000.0,
+            "histogram": {
+              "edges": [
+                50000.0,
+                116666.66666666667,
+                183333.33333333334,
+                250000.0
+              ],
+              "counts": [
+                25,
+                0,
+                15
+              ],
+              "outside": 0
+            }
+          },
+          "dates": null,
+          "lengths": null,
+          "patterns": [],
+          "n_whitespace": 0,
+          "case_variants": [],
+          "n_numeric_text": 0,
+          "n_date_text": 0,
+          "n_serial_dates": 0,
+          "is_identifier": false
+        }
+      ],
+      "n_duplicate_rows": 0
+    },
+    {
+      "name": "Summary",
+      "n_rows": 2,
+      "n_cols": 2,
+      "header_row": 1,
+      "duplicate_rows": [],
+      "dropped_blank_rows": [],
+      "dropped_blank_cols": [],
+      "columns": [
+        {
+          "name": "metric",
+          "letter": "A",
+          "inferred_type": "text",
+          "type_share": 1.0,
+          "n_rows": 2,
+          "n_missing": 0,
+          "missing_rate": 0.0,
+          "n_distinct": 2,
+          "top_values": [
+            {
+              "value": "total_revenue",
+              "count": 1
+            },
+            {
+              "value": "orders",
+              "count": 1
+            }
+          ],
+          "kinds": {
+            "text": 2
+          },
+          "numeric": null,
+          "dates": null,
+          "lengths": {
+            "min": 6,
+            "max": 13,
+            "mean": 9.5
+          },
+          "patterns": [
+            {
+              "pattern": "AAAAA_AAAAAAA",
+              "count": 1
+            },
+            {
+              "pattern": "AAAAAA",
+              "count": 1
+            }
+          ],
+          "n_whitespace": 0,
+          "case_variants": [],
+          "n_numeric_text": 0,
+          "n_date_text": 0,
+          "n_serial_dates": 0,
+          "is_identifier": true
+        },
+        {
+          "name": "value",
+          "letter": "B",
+          "inferred_type": "empty",
+          "type_share": 1.0,
+          "n_rows": 2,
+          "n_missing": 2,
+          "missing_rate": 1.0,
+          "n_distinct": 0,
+          "top_values": [],
+          "kinds": {
+            "null": 2
+          },
+          "numeric": null,
+          "dates": null,
+          "lengths": null,
+          "patterns": [],
+          "n_whitespace": 0,
+          "case_variants": [],
+          "n_numeric_text": 0,
+          "n_date_text": 0,
+          "n_serial_dates": 0,
+          "is_identifier": false
+        }
+      ],
+      "n_duplicate_rows": 0
+    }
+  ],
+  "issues": [
+    {
+      "kind": "error",
+      "sheet": "Orders",
+      "rule_id": "required",
+      "severity": "error",
+      "message": "'order_id' is required but empty.",
+      "xl_row": 38,
+      "column": "order_id",
+      "cell_ref": "Orders!A38",
+      "value": null,
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "id": "e-2609ddfa0d66",
+      "why": "A required field is empty, so downstream reports and joins will miss this record."
+    },
+    {
+      "kind": "error",
+      "sheet": "Orders",
+      "rule_id": "regex",
+      "severity": "error",
+      "message": "'ORD-12A4' does not match the pattern ^ORD-\\d{5}$.",
+      "xl_row": 156,
+      "column": "order_id",
+      "cell_ref": "Orders!A156",
+      "value": "ORD-12A4",
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "id": "e-53486d12be2e",
+      "why": "The value does not follow the required format."
+    },
+    {
+      "kind": "error",
+      "sheet": "Orders",
+      "rule_id": "type",
+      "severity": "error",
+      "message": "'not a date' is not a date.",
+      "xl_row": 20,
+      "column": "order_date",
+      "cell_ref": "Orders!B20",
+      "value": "not a date",
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "id": "e-3cb21eb9bb4f",
+      "why": "The value cannot be read as the expected type, so calculations or sorting on this column will fail or skip it."
+    },
+    {
+      "kind": "error",
+      "sheet": "Orders",
+      "rule_id": "type.date_as_text",
+      "severity": "warning",
+      "message": "Date stored as text: '15/03/2024'.",
+      "xl_row": 235,
+      "column": "order_date",
+      "cell_ref": "Orders!B235",
+      "value": "15/03/2024",
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "id": "e-6273fb03ffb0",
+      "why": "The date is stored as text, so date filters, sorting and arithmetic will treat it as a string."
+    },
+    {
+      "kind": "error",
+      "sheet": "Orders",
+      "rule_id": "type.date_serial",
+      "severity": "warning",
+      "message": "Excel serial number 45000 where a date is expected.",
+      "xl_row": 269,
+      "column": "order_date",
+      "cell_ref": "Orders!B269",
+      "value": 45000,
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "id": "e-d022b0ae0d65",
+      "why": "An Excel serial number sits where a date is expected; it is probably a date whose formatting was lost."
+    },
+    {
+      "kind": "error",
+      "sheet": "Orders",
+      "rule_id": "range",
+      "severity": "error",
+      "message": "2019-05-01 is below the minimum 2020-01-01.",
+      "xl_row": 62,
+      "column": "order_date",
+      "cell_ref": "Orders!B62",
+      "value": "2019-05-01T00:00:00",
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "id": "e-e84ae131f8a7",
+      "why": "The value is outside the range the rules allow, which usually means a typo or a unit mistake."
+    },
+    {
+      "kind": "error",
+      "sheet": "Orders",
+      "rule_id": "not_future",
+      "severity": "error",
+      "message": "2031-01-01 is in the future.",
+      "xl_row": 260,
+      "column": "order_date",
+      "cell_ref": "Orders!B260",
+      "value": "2031-01-01T00:00:00",
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "id": "e-fc6672253035",
+      "why": "The date lies in the future, which is impossible for this field."
+    },
+    {
+      "kind": "error",
+      "sheet": "Orders",
+      "rule_id": "required",
+      "severity": "error",
+      "message": "'customer_id' is required but empty.",
+      "xl_row": 291,
+      "column": "customer_id",
+      "cell_ref": "Orders!D291",
+      "value": null,
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "id": "e-a03447eea152",
+      "why": "A required field is empty, so downstream reports and joins will miss this record."
+    },
+    {
+      "kind": "error",
+      "sheet": "Orders",
+      "rule_id": "allowed.noncanonical",
+      "severity": "warning",
+      "message": "'delivered' should be written 'Delivered'.",
+      "xl_row": 17,
+      "column": "status",
+      "cell_ref": "Orders!E17",
+      "value": "delivered",
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "id": "e-58e8f6e2dd30",
+      "why": "The category is valid but spelled with different case or spacing, which splits one group into several."
+    },
+    {
+      "kind": "error",
+      "sheet": "Orders",
+      "rule_id": "allowed",
+      "severity": "error",
+      "message": "'Shiped' is not an allowed value for 'status'.",
+      "xl_row": 75,
+      "column": "status",
+      "cell_ref": "Orders!E75",
+      "value": "Shiped",
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "id": "e-7fb12d84731b",
+      "why": "The value is not in the list of allowed categories, so it will be miscounted in any grouping."
+    },
+    {
+      "kind": "error",
+      "sheet": "Orders",
+      "rule_id": "allowed",
+      "severity": "error",
+      "message": "'Lost' is not an allowed value for 'status'.",
+      "xl_row": 131,
+      "column": "status",
+      "cell_ref": "Orders!E131",
+      "value": "Lost",
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "id": "e-42dadf89059a",
+      "why": "The value is not in the list of allowed categories, so it will be miscounted in any grouping."
+    },
+    {
+      "kind": "error",
+      "sheet": "Orders",
+      "rule_id": "type.stored_as_text",
+      "severity": "warning",
+      "message": "Number stored as text: '12'.",
+      "xl_row": 100,
+      "column": "quantity",
+      "cell_ref": "Orders!G100",
+      "value": "12",
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "id": "e-62689ddf4d00",
+      "why": "The value is a number or boolean stored as text; Excel and most tools will not sum or compare it correctly."
+    },
+    {
+      "kind": "error",
+      "sheet": "Orders",
+      "rule_id": "type",
+      "severity": "error",
+      "message": "'abc' is not a number.",
+      "xl_row": 121,
+      "column": "quantity",
+      "cell_ref": "Orders!G121",
+      "value": "abc",
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "id": "e-e4aec2a3b1b4",
+      "why": "The value cannot be read as the expected type, so calculations or sorting on this column will fail or skip it."
+    },
+    {
+      "kind": "error",
+      "sheet": "Orders",
+      "rule_id": "range",
+      "severity": "error",
+      "message": "5000 is above the maximum 1000.",
+      "xl_row": 59,
+      "column": "quantity",
+      "cell_ref": "Orders!G59",
+      "value": 5000,
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "id": "e-be3ba427b2b5",
+      "why": "The value is outside the range the rules allow, which usually means a typo or a unit mistake."
+    },
+    {
+      "kind": "error",
+      "sheet": "Orders",
+      "rule_id": "range",
+      "severity": "error",
+      "message": "0 is below the minimum 1.",
+      "xl_row": 92,
+      "column": "quantity",
+      "cell_ref": "Orders!G92",
+      "value": 0,
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "id": "e-4a244fbcce78",
+      "why": "The value is outside the range the rules allow, which usually means a typo or a unit mistake."
+    },
+    {
+      "kind": "error",
+      "sheet": "Orders",
+      "rule_id": "type.stored_as_text",
+      "severity": "warning",
+      "message": "Number stored as text: '1,200.50'.",
+      "xl_row": 166,
+      "column": "unit_price",
+      "cell_ref": "Orders!H166",
+      "value": "1,200.50",
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "id": "e-1f06c2c21af4",
+      "why": "The value is a number or boolean stored as text; Excel and most tools will not sum or compare it correctly."
+    },
+    {
+      "kind": "error",
+      "sheet": "Orders",
+      "rule_id": "regex",
+      "severity": "error",
+      "message": "'not-an-email' does not match the pattern ^[\\w.+-]+@[\\w-]+\\.[\\w.]+$.",
+      "xl_row": 16,
+      "column": "email",
+      "cell_ref": "Orders!K16",
+      "value": "not-an-email",
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "id": "e-d6a7488e0624",
+      "why": "The value does not follow the required format."
+    },
+    {
+      "kind": "error",
+      "sheet": "Orders",
+      "rule_id": "key.duplicate",
+      "severity": "error",
+      "message": "Duplicate key (ORD-00128); first seen in row 129.",
+      "xl_row": 302,
+      "column": "order_id",
+      "cell_ref": "Orders!A302",
+      "value": "ORD-00128",
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "id": "e-b3c880f0ecdc",
+      "why": "Two rows share the same key, so lookups on this key are ambiguous."
+    },
+    {
+      "kind": "error",
+      "sheet": "Orders",
+      "rule_id": "format.whitespace",
+      "severity": "warning",
+      "message": "Extra spaces in 'Pending '.",
+      "xl_row": 52,
+      "column": "status",
+      "cell_ref": "Orders!E52",
+      "value": "Pending ",
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "id": "e-45eed4518f39",
+      "why": "Leading, trailing or repeated spaces make equal values look different to filters and lookups."
+    },
+    {
+      "kind": "error",
+      "sheet": "Orders",
+      "rule_id": "row.duplicate",
+      "severity": "warning",
+      "message": "Row repeats row 129 exactly.",
+      "xl_row": 302,
+      "column": null,
+      "cell_ref": "Orders!A302",
+      "value": null,
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "id": "e-3709bca544c2",
+      "why": "The whole row repeats an earlier row; totals that include both will double-count."
+    },
+    {
+      "kind": "error",
+      "sheet": "Orders",
+      "rule_id": "ship_after_order",
+      "severity": "error",
+      "message": "Ship date is before the order date (ship_date=2024-09-21, order_date=2024-09-24)",
+      "xl_row": 278,
+      "column": "ship_date",
+      "cell_ref": "Orders!C278",
+      "value": "2024-09-21T00:00:00",
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "id": "e-827f24cd542c",
+      "why": "A cross-column business rule from the rule file was not satisfied."
+    },
+    {
+      "kind": "error",
+      "sheet": "Orders",
+      "rule_id": "total_matches",
+      "severity": "error",
+      "message": "Total does not equal quantity x unit price (total=19848.4, quantity=30, unit_price=658.28)",
+      "xl_row": 135,
+      "column": "total",
+      "cell_ref": "Orders!J135",
+      "value": 19848.4,
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "id": "e-24e27a444197",
+      "why": "A cross-column business rule from the rule file was not satisfied."
+    },
+    {
+      "kind": "error",
+      "sheet": "Orders",
+      "rule_id": "shipped_needs_date",
+      "severity": "error",
+      "message": "'ship_date' is required when status == 'Shipped'.",
+      "xl_row": 282,
+      "column": "ship_date",
+      "cell_ref": "Orders!C282",
+      "value": null,
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "id": "e-6f1d3ce0912c",
+      "why": "A cross-column business rule from the rule file was not satisfied."
+    },
+    {
+      "kind": "error",
+      "sheet": "Orders",
+      "rule_id": "customer_exists",
+      "severity": "error",
+      "message": "'C999' was not found in Customers.customer_id.",
+      "xl_row": 22,
+      "column": "customer_id",
+      "cell_ref": "Orders!D22",
+      "value": "C999",
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "id": "e-c046faa8459f",
+      "why": "A cross-column business rule from the rule file was not satisfied."
+    },
+    {
+      "kind": "error",
+      "sheet": "Customers",
+      "rule_id": "allowed",
+      "severity": "error",
+      "message": "'Nort' is not an allowed value for 'region'.",
+      "xl_row": 6,
+      "column": "region",
+      "cell_ref": "Customers!C6",
+      "value": "Nort",
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "id": "e-79c3092efb20",
+      "why": "The value is not in the list of allowed categories, so it will be miscounted in any grouping."
+    },
+    {
+      "kind": "error",
+      "sheet": "Customers",
+      "rule_id": "allowed.noncanonical",
+      "severity": "warning",
+      "message": "'south' should be written 'South'.",
+      "xl_row": 11,
+      "column": "region",
+      "cell_ref": "Customers!C11",
+      "value": "south",
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "id": "e-9f6fc15209ec",
+      "why": "The category is valid but spelled with different case or spacing, which splits one group into several."
+    }
+  ],
+  "anomalies": [
+    {
+      "kind": "anomaly",
+      "sheet": "Orders",
+      "rule_id": "anomaly.robust_z",
+      "severity": "info",
+      "message": "9,800 is far from the typical value 525.02 (robust z = +26.5, threshold 3.5).",
+      "xl_row": 56,
+      "column": "unit_price",
+      "cell_ref": "Orders!H56",
+      "value": 9800,
+      "detector": "robust_z",
+      "score": 26.489,
+      "status": "open",
+      "id": "a-fe837092cb91",
+      "why": "Statistically far from the rest of the column. It may be correct, so a person should confirm or dismiss it."
+    },
+    {
+      "kind": "anomaly",
+      "sheet": "Orders",
+      "rule_id": "anomaly.robust_z",
+      "severity": "info",
+      "message": "950 is far from the typical value 95.22 (robust z = +13.9, threshold 3.5).",
+      "xl_row": 106,
+      "column": "shipping_cost",
+      "cell_ref": "Orders!I106",
+      "value": 950,
+      "detector": "robust_z",
+      "score": 13.933,
+      "status": "open",
+      "id": "a-d99e020aedb6",
+      "why": "Statistically far from the rest of the column. It may be correct, so a person should confirm or dismiss it."
+    },
+    {
+      "kind": "anomaly",
+      "sheet": "Orders",
+      "rule_id": "anomaly.rare_category",
+      "severity": "info",
+      "message": "'Fax' appears only 1 time(s) in 301 rows (0.33%); possible typo or one-off category.",
+      "xl_row": 274,
+      "column": "channel",
+      "cell_ref": "Orders!F274",
+      "value": "Fax",
+      "detector": "rare_category",
+      "score": 0.0033,
+      "status": "open",
+      "id": "a-95367718c5b9",
+      "why": "This category is very rare in the column and might be a typo. Confirm or dismiss it."
+    },
+    {
+      "kind": "anomaly",
+      "sheet": "Orders",
+      "rule_id": "anomaly.isolation_forest",
+      "severity": "info",
+      "message": "Unusual combination of values (quantity=2, unit_price=136.33, shipping_cost=165); isolation score z = -9.6. Largest single deviation: shipping_cost (z +1.1).",
+      "xl_row": 140,
+      "column": "shipping_cost",
+      "cell_ref": "Orders!I140",
+      "value": 165,
+      "detector": "isolation_forest",
+      "score": 9.566,
+      "status": "open",
+      "id": "a-9c35d34de715",
+      "why": "The combination of values in this row is unusual compared with the other rows. Confirm or dismiss it."
+    },
+    {
+      "kind": "anomaly",
+      "sheet": "Orders",
+      "rule_id": "anomaly.isolation_forest",
+      "severity": "info",
+      "message": "Unusual combination of values (quantity=49, unit_price=483.23, shipping_cost=22); isolation score z = -8.6. Largest single deviation: shipping_cost (z -1.2).",
+      "xl_row": 244,
+      "column": "shipping_cost",
+      "cell_ref": "Orders!I244",
+      "value": 22,
+      "detector": "isolation_forest",
+      "score": 8.643,
+      "status": "open",
+      "id": "a-e7743f6bdbca",
+      "why": "The combination of values in this row is unusual compared with the other rows. Confirm or dismiss it."
+    }
+  ],
+  "suggestions": [
+    {
+      "issue_id": "e-3709bca544c2",
+      "sheet": "Orders",
+      "action": "delete_row",
+      "method": "remove_duplicate_row",
+      "confidence": 0.9,
+      "xl_row": 302,
+      "column": null,
+      "cell_ref": "Orders!A302",
+      "old": "Row repeats row 129 exactly.",
+      "new": null,
+      "rule_id": "row.duplicate",
+      "status": "approved",
+      "decided_by": "demo-reviewer",
+      "decided_at": "2026-10-17T20:10:46+00:00",
+      "id": "s-7774b41ecf04"
+    },
+    {
+      "issue_id": "e-6273fb03ffb0",
+      "sheet": "Orders",
+      "action": "set",
+      "method": "text_to_date",
+      "confidence": 0.95,
+      "xl_row": 235,
+      "column": "order_date",
+      "cell_ref": "Orders!B235",
+      "old": "15/03/2024",
+      "new": "2024-03-15",
+      "rule_id": "type.date_as_text",
+      "status": "approved",
+      "decided_by": "demo-reviewer",
+      "decided_at": "2026-10-17T20:10:46+00:00",
+      "id": "s-915a62b70b3a"
+    },
+    {
+      "issue_id": "e-d022b0ae0d65",
+      "sheet": "Orders",
+      "action": "set",
+      "method": "serial_to_date",
+      "confidence": 0.9,
+      "xl_row": 269,
+      "column": "order_date",
+      "cell_ref": "Orders!B269",
+      "old": 45000,
+      "new": "2023-03-15",
+      "rule_id": "type.date_serial",
+      "status": "approved",
+      "decided_by": "demo-reviewer",
+      "decided_at": "2026-10-17T20:10:46+00:00",
+      "id": "s-eea6356ac391"
+    },
+    {
+      "issue_id": "e-58e8f6e2dd30",
+      "sheet": "Orders",
+      "action": "set",
+      "method": "canonical_category",
+      "confidence": 0.97,
+      "xl_row": 17,
+      "column": "status",
+      "cell_ref": "Orders!E17",
+      "old": "delivered",
+      "new": "Delivered",
+      "rule_id": "allowed.noncanonical",
+      "status": "approved",
+      "decided_by": "demo-reviewer",
+      "decided_at": "2026-10-17T20:10:46+00:00",
+      "id": "s-c8ed62ac6afc"
+    },
+    {
+      "issue_id": "e-7fb12d84731b",
+      "sheet": "Orders",
+      "action": "set",
+      "method": "fuzzy_category",
+      "confidence": 0.923,
+      "xl_row": 75,
+      "column": "status",
+      "cell_ref": "Orders!E75",
+      "old": "Shiped",
+      "new": "Shipped",
+      "rule_id": "allowed",
+      "status": "approved",
+      "decided_by": "demo-reviewer",
+      "decided_at": "2026-10-17T20:10:46+00:00",
+      "id": "s-0a91f295343f"
+    },
+    {
+      "issue_id": "e-62689ddf4d00",
+      "sheet": "Orders",
+      "action": "set",
+      "method": "text_to_number",
+      "confidence": 0.95,
+      "xl_row": 100,
+      "column": "quantity",
+      "cell_ref": "Orders!G100",
+      "old": "12",
+      "new": 12,
+      "rule_id": "type.stored_as_text",
+      "status": "approved",
+      "decided_by": "demo-reviewer",
+      "decided_at": "2026-10-17T20:10:46+00:00",
+      "id": "s-0beb9ae4d8d7"
+    },
+    {
+      "issue_id": "e-1f06c2c21af4",
+      "sheet": "Orders",
+      "action": "set",
+      "method": "text_to_number",
+      "confidence": 0.95,
+      "xl_row": 166,
+      "column": "unit_price",
+      "cell_ref": "Orders!H166",
+      "old": "1,200.50",
+      "new": 1200.5,
+      "rule_id": "type.stored_as_text",
+      "status": "approved",
+      "decided_by": "demo-reviewer",
+      "decided_at": "2026-10-17T20:10:46+00:00",
+      "id": "s-775202917615"
+    },
+    {
+      "issue_id": "e-45eed4518f39",
+      "sheet": "Orders",
+      "action": "set",
+      "method": "trim_whitespace",
+      "confidence": 0.99,
+      "xl_row": 52,
+      "column": "status",
+      "cell_ref": "Orders!E52",
+      "old": "Pending ",
+      "new": "Pending",
+      "rule_id": "format.whitespace",
+      "status": "approved",
+      "decided_by": "demo-reviewer",
+      "decided_at": "2026-10-17T20:10:46+00:00",
+      "id": "s-00786a6ea67b"
+    },
+    {
+      "issue_id": "e-24e27a444197",
+      "sheet": "Orders",
+      "action": "set",
+      "method": "rule_fix",
+      "confidence": 0.8,
+      "xl_row": 135,
+      "column": "total",
+      "cell_ref": "Orders!J135",
+      "old": 19848.4,
+      "new": 19748.4,
+      "rule_id": "total_matches",
+      "status": "pending",
+      "decided_by": null,
+      "decided_at": null,
+      "id": "s-de102a28eb48"
+    },
+    {
+      "issue_id": "e-79c3092efb20",
+      "sheet": "Customers",
+      "action": "set",
+      "method": "fuzzy_category",
+      "confidence": 0.889,
+      "xl_row": 6,
+      "column": "region",
+      "cell_ref": "Customers!C6",
+      "old": "Nort",
+      "new": "North",
+      "rule_id": "allowed",
+      "status": "approved",
+      "decided_by": "demo-reviewer",
+      "decided_at": "2026-10-17T20:10:46+00:00",
+      "id": "s-f88ea446d618"
+    },
+    {
+      "issue_id": "e-9f6fc15209ec",
+      "sheet": "Customers",
+      "action": "set",
+      "method": "canonical_category",
+      "confidence": 0.97,
+      "xl_row": 11,
+      "column": "region",
+      "cell_ref": "Customers!C11",
+      "old": "south",
+      "new": "South",
+      "rule_id": "allowed.noncanonical",
+      "status": "approved",
+      "decided_by": "demo-reviewer",
+      "decided_at": "2026-10-17T20:10:46+00:00",
+      "id": "s-dcfe22b80161"
+    }
+  ],
+  "changes": [
+    {
+      "suggestion_id": "s-915a62b70b3a",
+      "issue_id": "e-6273fb03ffb0",
+      "cell_ref": "Orders!B235",
+      "action": "set",
+      "old": "15/03/2024",
+      "new": "2024-03-15",
+      "method": "text_to_date",
+      "rule_id": "type.date_as_text",
+      "approved_by": "demo-reviewer",
+      "approved_at": "2026-10-17T20:10:46+00:00"
+    },
+    {
+      "suggestion_id": "s-eea6356ac391",
+      "issue_id": "e-d022b0ae0d65",
+      "cell_ref": "Orders!B269",
+      "action": "set",
+      "old": 45000,
+      "new": "2023-03-15",
+      "method": "serial_to_date",
+      "rule_id": "type.date_serial",
+      "approved_by": "demo-reviewer",
+      "approved_at": "2026-10-17T20:10:46+00:00"
+    },
+    {
+      "suggestion_id": "s-c8ed62ac6afc",
+      "issue_id": "e-58e8f6e2dd30",
+      "cell_ref": "Orders!E17",
+      "action": "set",
+      "old": "delivered",
+      "new": "Delivered",
+      "method": "canonical_category",
+      "rule_id": "allowed.noncanonical",
+      "approved_by": "demo-reviewer",
+      "approved_at": "2026-10-17T20:10:46+00:00"
+    },
+    {
+      "suggestion_id": "s-0a91f295343f",
+      "issue_id": "e-7fb12d84731b",
+      "cell_ref": "Orders!E75",
+      "action": "set",
+      "old": "Shiped",
+      "new": "Shipped",
+      "method": "fuzzy_category",
+      "rule_id": "allowed",
+      "approved_by": "demo-reviewer",
+      "approved_at": "2026-10-17T20:10:46+00:00"
+    },
+    {
+      "suggestion_id": "s-0beb9ae4d8d7",
+      "issue_id": "e-62689ddf4d00",
+      "cell_ref": "Orders!G100",
+      "action": "set",
+      "old": "12",
+      "new": 12,
+      "method": "text_to_number",
+      "rule_id": "type.stored_as_text",
+      "approved_by": "demo-reviewer",
+      "approved_at": "2026-10-17T20:10:46+00:00"
+    },
+    {
+      "suggestion_id": "s-775202917615",
+      "issue_id": "e-1f06c2c21af4",
+      "cell_ref": "Orders!H166",
+      "action": "set",
+      "old": "1,200.50",
+      "new": 1200.5,
+      "method": "text_to_number",
+      "rule_id": "type.stored_as_text",
+      "approved_by": "demo-reviewer",
+      "approved_at": "2026-10-17T20:10:46+00:00"
+    },
+    {
+      "suggestion_id": "s-00786a6ea67b",
+      "issue_id": "e-45eed4518f39",
+      "cell_ref": "Orders!E52",
+      "action": "set",
+      "old": "Pending ",
+      "new": "Pending",
+      "method": "trim_whitespace",
+      "rule_id": "format.whitespace",
+      "approved_by": "demo-reviewer",
+      "approved_at": "2026-10-17T20:10:46+00:00"
+    },
+    {
+      "suggestion_id": "s-f88ea446d618",
+      "issue_id": "e-79c3092efb20",
+      "cell_ref": "Customers!C6",
+      "action": "set",
+      "old": "Nort",
+      "new": "North",
+      "method": "fuzzy_category",
+      "rule_id": "allowed",
+      "approved_by": "demo-reviewer",
+      "approved_at": "2026-10-17T20:10:46+00:00"
+    },
+    {
+      "suggestion_id": "s-dcfe22b80161",
+      "issue_id": "e-9f6fc15209ec",
+      "cell_ref": "Customers!C11",
+      "action": "set",
+      "old": "south",
+      "new": "South",
+      "method": "canonical_category",
+      "rule_id": "allowed.noncanonical",
+      "approved_by": "demo-reviewer",
+      "approved_at": "2026-10-17T20:10:46+00:00"
+    }
+  ],
+  "skipped_changes": [
+    {
+      "suggestion_id": "s-7774b41ecf04",
+      "issue_id": "e-3709bca544c2",
+      "cell_ref": "Orders!A302",
+      "action": "delete_row",
+      "old": "Row repeats row 129 exactly.",
+      "new": null,
+      "method": "remove_duplicate_row",
+      "rule_id": "row.duplicate",
+      "approved_by": "demo-reviewer",
+      "approved_at": "2026-10-17T20:10:46+00:00",
+      "reason": "workbook contains formulas; deleting rows could break references, so the row was kept and marked"
+    }
+  ],
+  "after": {
+    "sheets_checked": [
+      "Orders",
+      "Customers"
+    ],
+    "rows": 341,
+    "cells": 3471,
+    "errors": 17,
+    "warnings": 1,
+    "anomalies": 5,
+    "anomalies_open": 5,
+    "anomalies_confirmed": 0,
+    "cells_with_errors": 17,
+    "quality_score": 99.51,
+    "by_rule": {
+      "range": 3,
+      "required": 2,
+      "regex": 2,
+      "type": 2,
+      "shipped_needs_date": 2,
+      "not_future": 1,
+      "allowed": 1,
+      "key.duplicate": 1,
+      "row.duplicate": 1,
+      "ship_after_order": 1,
+      "total_matches": 1,
+      "customer_exists": 1
+    },
+    "suggestions": 2,
+    "suggestions_by_status": {
+      "pending": 2,
+      "approved": 0,
+      "rejected": 0
+    },
+    "rule_errors": []
+  },
+  "output": {
+    "filename": "demo_orders_corrected.xlsx",
+    "sha256": "f3f73502006f9c7743632524ffde2c2fd6bcaf64575ac881d4f1698fb7b3b7f4"
+  },
+  "remaining_issues": [
+    {
+      "kind": "error",
+      "sheet": "Orders",
+      "rule_id": "required",
+      "severity": "error",
+      "message": "'order_id' is required but empty.",
+      "xl_row": 38,
+      "column": "order_id",
+      "cell_ref": "Orders!A38",
+      "value": null,
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "id": "e-2609ddfa0d66"
+    },
+    {
+      "kind": "error",
+      "sheet": "Orders",
+      "rule_id": "regex",
+      "severity": "error",
+      "message": "'ORD-12A4' does not match the pattern ^ORD-\\d{5}$.",
+      "xl_row": 156,
+      "column": "order_id",
+      "cell_ref": "Orders!A156",
+      "value": "ORD-12A4",
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "id": "e-53486d12be2e"
+    },
+    {
+      "kind": "error",
+      "sheet": "Orders",
+      "rule_id": "type",
+      "severity": "error",
+      "message": "'not a date' is not a date.",
+      "xl_row": 20,
+      "column": "order_date",
+      "cell_ref": "Orders!B20",
+      "value": "not a date",
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "id": "e-3cb21eb9bb4f"
+    },
+    {
+      "kind": "error",
+      "sheet": "Orders",
+      "rule_id": "range",
+      "severity": "error",
+      "message": "2019-05-01 is below the minimum 2020-01-01.",
+      "xl_row": 62,
+      "column": "order_date",
+      "cell_ref": "Orders!B62",
+      "value": "2019-05-01T00:00:00",
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "id": "e-e84ae131f8a7"
+    },
+    {
+      "kind": "error",
+      "sheet": "Orders",
+      "rule_id": "not_future",
+      "severity": "error",
+      "message": "2031-01-01 is in the future.",
+      "xl_row": 260,
+      "column": "order_date",
+      "cell_ref": "Orders!B260",
+      "value": "2031-01-01T00:00:00",
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "id": "e-fc6672253035"
+    },
+    {
+      "kind": "error",
+      "sheet": "Orders",
+      "rule_id": "required",
+      "severity": "error",
+      "message": "'customer_id' is required but empty.",
+      "xl_row": 291,
+      "column": "customer_id",
+      "cell_ref": "Orders!D291",
+      "value": null,
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "id": "e-a03447eea152"
+    },
+    {
+      "kind": "error",
+      "sheet": "Orders",
+      "rule_id": "allowed",
+      "severity": "error",
+      "message": "'Lost' is not an allowed value for 'status'.",
+      "xl_row": 131,
+      "column": "status",
+      "cell_ref": "Orders!E131",
+      "value": "Lost",
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "id": "e-42dadf89059a"
+    },
+    {
+      "kind": "error",
+      "sheet": "Orders",
+      "rule_id": "type",
+      "severity": "error",
+      "message": "'abc' is not a number.",
+      "xl_row": 121,
+      "column": "quantity",
+      "cell_ref": "Orders!G121",
+      "value": "abc",
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "id": "e-e4aec2a3b1b4"
+    },
+    {
+      "kind": "error",
+      "sheet": "Orders",
+      "rule_id": "range",
+      "severity": "error",
+      "message": "5000 is above the maximum 1000.",
+      "xl_row": 59,
+      "column": "quantity",
+      "cell_ref": "Orders!G59",
+      "value": 5000,
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "id": "e-be3ba427b2b5"
+    },
+    {
+      "kind": "error",
+      "sheet": "Orders",
+      "rule_id": "range",
+      "severity": "error",
+      "message": "0 is below the minimum 1.",
+      "xl_row": 92,
+      "column": "quantity",
+      "cell_ref": "Orders!G92",
+      "value": 0,
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "id": "e-4a244fbcce78"
+    },
+    {
+      "kind": "error",
+      "sheet": "Orders",
+      "rule_id": "regex",
+      "severity": "error",
+      "message": "'not-an-email' does not match the pattern ^[\\w.+-]+@[\\w-]+\\.[\\w.]+$.",
+      "xl_row": 16,
+      "column": "email",
+      "cell_ref": "Orders!K16",
+      "value": "not-an-email",
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "id": "e-d6a7488e0624"
+    },
+    {
+      "kind": "error",
+      "sheet": "Orders",
+      "rule_id": "key.duplicate",
+      "severity": "error",
+      "message": "Duplicate key (ORD-00128); first seen in row 129.",
+      "xl_row": 302,
+      "column": "order_id",
+      "cell_ref": "Orders!A302",
+      "value": "ORD-00128",
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "id": "e-b3c880f0ecdc"
+    },
+    {
+      "kind": "error",
+      "sheet": "Orders",
+      "rule_id": "row.duplicate",
+      "severity": "warning",
+      "message": "Row repeats row 129 exactly.",
+      "xl_row": 302,
+      "column": null,
+      "cell_ref": "Orders!A302",
+      "value": null,
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "id": "e-3709bca544c2"
+    },
+    {
+      "kind": "error",
+      "sheet": "Orders",
+      "rule_id": "ship_after_order",
+      "severity": "error",
+      "message": "Ship date is before the order date (ship_date=2024-09-21, order_date=2024-09-24)",
+      "xl_row": 278,
+      "column": "ship_date",
+      "cell_ref": "Orders!C278",
+      "value": "2024-09-21T00:00:00",
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "id": "e-827f24cd542c"
+    },
+    {
+      "kind": "error",
+      "sheet": "Orders",
+      "rule_id": "total_matches",
+      "severity": "error",
+      "message": "Total does not equal quantity x unit price (total=19848.4, quantity=30, unit_price=658.28)",
+      "xl_row": 135,
+      "column": "total",
+      "cell_ref": "Orders!J135",
+      "value": 19848.4,
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "id": "e-24e27a444197"
+    },
+    {
+      "kind": "error",
+      "sheet": "Orders",
+      "rule_id": "shipped_needs_date",
+      "severity": "error",
+      "message": "'ship_date' is required when status == 'Shipped'.",
+      "xl_row": 75,
+      "column": "ship_date",
+      "cell_ref": "Orders!C75",
+      "value": null,
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "id": "e-3b3b08d27565"
+    },
+    {
+      "kind": "error",
+      "sheet": "Orders",
+      "rule_id": "shipped_needs_date",
+      "severity": "error",
+      "message": "'ship_date' is required when status == 'Shipped'.",
+      "xl_row": 282,
+      "column": "ship_date",
+      "cell_ref": "Orders!C282",
+      "value": null,
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "id": "e-6f1d3ce0912c"
+    },
+    {
+      "kind": "error",
+      "sheet": "Orders",
+      "rule_id": "customer_exists",
+      "severity": "error",
+      "message": "'C999' was not found in Customers.customer_id.",
+      "xl_row": 22,
+      "column": "customer_id",
+      "cell_ref": "Orders!D22",
+      "value": "C999",
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "id": "e-c046faa8459f"
+    }
+  ]
+}

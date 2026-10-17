@@ -1,0 +1,39 @@
+version: 1
+dayfirst: true
+anomalies:
+  exclude: [total]          # derived column, validated by the total_matches rule
+sheets:
+  - sheet: Orders
+    key: [order_id]
+    columns:
+      order_id:    {required: true, regex: "^ORD-\\d{5}$"}
+      order_date:  {required: true, type: date, min: 2020-01-01, not_future: true}
+      ship_date:   {type: date}
+      customer_id: {required: true}
+      status:      {required: true, allowed: [Pending, Shipped, Delivered, Cancelled]}
+      quantity:    {required: true, type: int, min: 1, max: 1000}
+      unit_price:  {required: true, type: float, min: 1, max: 10000}
+      shipping_cost: {type: float, min: 0}
+      total:       {type: float, min: 0}
+      email:       {regex: "^[\\w.+-]+@[\\w-]+\\.[\\w.]+$"}
+    rules:
+      - id: ship_after_order
+        when: "ship_date is not null"
+        check: "ship_date >= order_date"
+        message: "Ship date is before the order date"
+      - id: total_matches
+        check: "abs(total - quantity * unit_price) <= 0.01"
+        message: "Total does not equal quantity x unit price"
+        fix: {column: total, to: "round(quantity * unit_price, 2)"}
+      - id: shipped_needs_date
+        when: "status == 'Shipped'"
+        require: [ship_date]
+      - id: customer_exists
+        lookup: {column: customer_id, sheet: Customers, key: customer_id}
+  - sheet: Customers
+    key: [customer_id]
+    columns:
+      customer_id: {required: true, regex: "^C\\d{3}$"}
+      name:        {required: true}
+      region:      {required: true, allowed: [North, South, East, West]}
+      credit_limit: {type: int, min: 0}

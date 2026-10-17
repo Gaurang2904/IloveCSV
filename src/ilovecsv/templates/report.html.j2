@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Data Quality Report: {{ a.input.filename }}</title>
+<style>
+:root {
+  color-scheme: light;
+  --surface-0: #f4f4f2; --surface-1: #fcfcfb; --border: #e2e1dc;
+  --text-primary: #0b0b0b; --text-secondary: #52514e; --text-muted: #77766f;
+  --series-1: #2a78d6; --track: #ecebe7;
+  --critical: #d03b3b; --warning: #fab219; --good: #0ca30c; --info: #6250d6;
+  --chip-critical: #fbe5e5; --chip-warning: #fdf1d3; --chip-info: #ebe8fa; --chip-good: #e2f4e2;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --surface-0: #121211; --surface-1: #1a1a19; --border: #33332f;
+    --text-primary: #f0efec; --text-secondary: #c3c2b7; --text-muted: #9a998f;
+    --series-1: #3987e5; --track: #2a2a27; --info: #9085e9;
+    --chip-critical: #3a1f1f; --chip-warning: #3a3018; --chip-info: #27243d; --chip-good: #1c321c;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --surface-0: #121211; --surface-1: #1a1a19; --border: #33332f;
+  --text-primary: #f0efec; --text-secondary: #c3c2b7; --text-muted: #9a998f;
+  --series-1: #3987e5; --track: #2a2a27; --info: #9085e9;
+  --chip-critical: #3a1f1f; --chip-warning: #3a3018; --chip-info: #27243d; --chip-good: #1c321c;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--surface-0); color: var(--text-primary);
+  font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+main { max-width: 1180px; margin: 0 auto; padding: 32px 16px 64px; }
+h1 { font-size: 26px; margin: 0 0 4px; letter-spacing: -0.01em; }
+h2 { font-size: 18px; margin: 40px 0 12px; }
+.sub { color: var(--text-secondary); margin: 0; }
+.mono { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 12px; }
+.card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-top: 24px; }
+.tile .label { color: var(--text-secondary); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.tile .value { font-size: 28px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.tile .delta { color: var(--text-muted); font-size: 12px; }
+.chip { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border-radius: 999px;
+  font-size: 12px; font-weight: 600; white-space: nowrap; color: var(--text-primary); }
+.chip::before { font-weight: 800; }
+.chip.error { background: var(--chip-critical); } .chip.error::before { content: "✕"; color: var(--critical); }
+.chip.warning { background: var(--chip-warning); } .chip.warning::before { content: "!"; color: var(--warning); }
+.chip.info { background: var(--chip-info); } .chip.info::before { content: "?"; color: var(--info); }
+.chip.good { background: var(--chip-good); } .chip.good::before { content: "✓"; color: var(--good); }
+.bars { display: grid; grid-template-columns: minmax(140px, 220px) 1fr 48px; gap: 6px 12px; align-items: center; }
+.bars .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.track { background: var(--track); border-radius: 4px; height: 12px; }
+.fill { background: var(--series-1); height: 12px; border-radius: 0 4px 4px 0; min-width: 2px; }
+.bars .n { text-align: right; font-variant-numeric: tabular-nums; color: var(--text-secondary); }
+.scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+th { color: var(--text-secondary); font-weight: 600; position: sticky; top: 0; background: var(--surface-1); }
+td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.hist .bar { fill: var(--series-1); }
+.hist g:hover .bar { opacity: .75; }
+.why { color: var(--text-muted); font-size: 12px; }
+.filter { width: 100%; max-width: 360px; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--surface-1); color: var(--text-primary); margin-bottom: 10px; font: inherit; }
+dl.prov { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; margin: 0; }
+dl.prov dt { color: var(--text-secondary); } dl.prov dd { margin: 0; word-break: break-all; }
+details summary { cursor: pointer; color: var(--text-secondary); }
+pre { white-space: pre-wrap; background: var(--surface-0); padding: 12px; border-radius: 8px; overflow-x: auto; }
+.warn { border-left: 3px solid var(--warning); padding-left: 10px; }
+.empty { color: var(--text-muted); }
+</style>
+</head>
+<body>
+<main>
+  {% set s = a.summary %}{% set af = a.after %}
+  <h1>Data Quality Report</h1>
+  <p class="sub">{{ a.input.filename }} · sheets checked: {{ s.sheets_checked | join(", ") }} · {{ s.rows }} rows · run {{ a.run.id }}</p>
+
+  {% for w in a.input.warnings %}<p class="warn">{{ w }}</p>{% endfor %}
+  {% if s.rule_errors %}<div class="warn"><strong>Rules that could not be evaluated:</strong>
+    <ul>{% for e in s.rule_errors %}<li><span class="mono">{{ e.rule_id }}</span> on {{ e.sheet }}: {{ e.error }}</li>{% endfor %}</ul></div>{% endif %}
+
+  <section class="tiles" aria-label="Summary">
+    <div class="card tile"><div class="label">Quality score</div><div class="value">{{ s.quality_score }}%</div>
+      <div class="delta">{% if af %}after fixes: {{ af.quality_score }}%{% else %}cells without errors{% endif %}</div></div>
+    <div class="card tile"><div class="label">Errors</div><div class="value">{{ s.errors }}</div>
+      <div class="delta">{% if af %}remaining: {{ af.errors }}{% else %}rule violations{% endif %}</div></div>
+    <div class="card tile"><div class="label">Warnings</div><div class="value">{{ s.warnings }}</div>
+      <div class="delta">{% if af %}remaining: {{ af.warnings }}{% else %}format problems{% endif %}</div></div>
+    <div class="card tile"><div class="label">Anomalies</div><div class="value">{{ s.anomalies }}</div>
+      <div class="delta">{{ s.anomalies_confirmed }} confirmed · {{ s.anomalies_open }} open</div></div>
+    <div class="card tile"><div class="label">Changes applied</div><div class="value">{{ a.changes | length }}</div>
+      <div class="delta">{{ a.skipped_changes | length }} skipped · {{ s.suggestions }} suggested</div></div>
+  </section>
+
+  <h2>Issues by rule</h2>
+  <div class="card">
+    {% if rule_bars %}
+    <div class="bars">
+      {% for b in rule_bars %}
+      <div class="name"><span class="chip {{ b.severity }}">{{ b.severity }}</span> <span class="mono">{{ b.rule }}</span></div>
+      <div class="track" title="{{ b.rule }}: {{ b.count }} issues"><div class="fill" style="width: {{ '%.1f' % b.pct }}%"></div></div>
+      <div class="n">{{ b.count }}</div>
+      {% endfor %}
+    </div>
+    {% else %}<p class="empty">No rule violations. ✓</p>{% endif %}
+  </div>
+
+  <h2>Column profile</h2>
+  {% for sheet in a.profiles %}
+  <div class="card scroll" style="margin-bottom:12px">
+    <strong>{{ sheet.name }}</strong> <span class="sub">· {{ sheet.n_rows }} rows · {{ sheet.n_cols }} columns · header row {{ sheet.header_row }} · {{ sheet.n_duplicate_rows }} duplicate rows{% if sheet.dropped_blank_rows %} · {{ sheet.dropped_blank_rows | length }} blank rows skipped{% endif %}</span>
+    <table>
+      <thead><tr><th>Column</th><th>Type</th><th>Missing</th><th>Distinct</th><th>Range / top values</th><th>Distribution</th><th>Format notes</th></tr></thead>
+      <tbody>
+      {% for c in sheet.columns %}
+      <tr>
+        <td><strong>{{ c.name }}</strong> <span class="mono why">{{ c.letter }}</span>{% if c.is_identifier %} <span class="why">id</span>{% endif %}</td>
+        <td>{{ c.inferred_type }} <span class="why">{{ '%.0f' % (c.type_share * 100) }}%</span></td>
+        <td class="num">{{ c.n_missing }} <span class="why">{{ '%.1f' % (c.missing_rate * 100) }}%</span></td>
+        <td class="num">{{ c.n_distinct }}</td>
+        <td>{% if c.numeric %}{{ '{:,.4g}'.format(c.numeric.min) }} … {{ '{:,.4g}'.format(c.numeric.max) }} <span class="why">median {{ '{:,.4g}'.format(c.numeric.median) }}</span>
+            {% elif c.dates %}{{ c.dates.min }} … {{ c.dates.max }}
+            {% else %}{% for t in c.top_values[:3] %}{{ t.value }} <span class="why">({{ t.count }})</span>{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}</td>
+        <td>{{ (c.numeric.histogram if c.numeric else None) | hist | safe }}</td>
+        <td class="why">{% if c.n_whitespace %}{{ c.n_whitespace }} extra spaces. {% endif %}{% if c.n_numeric_text %}{{ c.n_numeric_text }} numbers as text. {% endif %}{% if c.n_date_text %}{{ c.n_date_text }} dates as text. {% endif %}{% if c.case_variants %}{{ c.case_variants | length }} case variant groups.{% endif %}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endfor %}
+
+  <h2>Errors and warnings ({{ a.issues | length }})</h2>
+  <div class="card">
+    <input class="filter" type="search" placeholder="Filter by rule, cell, column or value…" data-table="issues-table" aria-label="Filter issues">
+    <div class="scroll"><table id="issues-table">
+      <thead><tr><th>Cell</th><th>Rule</th><th>Severity</th><th>Value</th><th>Problem</th></tr></thead>
+      <tbody>
+      {% for i in issues %}
+      <tr><td class="mono">{{ i.cell_ref or i.sheet }}</td><td class="mono">{{ i.rule_id }}</td>
+        <td><span class="chip {{ i.severity }}">{{ i.severity }}</span></td>
+        <td class="mono">{{ i.value if i.value is not none else "" }}</td>
+        <td>{{ i.message }}<div class="why">{{ i.why }}</div></td></tr>
+      {% else %}<tr><td colspan="5" class="empty">No errors or warnings.</td></tr>{% endfor %}
+      </tbody>
+    </table></div>
+    {% if truncated %}<p class="why">Showing the first 1,000. The complete list is in the JSON and Excel reports.</p>{% endif %}
+  </div>
+
+  <h2>Anomalies ({{ a.anomalies | length }})</h2>
+  <p class="sub">Statistically unusual values that break no rule. They are never corrected automatically. A reviewer marks each one as a confirmed error or dismisses it.</p>
+  <div class="card scroll" style="margin-top:12px">
+    <table>
+      <thead><tr><th>Cell</th><th>Detector</th><th>Score</th><th>Value</th><th>Why flagged</th><th>Status</th></tr></thead>
+      <tbody>
+      {% for i in anomalies %}
+      <tr><td class="mono">{{ i.cell_ref }}</td><td class="mono">{{ i.detector }}</td><td class="num">{{ i.score }}</td>
+        <td class="mono">{{ i.value if i.value is not none else "" }}</td><td>{{ i.message }}</td>
+        <td>{% if i.status == "confirmed_error" %}<span class="chip error">confirmed</span>{% elif i.status == "dismissed" %}<span class="chip good">dismissed</span>{% else %}<span class="chip info">open</span>{% endif %}</td></tr>
+      {% else %}<tr><td colspan="6" class="empty">No anomalies detected.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Change log ({{ a.changes | length }} applied)</h2>
+  <div class="card scroll">
+    <table>
+      <thead><tr><th>Cell</th><th>Action</th><th>Old</th><th>New</th><th>Method</th><th>Rule</th><th>Approved by</th></tr></thead>
+      <tbody>
+      {% for c in a.changes %}
+      <tr><td class="mono">{{ c.cell_ref }}</td><td>{{ c.action }}</td><td class="mono">{{ c.old if c.old is not none else "" }}</td>
+        <td class="mono">{{ c.new if c.new is not none else "" }}</td><td class="mono">{{ c.method }}</td><td class="mono">{{ c.rule_id }}</td>
+        <td>{{ c.approved_by or "" }} <span class="why">{{ c.approved_at or "" }}</span></td></tr>
+      {% else %}<tr><td colspan="7" class="empty">{% if a.output %}No changes were approved.{% else %}Not exported yet.{% endif %}</td></tr>{% endfor %}
+      </tbody>
+    </table>
+    {% if a.skipped_changes %}
+    <h3 style="font-size:15px">Approved but not applied</h3>
+    <table><thead><tr><th>Cell</th><th>Method</th><th>Reason</th></tr></thead><tbody>
+      {% for c in a.skipped_changes %}<tr><td class="mono">{{ c.cell_ref }}</td><td class="mono">{{ c.method }}</td><td>{{ c.reason }}</td></tr>{% endfor %}
+    </tbody></table>
+    {% endif %}
+  </div>
+
+  <h2>Provenance</h2>
+  <div class="card">
+    <dl class="prov">
+      <dt>Tool</dt><dd>{{ a.tool.name }} {{ a.tool.version }}</dd>
+      <dt>Validated</dt><dd>{{ a.run.created_at }}</dd>
+      <dt>Exported</dt><dd>{{ a.run.exported_at or "not exported" }}</dd>
+      <dt>Input SHA-256</dt><dd class="mono">{{ a.input.sha256 }}</dd>
+      <dt>Rules SHA-256</dt><dd class="mono">{{ a.rules.sha256 }}</dd>
+      {% if a.output %}<dt>Output</dt><dd>{{ a.output.filename }}</dd>
+      <dt>Output SHA-256</dt><dd class="mono">{{ a.output.sha256 }}</dd>{% endif %}
+    </dl>
+    <details style="margin-top:12px"><summary>Rule file used</summary><pre class="mono">{{ a.rules.text }}</pre></details>
+  </div>
+</main>
+<script>
+document.querySelectorAll("input.filter").forEach(function (input) {
+  var rows = document.getElementById(input.dataset.table).tBodies[0].rows;
+  input.addEventListener("input", function () {
+    var q = input.value.toLowerCase();
+    for (var i = 0; i < rows.length; i++) {
+      rows[i].style.display = rows[i].textContent.toLowerCase().indexOf(q) === -1 ? "none" : "";
+    }
+  });
+});
+</script>
+</body>
+</html>
