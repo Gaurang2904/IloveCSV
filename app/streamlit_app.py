@@ -166,6 +166,11 @@ def _inspection_panel(w: dict) -> dict:
         chosen = st.multiselect("Tables to prepare (default: all)", [t["name"] for t in tables], key="oc_tables")
         if chosen:
             source["sheets" if w["file_type"] == "xlsx" else "tables"] = chosen
+    if any("align_arrays" in w for w in insp.get("warnings", [])):
+        if st.checkbox("The same-length arrays above are aligned: combine them into one table", value=False,
+                       key="oc_align", help="Element k of each array is one record (e.g. one sample). Equal length "
+                                            "alone does not prove this, so it is off unless you know it."):
+            source["align_arrays"] = True
     big = not insp.get("full_processing_ok", True)
     if big:
         st.warning(f"Over the full-processing limit ({insp.get('row_limit', 0):,} rows per table). "

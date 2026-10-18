@@ -210,6 +210,60 @@ def test_hdf5_and_mat_v73(tmp_path):
     assert t["signal"].shape == (5, 2)
 
 
+def test_equal_length_arrays_are_aligned_only_on_request(tmp_path):
+    path = tmp_path / "s.npz"
+    np.savez(path, voltage=np.array([4.1, 4.0, np.nan, 4.0, 4.1, 12.5]), temp=np.array([24.0, 24.5, 25.0, 24.6, 24.4, 130.0]),
+             cycle_index=np.array([1, 2, 3, 4, 5, 5]), names=np.array(["voltage", "temp", "cycle_index"]))
+    wb, t = tables(path)
+    assert {"voltage", "temp", "cycle_index", "names"} == set(t) and list(t["voltage"].columns) == ["voltage"]
+    assert any("align_arrays" in w for w in wb.warnings)
+    wb, t = tables(path, align_arrays=True)
+    assert list(t["s"].columns) == ["voltage", "temp", "cycle_index"] and "names" in t
+    res = prepare(path, tmp_path / "out", source={"align_arrays": True})
+    found = {(i.column, i.rule_id) for i in res.run.issues}
+    assert ("cycle_index", "unique") in found  # the repeated cycle 5
+    assert any(c.startswith("aligned on request") for c in res.run.wb.tables_meta["s"]["notes"])
+
+
+def test_struct_array_series_long_format_and_length_mismatch(tmp_path):
+    from scipy.io import savemat
+
+    dt = [("type", "O"), ("time", "O"), ("Voltage", "O"), ("Current", "O")]
+    cyc = np.empty((1, 2), dtype=dt)
+    cyc[0, 0] = ("discharge", np.array([0.0, 10, 20]), np.array([4.1, 4.0, 3.9]), np.array([-1.0, -1.0, -0.9]))
+    cyc[0, 1] = ("charge", np.array([0.0, 12]), np.array([3.5, 3.8]), np.array([1.0]))
+    path = tmp_path / "demo.mat"
+    savemat(path, {"Demo": {"cycle": cyc}})
+    wb, t = tables(path)
+    assert list(t["Demo.cycle"]["cycle_index"]) == [1, 2]
+    series = t["Demo.cycle.series"]
+    assert len(series) == 5 and {"cycle_index", "sample_index", "time", "Voltage", "Current"} <= set(series.columns)
+    assert any("Demo.cycle(2): series lengths differ" in w for w in wb.warnings)
+
+
+def test_hdf5_attributes_in_structure(tmp_path):
+    h5py = pytest.importorskip("h5py")
+    path = tmp_path / "a.h5"
+    with h5py.File(path, "w") as h:
+        h.attrs["dataset_name"] = "QA example"
+        d = h.create_dataset("temperature_c", data=np.array([22.1, 22.4, 140.0]))
+        d.attrs["units"] = "C"
+    insp = inspect_file(path)
+    attrs = {n["path"]: n.get("attrs") for n in insp.tree}
+    assert attrs["/"] == {"dataset_name": "QA example"} and attrs["temperature_c"] == {"units": "C"}
+
+
+def test_one_off_category_next_to_established_ones_is_flagged(tmp_path):
+    src = tmp_path / "c.csv"
+    cities = ["Pune", "Mumbai", "Delhi", "Hyderabad"] * 8 + ["Hydrabad"]
+    src.write_text("id,city\n" + "".join(f"{i},{c}\n" for i, c in enumerate(cities)))
+    res = prepare(src, tmp_path / "out")
+    flagged = [i for i in res.run.issues if i.column == "city" and i.rule_id == "allowed"]
+    assert [i.value for i in flagged] == ["Hydrabad"]
+    fix = next(s for s in res.run.suggestions if s.column == "city")
+    assert fix.method == "fuzzy_category" and fix.new == "Hyderabad" and fix.status == "pending"
+
+
 # ----------------------------------------------------------------------------- large files
 def test_row_limit_and_sample(tmp_path):
     path = tmp_path / "big.csv"

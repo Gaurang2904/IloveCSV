@@ -73,7 +73,8 @@ def build_audit(run: RunResult, exported: ExportResult | None = None) -> dict[st
         "source": {"format": run.wb.source_format or run.wb.file_type,
                    "options": run.rules.source.model_dump(exclude_defaults=True),
                    "tables": {n: m for n, m in run.wb.tables_meta.items()},
-                   "documentation": run.wb.docs, "unsupported": run.wb.unsupported, "partial": run.wb.partial},
+                   "documentation": run.wb.docs, "unsupported": run.wb.unsupported, "partial": run.wb.partial,
+                   "warnings": run.wb.warnings, "structure": run.wb.tree[:200]},
         "recipe_decisions": run.recipe_decisions,
         "verification": exported.verification if exported else None,
     }

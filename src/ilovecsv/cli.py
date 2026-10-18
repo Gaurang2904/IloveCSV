@@ -24,8 +24,11 @@ from .rules.suggest import suggest_rules
 
 
 def main(argv: list[str] | None = None) -> int:
+    for stream in (sys.stdout, sys.stderr):  # a Windows console (cp1252) cannot print '→' or 'é'
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(errors="replace")
     p = argparse.ArgumentParser(prog="ilovecsv",
-                                description="Automated dataset quality and preparation for machine learning")
+                                description="Universal dataset inspection and safe preparation for machine learning")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     pr = sub.add_parser("prepare", help="one click: validate, apply Safe Auto-Clean, export dataset + report")
@@ -111,12 +114,14 @@ def _source_args(p: argparse.ArgumentParser) -> None:
     g.add_argument("--delimiter", default=None, help="CSV delimiter (default: detected)")
     g.add_argument("--encoding", default=None, help="text encoding (default: utf-8, then cp1252)")
     g.add_argument("--mat-layout", choices=["auto", "nasa_battery", "generic"], default=None)
+    g.add_argument("--align-arrays", action="store_true", default=None,
+                   help="combine same-length 1-D arrays into one table (only if you know they are aligned)")
 
 
 def _source_from(args) -> dict | None:
     opts = {"sheets": args.sheet, "tables": args.table, "json_records": args.json_records,
             "max_rows": args.max_rows, "delimiter": args.delimiter, "encoding": args.encoding,
-            "mat_layout": args.mat_layout}
+            "mat_layout": args.mat_layout, "align_arrays": args.align_arrays}
     opts = {k: v for k, v in opts.items() if v is not None}
     return opts or None
 
@@ -149,10 +154,14 @@ def _inspect(args) -> int:
             print(f"    possible missing-value code {h['token']!r}: \"{h['context'][:90]}\"")
     for w in insp.warnings:
         print(f"  ! {w}")
-    if insp.tree and not insp.tables:
+    if insp.tree and (not insp.tables or insp.format not in ("csv", "xlsx", "json", "jsonl", "parquet")):
         print("  structure:")
         for node in insp.tree[:40]:
-            print(f"    {'  ' * node.get('depth', 0)}{node['path']}: {node['kind']} {node['shape']}")
+            attrs = node.get("attrs")
+            print(f"    {'  ' * node.get('depth', 0)}{node['path']}: {node['kind']} {node['shape']}"
+                  + (f"  {attrs}" if attrs else ""))
+        if len(insp.tree) > 40:
+            print(f"    ... {len(insp.tree) - 40} more")
     return 0
 
 
@@ -189,6 +198,14 @@ def _prepare(args) -> int:
     for sch in report["columns"]:
         for r in sch.get("needs_review", []):
             print(f"  ! review before using {sch['sheet']}.{r['column']}: {'; '.join(r['reasons'])}")
+    for w in run.wb.warnings[:6]:
+        print(f"  ! source: {w}")
+    for u in run.wb.unsupported[:6]:
+        print(f"  ! not converted: {u['path']}: {u['reason']}")
+    for sch in report["columns"]:
+        missing = [f"{c['name']} {c['missing']}" for c in sch["columns"] if c.get("missing")]
+        if missing:
+            print(f"  missing values in {sch['sheet']} (kept, never imputed): {', '.join(missing[:12])}")
     print(f"  {'NOT FULLY CLEAN' if a['errors'] or a['warnings'] else 'clean'}; files in {ex.out_dir}:")
     if ex.corrected_path.suffix == ".xlsx":
         print(f"    cleaned workbook (changes highlighted): {ex.corrected_path.name}")

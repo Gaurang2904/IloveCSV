@@ -14,12 +14,15 @@ data as it is, or the draft would make the data's own errors legal. So:
 from __future__ import annotations
 
 import math
+import re
 from collections import Counter
 from typing import Any
 
 import yaml
 
 from ..profiling import SheetProfile, collapse_ws
+
+_INDEX_NAME = re.compile(r"(^|[_\s-])(id|idx|index|no|number|key|ref)$", re.IGNORECASE)
 
 _TYPE_MAP = {"int": "int", "float": "float", "date": "date", "bool": "bool", "text": "text", "category": "text"}
 
@@ -153,6 +156,10 @@ def _sheet_rules(p: SheetProfile, for_ml: bool = False) -> dict[str, Any]:
             r["unique"] = True
             if key is None:
                 key = [name]
+        elif (non_null >= 5 and c.inferred_type in ("int", "text") and _INDEX_NAME.search(name.strip())
+              and 0 < non_null - c.n_distinct <= max(1, int(0.02 * non_null))):
+            # An id / index column that is unique except for a stray repeat (cycle 6, 6): flag the repeat.
+            r["unique"] = True
         columns[name] = r
     out: dict[str, Any] = {"sheet": p.name}
     if key:
@@ -168,6 +175,13 @@ def _canonical_values(top: list[dict[str, Any]], variants: list[dict[str, Any]])
     for t in top:
         s = str(t["value"])
         counts[canon.get(collapse_ws(s).casefold(), collapse_ws(s))] += t["count"]
+    total = sum(counts.values())
+    # A one-off value next to well-established categories is far more often a typo or an alias
+    # ('Hydrabad', 'bangalore') than a real category: leave it out, so it is flagged for review
+    # instead of being declared valid. Small or long-tailed columns keep every value.
+    established = {v for v, n in counts.items() if n >= 3}
+    if total >= 20 and len(established) >= 2 and sum(counts[v] for v in established) >= 0.9 * total:
+        return [v for v, n in counts.most_common() if v in established or n / total > 0.05]
     return [v for v, _ in counts.most_common()]
 
 

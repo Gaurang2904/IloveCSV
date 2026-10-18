@@ -168,6 +168,7 @@ def build_manifest(run: RunResult, ex: ExportResult, audit: dict[str, Any], file
                                "missing_value_hints": d.get("missing_value_hints", [])} for d in wb.docs],
             "unsupported": wb.unsupported,
             "warnings": wb.warnings,
+            "structure": wb.tree[:200],  # what is inside a hierarchical file (groups, shapes, attributes)
         },
         "tables": [
             {"name": name, "source": wb.tables_meta.get(name, {}).get("source", name),

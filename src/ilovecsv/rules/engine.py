@@ -471,7 +471,10 @@ class SheetValidator:
             labels = {norm(df.at[r, target]) for r in rows} - {None}
             if len(rows) < 2 or len(labels) < 2:
                 continue
-            shown = sorted({str(to_text(df.at[r, target], self.nulls)) for r in rows})
+            # Show labels as they will be after cleaning (' YES ' -> 'Yes'), not their raw spelling.
+            canon = {str(lbl).casefold(): str(lbl) for lbl in (self.srules.target_labels or [])}
+            shown = sorted({canon.get(norm(df.at[r, target]) or "", collapse_ws(str(to_text(df.at[r, target], self.nulls))))
+                            for r in rows})
             for r in rows:
                 others = [o for o in rows if o != r]
                 self.emit("target.conflict", "warning",

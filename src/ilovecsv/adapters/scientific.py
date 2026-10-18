@@ -75,16 +75,71 @@ def _complex_split(name: str, a: np.ndarray) -> dict[str, np.ndarray]:
 # ----------------------------------------------------------------------------- generic conversion
 
 
+def _leaf(name: str) -> str:
+    return name.replace("/", ".").rsplit(".", 1)[-1] or "value"
+
+
+def _text_values(a: np.ndarray) -> list[Any]:
+    out = []
+    for v in a:
+        v = _scalar(v) if isinstance(v, np.ndarray) else v
+        out.append(v.decode("utf-8", "replace") if isinstance(v, bytes) else v)
+    return out
+
+
+def is_1d(a: Any) -> bool:
+    """A plain 1-D array (numbers or text) with more than one element."""
+    return (isinstance(a, np.ndarray) and a.ndim == 1 and a.size > 1 and not a.dtype.names
+            and a.dtype.kind in "biufcUS")
+
+
+def one_d_frame(name: str, a: np.ndarray) -> pd.DataFrame:
+    if a.dtype.kind in "US":
+        return pd.DataFrame({_leaf(name): _text_values(a)})
+    return pd.DataFrame(_complex_split(_leaf(name), a))
+
+
+def align_or_split(arrays: dict[str, np.ndarray], table: str, where: str, options: SourceOptions,
+                   tables: dict[str, pd.DataFrame], notes: dict[str, list[str]], warnings: list[str]) -> dict:
+    """Same-length 1-D arrays side by side *may* be the columns of one table, but equal length is the
+    only evidence. They are combined only when asked (align_arrays); otherwise each stays its own
+    table and the possibility is pointed out. Returns the arrays that were not combined."""
+    by_len: dict[int, list[str]] = {}
+    for k, a in arrays.items():
+        if is_1d(a):
+            by_len.setdefault(a.size, []).append(k)
+    rest = dict(arrays)
+    groups = [(n, keys) for n, keys in by_len.items() if len(keys) >= 2]
+    for n, keys in groups:
+        names = ", ".join(_leaf(k) for k in keys)
+        if not options.align_arrays:
+            warnings.append(f"{where}: {names} each have {n} elements. They may be the columns of one table "
+                            "(element k of each = one record), but equal length alone does not prove it, so "
+                            "they are kept as separate tables. If they are aligned, prepare with align_arrays "
+                            "(CLI --align-arrays).")
+            continue
+        name = table if len(groups) == 1 else f"{table}_{n}"
+        cols: dict[str, Any] = {}
+        for k in keys:
+            cols.update(one_d_frame(k, arrays[k]).to_dict("list"))
+            rest.pop(k)
+        tables[name] = pd.DataFrame(cols)
+        notes[name] = [f"aligned on request (align_arrays): {names} combined as columns, element k of each "
+                       "array treated as one record"]
+    return rest
+
+
 def generic_tables(name: str, obj: Any, tables: dict[str, pd.DataFrame], notes: dict[str, list[str]],
-                   unsupported: list[dict[str, Any]], depth: int = 0) -> None:
+                   unsupported: list[dict[str, Any]], depth: int = 0, warnings: list[str] | None = None) -> None:
     """Find the parts of a structure that have exactly one obvious table form."""
+    warnings = [] if warnings is None else warnings
     if isinstance(obj, np.ndarray) and obj.dtype.names:  # structured array
         flat = obj.reshape(-1)
         tables[name] = pd.DataFrame({f: list(flat[f]) for f in obj.dtype.names})
         notes[name] = ["structured array: one column per field"]
     elif _is_numeric_array(obj):
         if obj.ndim == 1:
-            tables[name] = pd.DataFrame(_complex_split("value", obj))
+            tables[name] = one_d_frame(name, obj)
             notes[name] = ["1-D array: one row per element"]
         elif obj.ndim == 2:
             cols: dict[str, np.ndarray] = {}
@@ -116,33 +171,69 @@ def generic_tables(name: str, obj: Any, tables: dict[str, pd.DataFrame], notes: 
         for k, v in rest.items():
             if k in scalars:
                 continue
-            generic_tables(f"{name}.{k}", v, tables, notes, unsupported, depth + 1)
+            generic_tables(f"{name}.{k}", v, tables, notes, unsupported, depth + 1, warnings)
     elif isinstance(obj, list) and obj and all(isinstance(x, dict) for x in obj):
-        fields = list(obj[0])
-        scalar_fields = [f for f in fields if all(np.isscalar(x.get(f)) or
-                                                  (isinstance(x.get(f), np.ndarray) and x.get(f).size == 1)
-                                                  or x.get(f) is None for x in obj)]
-        if scalar_fields:
-            tables[name] = pd.DataFrame([{f: _scalar(x.get(f)) for f in scalar_fields} for x in obj])
-            notes[name] = [f"struct array: one row per element ({len(obj)}), scalar fields as columns"]
-            dropped = [f for f in fields if f not in scalar_fields]
-            if dropped:
-                unsupported.append({"path": f"{name}[].({', '.join(dropped)})",
-                                    "reason": "fields hold arrays or nested structures of varying size; no safe "
-                                              "single-table form (a layout-specific adapter is needed)"})
-        else:
-            unsupported.append({"path": name, "reason": "struct array whose fields are all arrays or structures; "
-                                                        "no safe single-table form without a known layout"})
+        _struct_array(name, obj, tables, notes, unsupported, warnings)
     elif isinstance(obj, list):
         unsupported.append({"path": name, "reason": "cell array of mixed content: no safe table form"})
     elif isinstance(obj, np.ndarray) and obj.ndim == 1 and obj.dtype.kind in "USO" and obj.size > 1:
-        tables[name] = pd.DataFrame({"value": [_scalar(v) if isinstance(v, np.ndarray) else v for v in obj]})
+        tables[name] = pd.DataFrame({_leaf(name): _text_values(obj)})
         notes[name] = ["1-D text array: one row per element"]
     elif np.isscalar(obj) or (isinstance(obj, np.ndarray) and obj.size <= 1):
         if depth == 0:  # nested scalars are reported as metadata on their parent table
             unsupported.append({"path": name, "reason": f"single value ({_scalar(obj)!r}): metadata, not a table"})
     else:
         unsupported.append({"path": name, "reason": f"{type(obj).__name__}: no safe table form"})
+
+
+def _struct_array(name: str, obj: list[dict], tables: dict[str, pd.DataFrame], notes: dict[str, list[str]],
+                  unsupported: list[dict[str, Any]], warnings: list[str]) -> None:
+    """Struct array (e.g. battery.cycle(1..n)): scalar fields -> one row per element; per-element 1-D
+    series -> one long table (element index, sample index, one column per series), so element
+    identity is kept and nothing is squeezed into one cell."""
+    fields = list(dict.fromkeys(f for x in obj for f in x))
+
+    def is_scalar(v: Any) -> bool:
+        return v is None or np.isscalar(v) or (isinstance(v, np.ndarray) and v.size == 1)
+
+    def is_series(v: Any) -> bool:
+        return v is None or (isinstance(v, np.ndarray) and v.ndim == 1 and v.dtype.kind in "biufc") or is_scalar(v)
+
+    scalar_fields = [f for f in fields if all(is_scalar(x.get(f)) for x in obj)]
+    series_fields = [f for f in fields if f not in scalar_fields and all(is_series(x.get(f)) for x in obj)]
+    other = [f for f in fields if f not in scalar_fields and f not in series_fields]
+    index = f"{_leaf(name)}_index"
+    if scalar_fields:
+        rows = [{index: i, **{f: _scalar(x.get(f)) for f in scalar_fields}} for i, x in enumerate(obj, start=1)]
+        tables[name] = pd.DataFrame(rows)
+        notes[name] = [f"struct array: one row per element ({len(obj)}), scalar fields as columns; "
+                       f"{index} numbers the elements in file order"]
+    if series_fields:
+        frames = []
+        for i, x in enumerate(obj, start=1):
+            series = {f: np.atleast_1d(np.asarray(x[f])) for f in series_fields if x.get(f) is not None}
+            lengths = {f: a.size for f, a in series.items()}
+            n = max(lengths.values(), default=0)
+            if len(set(lengths.values())) > 1:
+                detail = ", ".join(f"{f} {m}" for f, m in lengths.items())
+                warnings.append(f"{name}({i}): series lengths differ ({detail}); the shorter ones are padded with "
+                                "missing values at the end. Check that the samples line up before using them "
+                                "together.")
+            frame: dict[str, Any] = {index: np.full(n, i), "sample_index": np.arange(n)}
+            for f, a in series.items():
+                for col, part in _complex_split(f, a).items():
+                    padded = np.full(n, np.nan)
+                    padded[: part.size] = part
+                    frame[col] = padded
+            frames.append(pd.DataFrame(frame))
+        long_name = f"{name}.series"
+        tables[long_name] = pd.concat(frames, ignore_index=True)
+        notes[long_name] = [f"per-element series ({', '.join(series_fields)}) in long format: one row per sample; "
+                            f"{index} links each sample to its row in {name}"]
+    if other:
+        unsupported.append({"path": f"{name}[].({', '.join(other)})",
+                            "reason": "fields hold multi-dimensional arrays or nested structures; no safe "
+                                      "single-table form (a layout-specific adapter is needed)"})
 
 
 def _scalar(v: Any) -> Any:
@@ -278,8 +369,9 @@ class MATAdapter(Adapter):
             raise ReadError("mat_layout is nasa_battery, but the file does not have the NASA battery structure.")
         tables: dict[str, pd.DataFrame] = {}
         notes: dict[str, list[str]] = {}
+        variables = align_or_split(variables, Path(filename).stem, filename, options, tables, notes, wb.warnings)
         for k, v in variables.items():
-            generic_tables(k, v, tables, notes, wb.unsupported)
+            generic_tables(k, v, tables, notes, wb.unsupported, warnings=wb.warnings)
         for t, df in tables.items():
             if options.tables and t not in options.tables:
                 continue
@@ -287,6 +379,16 @@ class MATAdapter(Adapter):
         if not wb.sheets:
             wb.warnings.append("No part of this file has a safe table form; see the structure and the reasons.")
         return wb
+
+
+def _attrs(attrs: Any) -> dict[str, str]:
+    """HDF5 attributes (units, descriptions, provenance) as short strings for the structure view."""
+    out = {}
+    for k in list(attrs)[:12]:
+        v = attrs[k]
+        v = v.decode("utf-8", "replace") if isinstance(v, bytes) else v
+        out[str(k)] = str(v.tolist() if isinstance(v, np.ndarray) else v)[:120]
+    return out
 
 
 def _raise(e: Exception):
@@ -313,18 +415,11 @@ class NumpyAdapter(Adapter):
         arrays = {Path(filename).stem: loaded} if suffix == ".npy" else {k: loaded[k] for k in loaded.files}
         for k, a in arrays.items():
             wb.tree.append({"path": k, "kind": f"array {a.dtype}", "shape": _shape(a), "depth": 0})
-        one_d = {k: a for k, a in arrays.items() if isinstance(a, np.ndarray) and a.ndim == 1 and not a.dtype.names}
-        if suffix == ".npz" and len(one_d) == len(arrays) > 1 and len({a.size for a in one_d.values()}) == 1:
-            cols: dict[str, np.ndarray] = {}
-            for k, a in one_d.items():
-                cols.update(_complex_split(k, a))
-            add_frame(wb, Path(filename).stem, pd.DataFrame(cols), options, source=filename,
-                      notes=[f"equal-length 1-D arrays ({', '.join(one_d)}) became columns"])
-            return wb
         tables: dict[str, pd.DataFrame] = {}
         notes: dict[str, list[str]] = {}
+        arrays = align_or_split(arrays, Path(filename).stem, filename, options, tables, notes, wb.warnings)
         for k, a in arrays.items():
-            generic_tables(k, a, tables, notes, wb.unsupported)
+            generic_tables(k, a, tables, notes, wb.unsupported, warnings=wb.warnings)
         for t, df in tables.items():
             if not options.tables or t in options.tables:
                 add_frame(wb, t, df, options, source=f"{filename} → {t}", notes=notes.get(t, []))
@@ -352,16 +447,22 @@ class HDF5Adapter(Adapter):
         wb = frames_workbook(filename, path, sha256_file(path), "mat_v7.3" if matlab else "hdf5")
         tables: dict[str, pd.DataFrame] = {}
         notes: dict[str, list[str]] = {}
+        one_d: dict[str, dict[str, np.ndarray]] = {}  # parent group -> 1-D datasets, aligned only on request
         with f:
             if any("pandas_type" in g.attrs for g in f.values() if hasattr(g, "attrs")):
                 wb.warnings.append("This looks like a pandas HDFStore; pandas.read_hdf reconstructs it exactly "
                                    "(needs PyTables). The generic reader shows the raw arrays.")
+            if f.attrs and not matlab:
+                wb.tree.append({"path": "/", "kind": "file", "shape": "-", "depth": 0, "attrs": _attrs(f.attrs)})
 
             def visit(name: str, node: Any) -> None:
                 if len(wb.tree) < MAX_TREE:
                     kind = "group" if isinstance(node, h5py.Group) else f"dataset {node.dtype}"
-                    wb.tree.append({"path": name, "kind": kind, "shape": "x".join(map(str, getattr(node, "shape", ())))
-                                    or "-", "depth": name.count("/")})
+                    entry = {"path": name, "kind": kind, "shape": "x".join(map(str, getattr(node, "shape", ())))
+                             or "-", "depth": name.count("/")}
+                    if node.attrs and not matlab:
+                        entry["attrs"] = _attrs(node.attrs)
+                    wb.tree.append(entry)
                 if not isinstance(node, h5py.Dataset) or name.startswith("#refs#"):
                     return
                 if node.dtype.kind == "O" or node.dtype.kind == "V" and not node.dtype.names:
@@ -379,9 +480,18 @@ class HDF5Adapter(Adapter):
                 arr = np.asarray(data)
                 if matlab and arr.ndim == 2:
                     arr = arr.T  # MATLAB stores column-major
-                generic_tables(name.replace("/", "."), arr, tables, notes, wb.unsupported)
+                if is_1d(arr):
+                    parent = name.rsplit("/", 1)[0] if "/" in name else ""
+                    one_d.setdefault(parent, {})[name.replace("/", ".")] = arr
+                    return
+                generic_tables(name.replace("/", "."), arr, tables, notes, wb.unsupported, warnings=wb.warnings)
 
             f.visititems(visit)
+        for parent, arrays in one_d.items():
+            table = parent.replace("/", ".") or Path(filename).stem
+            rest = align_or_split(arrays, table, f"{filename} /{parent}", options, tables, notes, wb.warnings)
+            for k, a in rest.items():
+                generic_tables(k, a, tables, notes, wb.unsupported, warnings=wb.warnings)
         for t, df in tables.items():
             if not options.tables or t in options.tables:
                 add_frame(wb, t, df, options, source=f"{filename} → /{t.replace('.', '/')}", notes=notes.get(t, []))

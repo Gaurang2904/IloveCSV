@@ -28,6 +28,9 @@ class SourceOptions(BaseModel):
         default=None, ge=1, description="Process only the first N rows of each table (a sample; marked as partial).")
     combine_tables: bool = Field(
         default=True, description="In archives, merge same-named tables with identical columns (adds source_file).")
+    align_arrays: bool = Field(
+        default=False, description="Combine same-length 1-D arrays (NumPy, HDF5 group, MATLAB variables) into one "
+                                   "table. Off by default: equal length alone does not prove the arrays are aligned.")
     mat_layout: Literal["auto", "nasa_battery", "generic"] = Field(
         default="auto", description="How MATLAB files become tables: auto-detect a known layout, or generic.")
     row_limit: int = Field(default=DEFAULT_MAX_ROWS, ge=1,

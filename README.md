@@ -18,10 +18,12 @@ Every format is read by an **adapter** that turns it into clearly defined tables
 | 1 | `.json` `.jsonl` `.ndjson` | Records found automatically or by dot path (`--json-records data.items`); nested objects flattened to `customer.city`; lists kept as JSON text |
 | 1 | `.parquet` `.feather` `.arrow` | Read from metadata first; row-group sampling for large files |
 | 1 | `.zip` | Every supported member becomes a table; same-named tables with identical columns are merged with a `source_file` column. README / data-dictionary members are read as **documentation** (e.g. "missing values are coded as -999"). Unsafe paths, too many members and zip bombs are refused |
-| 2 | `.mat` (v4–v7.2 via SciPy, v7.3 via h5py) | Known layouts (NASA battery aging: `cycles`, `measurements`, `impedance`) or generic rules: 2-D arrays, struct arrays, equal-length fields |
-| 2 | `.npy` `.npz` | 1-D and 2-D arrays; pickled objects are never loaded |
-| 2 | `.h5` `.hdf5` | Every 1-D/2-D dataset in the tree becomes a table |
+| 2 | `.mat` (v4–v7.2 via SciPy, v7.3 via h5py) | Known layouts (NASA battery aging: `cycles`, `measurements`, `impedance`) or generic rules: 2-D arrays, equal-length fields of one struct, struct arrays (one row per element, plus a long-format `…series` table for per-element series, keyed by element index; series of different lengths are reported) |
+| 2 | `.npy` `.npz` | 1-D and 2-D arrays, each array its own table; pickled objects are never loaded |
+| 2 | `.h5` `.hdf5` | Every 1-D/2-D dataset becomes a table; groups, shapes, dtypes and attributes are listed by `inspect` and kept in the manifest |
 | 2 | `.arff` | Via SciPy; `?` is missing |
+
+**Arrays are not assumed to be aligned.** Same-length 1-D arrays (NumPy, an HDF5 group, MATLAB variables) may be the columns of one table, but equal length alone does not prove it. `inspect` points them out, and they are combined only when you say so (`--align-arrays`, or the checkbox in the UI).
 
 **Nothing is guessed.** A structure with no single obvious table form (a 3-D array, a cell array of mixed content, variable-length struct fields) is listed under `unsupported` with the reason, and nothing about it is invented. Optional extras: `pip install ilovecsv[all-formats]` (or `parquet`, `scientific`, `legacy-excel`).
 
@@ -136,7 +138,7 @@ Recipes are plain YAML you can write by hand. [`examples/recipes/nasa_battery.ya
 
 ### Entry points
 
-* **CLI:** `ilovecsv inspect FILE [--json]`, and `ilovecsv prepare FILE [--target COL] [--labels No,Yes] [--out DIR] [--config CFG] [--remove-exact-duplicates] [--format csv --format parquet]`. Source options: `--sheet`, `--table`, `--json-records`, `--max-rows`, `--delimiter`, `--encoding`, `--mat-layout`. Exits with code 1 while unresolved errors remain, so it can gate a data pipeline in CI.
+* **CLI:** `ilovecsv inspect FILE [--json]`, and `ilovecsv prepare FILE [--target COL] [--labels No,Yes] [--out DIR] [--config CFG] [--remove-exact-duplicates] [--format csv --format parquet]`. Source options: `--sheet`, `--table`, `--json-records`, `--max-rows`, `--delimiter`, `--encoding`, `--mat-layout`, `--align-arrays`. Exits with code 1 while unresolved errors remain, so it can gate a data pipeline in CI.
 * **Python:** `from ilovecsv.pipeline import prepare; res = prepare("data.csv", target="churn")`, then `res.dataset_path()`, `res.report` and `res.unresolved`.
 * **API:** `POST /v1/workbooks` (any supported format), `GET /v1/workbooks/{id}/inspect`, `POST /v1/workbooks/{id}/prepare` (with optional `source` options), then `GET /v1/runs/{id}/dataset`, `/report`, `/config` and `/handoff/{manifest|feature_schema|script}`.
 * **UI:** the first page, **★ One-click prepare**: upload, inspect (tables, sample rows, documentation, unsupported parts), choose tables or a sample, pick the target (auto-guessed), Prepare, then download. The numbered pages are the advanced review flow for working through the review queue.
@@ -156,7 +158,7 @@ On the demo churn table (`python scripts/make_demo.py`: 403 rows, planted proble
 | **Anomaly detection** | Robust z-score (median/MAD) per numeric column, an IQR fallback, rare categories, and a row-level **Isolation Forest** after PCA whitening, which catches combinations that are each normal on their own. Anomalies are **kept separate from errors**: never auto-fixed, never deleted; a reviewer confirms or dismisses each one. |
 | **Review workflow** | Each issue's outcome is decided by re-validating the cleaned output: resolved, open, pending_review, approved, rejected or dismissed. Duplicate pairs are shown side by side before removal. Unresolved cells are marked in the cleaned workbook. |
 | **API engineering** | FastAPI with API-key auth (keys stored as SHA-256 hashes), per-user isolation, a streaming body-size limit, extension and magic-byte checks, zip-bomb and macro rejection, RFC 9457 `application/problem+json` errors, and a SQL-backed audit log. |
-| **Testing** | 166 tests, including every format adapter and the ZIP safety limits. Seeded synthetic datasets carry **known planted problems and a ground-truth manifest**. Tests check that each rule catches *exactly* the cells it should, across several seeds; that a clean file produces zero issues; that Safe Auto-Clean changes only safe things; and the report contract. |
+| **Testing** | 170 tests, including every format adapter and the ZIP safety limits. Seeded synthetic datasets carry **known planted problems and a ground-truth manifest**. Tests check that each rule catches *exactly* the cells it should, across several seeds; that a clean file produces zero issues; that Safe Auto-Clean changes only safe things; and the report contract. |
 
 ## Architecture
 
@@ -195,7 +197,7 @@ pip install -e ".[ui,dev,parquet]"
 
 python scripts/make_demo.py      # builds examples/churn_demo.xlsx + the orders demo, writes reports/
 ilovecsv prepare examples/churn_demo.xlsx --target churn --out prepared/
-pytest                           # 166 tests
+pytest                           # 170 tests
 ```
 
 ### CLI: rule-file workflow
@@ -454,7 +456,7 @@ I also ran it on the public [BODMAS](https://whyisyoung.github.io/BODMAS/) malwa
 ```
 src/ilovecsv/        core engine, format adapters (adapters/), API (api/), report template (templates/)
 app/                 Streamlit UI
-tests/               166 tests: per-rule ground truth, adapters, anomalies, corrections, prepare, ML checks, audit, API, CLI
+tests/               170 tests: per-rule ground truth, adapters, anomalies, corrections, prepare, ML checks, audit, API, CLI
 scripts/             make_demo.py, create_api_key.py
 benchmarks/          run_benchmark.py: planted problems in 7 formats, precision/recall, reproducibility
 examples/            churn_demo.xlsx (ML demo), demo_orders.xlsx + rule file (rule-engine demo); all synthetic

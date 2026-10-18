@@ -20,7 +20,7 @@
       "verification_passed": true,
       "review_items": 22,
       "representation_fixes": 0,
-      "seconds": 1.14,
+      "seconds": 1.15,
       "recall_by_kind": {
         "whitespace": "40/40",
         "case_variant": "40/40",
@@ -173,7 +173,7 @@
       "verification_passed": true,
       "review_items": 22,
       "representation_fixes": 0,
-      "seconds": 1.06,
+      "seconds": 1.13,
       "recall_by_kind": {
         "whitespace": "40/40",
         "case_variant": "40/40",
@@ -326,7 +326,7 @@
       "verification_passed": true,
       "review_items": 22,
       "representation_fixes": 2000,
-      "seconds": 3.1,
+      "seconds": 3.32,
       "recall_by_kind": {
         "whitespace": "40/40",
         "case_variant": "40/40",
@@ -479,7 +479,7 @@
       "verification_passed": true,
       "review_items": 22,
       "representation_fixes": 0,
-      "seconds": 1.02,
+      "seconds": 1.1,
       "recall_by_kind": {
         "whitespace": "40/40",
         "case_variant": "40/40",
@@ -632,7 +632,7 @@
       "verification_passed": true,
       "review_items": 22,
       "representation_fixes": 0,
-      "seconds": 1.05,
+      "seconds": 1.13,
       "recall_by_kind": {
         "whitespace": "40/40",
         "case_variant": "40/40",
@@ -785,7 +785,7 @@
       "verification_passed": true,
       "review_items": 21,
       "representation_fixes": 3980,
-      "seconds": 2.49,
+      "seconds": 2.57,
       "recall_by_kind": {
         "whitespace": "40/40",
         "case_variant": "40/40",
@@ -938,7 +938,7 @@
       "verification_passed": true,
       "review_items": 22,
       "representation_fixes": 0,
-      "seconds": 1.1,
+      "seconds": 1.22,
       "recall_by_kind": {
         "whitespace": "40/40",
         "case_variant": "40/40",
@@ -1091,7 +1091,7 @@
       "verification_passed": true,
       "review_items": 20,
       "representation_fixes": 0,
-      "seconds": 1.1,
+      "seconds": 1.11,
       "recall_by_kind": {
         "whitespace": "40/40",
         "case_variant": "40/40",

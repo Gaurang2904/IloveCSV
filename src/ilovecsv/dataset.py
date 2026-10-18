@@ -26,7 +26,7 @@ def dataset_stem(stem: str, sheet: str, n_sheets: int) -> str:
     if n_sheets == 1:
         return f"{stem}_cleaned"
     safe = re.sub(r"[^A-Za-z0-9_.-]+", "_", sheet).strip("_") or "sheet"
-    return f"{stem}_{safe}_cleaned"
+    return f"{stem}_cleaned" if safe == stem else f"{stem}_{safe}_cleaned"
 
 
 def csv_cell(v: Any) -> str:
