@@ -187,8 +187,9 @@ def infer_type(kinds: Counter, values: list[Any], n_distinct: int) -> tuple[str,
     if dates / n >= 0.8:
         return "date", dates / n
     if numeric / n >= 0.8:
+        # float(...): int.is_integer() only exists from Python 3.12, and `0.0 or 0` is the int 0.
         integral = kinds["float"] == 0 and all(
-            (parse_number_text(v) or 0).is_integer()
+            float(parse_number_text(v) or 0).is_integer()
             for v in values
             if isinstance(v, str) and parse_number_text(v) is not None
         )

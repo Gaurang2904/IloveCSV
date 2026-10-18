@@ -150,7 +150,7 @@ def suggest_corrections(
             else:
                 num = to_number(raw, nulls)
                 if num is not None:
-                    new = int(num) if col_rule.type == "int" or num.is_integer() else num
+                    new = int(num) if col_rule.type == "int" or float(num).is_integer() else num
                     sug("text_to_number", new, 0.95)
         elif rid == "type.date_as_text" and isinstance(raw, str):
             # Keeps the time of day (2025-08-17 10:30 stays a date-time); a text whose time cannot be
