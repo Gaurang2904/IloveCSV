@@ -10,3 +10,5 @@ data/
 reports/tmp/
 ~$*.xlsx
 .env
+# default output folders of `ilovecsv prepare` and the acceptance scripts
+prepared*/
