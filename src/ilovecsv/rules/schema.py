@@ -171,6 +171,15 @@ class Checks(_Strict):
     duplicate_match: Literal["normalized", "exact"] = "normalized"
     # Flag values that are spelled with different capitalisation elsewhere in the same column.
     case_variants: bool = True
+    # Flag placeholder text such as "N/A", "-" or "null" (see null_values); the safe fix empties the cell.
+    null_tokens: bool = True
+
+
+class DuplicatePolicy(_Strict):
+    # Rows identical in every column (ids too): "review" queues the deletion, "remove" lets Safe
+    # Auto-Clean delete them. Near-duplicates (matching after ignoring an id, case or spacing)
+    # are always review-only.
+    exact: Literal["review", "remove"] = "review"
 
 
 class AnomalyConfig(_Strict):
@@ -187,6 +196,10 @@ class AnomalyConfig(_Strict):
 class SheetRules(_Strict):
     sheet: str | None = None  # None = first sheet
     key: list[str] | None = None
+    # Label column for supervised learning: enables target checks and protects the labels from
+    # anything but trim/case/placeholder fixes.
+    target: str | None = None
+    duplicates: DuplicatePolicy = Field(default_factory=DuplicatePolicy)
     checks: Checks = Field(default_factory=Checks)
     columns: dict[str, ColumnRule] = Field(default_factory=dict)
     rules: list[TableRule] = Field(default_factory=list)
@@ -197,6 +210,13 @@ class SheetRules(_Strict):
         if isinstance(v, dict):
             return {str(k): ({} if val is None else val) for k, val in v.items()}
         return v
+
+    @model_validator(mode="after")
+    def _target_not_in_key(self) -> SheetRules:
+        # A label identifies the outcome, not the observation; keying on it hides label conflicts.
+        if self.target and self.key and self.target in self.key:
+            raise ValueError("the target column cannot be part of the key")
+        return self
 
     @model_validator(mode="after")
     def _unique_rule_ids(self) -> SheetRules:
@@ -218,7 +238,7 @@ class RuleSet(_Strict):
     @classmethod
     def _single_sheet_layout(cls, data: Any) -> Any:
         if isinstance(data, dict) and "sheets" not in data:
-            sheet_keys = {"sheet", "key", "checks", "columns", "rules"}
+            sheet_keys = {"sheet", "key", "target", "duplicates", "checks", "columns", "rules"}
             sheet = {k: data[k] for k in sheet_keys if k in data}
             rest = {k: v for k, v in data.items() if k not in sheet_keys}
             rest["sheets"] = [sheet]

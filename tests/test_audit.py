@@ -26,11 +26,12 @@ def test_reports_carry_provenance(orders, rules_text, tmp_path):
     assert len(audit["issues"]) == len(run.validation.issues)
     assert all(i["why"] for i in audit["issues"])
     html = ex.reports["html"].read_text(encoding="utf-8")
-    assert "Data Quality Report" in html and audit["input"]["sha256"] in html
+    assert "Dataset Preparation Report" in html and audit["input"]["sha256"] in html
     from openpyxl import load_workbook
 
     sheets = load_workbook(ex.reports["xlsx"]).sheetnames
-    assert sheets == ["Summary", "Unresolved", "Profile", "Issues", "Anomalies", "Changes", "Skipped"]
+    assert sheets == ["Summary", "Unresolved", "Review required", "Dataset for ML", "Profile", "Issues", "Anomalies",
+                      "Changes", "Removed rows", "Skipped"]
 
 
 def test_suggested_rules_are_valid_and_pass_on_clean_data(clean_orders):

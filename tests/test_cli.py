@@ -13,8 +13,8 @@ def test_check_without_export(orders, rules_text, tmp_path, capsys):
     out = capsys.readouterr().out
     assert code == 1  # errors present -> non-zero exit, usable in CI pipelines
     assert "quality score" in out and "total_matches" in out
-    assert (tmp_path / "out" / "orders_report.html").exists()
-    assert not (tmp_path / "out" / "orders_corrected.xlsx").exists()
+    assert (tmp_path / "out" / "orders_cleaning_report.html").exists()
+    assert not (tmp_path / "out" / "orders_cleaned.xlsx").exists()
 
 
 def test_check_with_export(orders, rules_text, tmp_path, capsys):
@@ -22,7 +22,7 @@ def test_check_with_export(orders, rules_text, tmp_path, capsys):
     rules.write_text(rules_text, encoding="utf-8")
     main(["check", str(orders[0]), "--rules", str(rules), "--out", str(tmp_path / "o"), "--approve-min", "0.9"])
     assert "corrected file" in capsys.readouterr().out
-    assert (tmp_path / "o" / "orders_corrected.xlsx").exists()
+    assert (tmp_path / "o" / "orders_cleaned.xlsx").exists()
 
 
 def test_profile_and_suggest(clean_orders, capsys):

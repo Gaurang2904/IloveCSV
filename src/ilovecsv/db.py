@@ -61,6 +61,7 @@ class Run(Base):
     rules_sha256: Mapped[str] = mapped_column(String(64))
     created_at: Mapped[str] = mapped_column(String(32), default=utcnow)
     status: Mapped[str] = mapped_column(String(16), default="validated")  # validated | exported
+    mode: Mapped[str | None] = mapped_column(String(20), nullable=True)  # safe_auto_clean | manual_review
     summary: Mapped[Any] = mapped_column(JSON)
     exported_at: Mapped[str | None] = mapped_column(String(32), nullable=True)
     out_dir: Mapped[str | None] = mapped_column(String(500), nullable=True)
@@ -110,6 +111,7 @@ class SuggestionRow(Base):
     old: Mapped[Any] = mapped_column(JSON, nullable=True)
     new: Mapped[Any] = mapped_column(JSON, nullable=True)
     rule_id: Mapped[str] = mapped_column(String(100))
+    safety: Mapped[str | None] = mapped_column(String(10), nullable=True, default="review")
     status: Mapped[str] = mapped_column(String(10), default="pending", index=True)
     decided_by: Mapped[str | None] = mapped_column(String(100), nullable=True)
     decided_at: Mapped[str | None] = mapped_column(String(32), nullable=True)

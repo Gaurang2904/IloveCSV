@@ -1,7 +1,9 @@
-"""Audit report: one data structure, three renderings (JSON, Excel, HTML).
+"""Cleaning report: one data structure, three renderings (JSON, Excel, HTML).
 
-Every report carries provenance: SHA-256 of the input file, the rule file and the
-corrected output, the tool version, timestamps, and who approved each change.
+The JSON form is the machine-readable contract (``schema_version``) for downstream code: what
+was changed or removed and why, what still needs review, what is unresolved, and the feature
+schema of the cleaned dataset. Every report carries provenance: SHA-256 of the input, the rules
+and the outputs, the tool version, timestamps, and who approved each change.
 """
 
 from __future__ import annotations
@@ -14,17 +16,24 @@ import pandas as pd
 from jinja2 import Environment, PackageLoader, select_autoescape
 
 from .explain import explain_issue
-from .models import ANOMALY, ERROR, RESOLUTIONS
+from .ml import feature_schema, ml_section
+from .models import ANOMALY, ERROR, RESOLUTIONS, jsonable
 from .pipeline import now_iso, tool_info
+from .reader import sha256_file
 
 if TYPE_CHECKING:
     from .pipeline import ExportResult, RunResult
 
 
+SCHEMA_VERSION = "1.0"
+
+
 def build_audit(run: RunResult, exported: ExportResult | None = None) -> dict[str, Any]:
     errors = [i for i in run.validation.issues if i.kind == ERROR]
     anomalies = [i for i in run.anomalies if i.kind == ANOMALY]
+    schema_run = exported.after_run if exported and exported.after_run else run
     audit: dict[str, Any] = {
+        "schema_version": SCHEMA_VERSION,
         "tool": tool_info(),
         "run": {"id": run.run_id, "created_at": run.created_at, "exported_at": now_iso() if exported else None},
         "input": {
@@ -50,14 +59,80 @@ def build_audit(run: RunResult, exported: ExportResult | None = None) -> dict[st
         "unresolved": [],
         "output": None,
         "not_verified": not_verified_columns(run),
+        "config": {
+            "mode": "safe_auto_clean" if run.auto_cleaned else "manual_review",
+            "targets": {(s.sheet or run.wb.first_sheet.name): s.target for s in run.rules.sheets if s.target},
+            "exact_duplicates": {(s.sheet or run.wb.first_sheet.name): s.duplicates.exact for s in run.rules.sheets},
+            "rules_sha256": run.rules_sha256,
+        },
+        "dataset": None,
+        "columns": feature_schema(schema_run),
+        "ml": ml_section(run, schema_run),
+        "removed_rows": [],
+        "review_required": review_queue(run),
     }
     if exported:
-        audit["changes"] = exported.apply.applied
+        to_cleaned = exported.to_cleaned_row
+        audit["changes"] = [{**c, "row_cleaned": to_cleaned.get(c.get("sheet"), {}).get(c.get("row"))}
+                            for c in exported.apply.applied if c["action"] == "set"]
+        audit["removed_rows"] = removed_rows(run, exported)
         audit["skipped_changes"] = exported.apply.skipped
         audit["after"] = {k: v for k, v in exported.after.items() if k != "unresolved"}
-        audit["unresolved"] = exported.after.get("unresolved", [])
+        audit["unresolved"] = [{**u, "row_original": _row_of(u.get("original_cell_ref")),
+                                "row_cleaned": _row_of(u.get("corrected_cell_ref"))}
+                               for u in exported.after.get("unresolved", [])]
         audit["output"] = {"filename": exported.corrected_path.name, "sha256": exported.apply.sha256}
+        out_dir = exported.out_dir or exported.corrected_path.parent
+        audit["input"]["preserved_copy"] = (str(exported.original_copy.relative_to(out_dir))
+                                            if exported.original_copy else None)
+        audit["dataset"] = {
+            "rows_before": {s: len(run.wb.sheets[s].df) for s in exported.datasets},
+            "rows_after": {s: len(exported.after_run.wb.sheets[s].df) for s in exported.datasets}
+            if exported.after_run else {},
+            "files": exported.datasets,
+            "sha256": {s: {fmt: sha256_file(out_dir / name) for fmt, name in files.items()}
+                       for s, files in exported.datasets.items()},
+            "kept_as_text": exported.kept_as_text,
+            "config_file": exported.config_path.name if exported.config_path else None,
+        }
     return audit
+
+
+def _row_of(ref: str | None) -> int | None:
+    if not ref or "!" not in ref:
+        return None
+    digits = "".join(ch for ch in ref.split("!", 1)[1] if ch.isdigit())
+    return int(digits) if digits else None
+
+
+def review_queue(run: RunResult) -> list[dict[str, Any]]:
+    """Everything a person still has to decide: pending fixes and unreviewed anomalies."""
+    out = [{"type": "suggestion", "id": s.id, "sheet": s.sheet, "row": s.xl_row, "column": s.column,
+            "cell_ref": s.cell_ref, "action": s.action, "old": s.old, "new": s.new, "method": s.method,
+            "safety": s.safety, "confidence": s.confidence, "rule_id": s.rule_id}
+           for s in run.suggestions if s.status == "pending"]
+    out += [{"type": "anomaly", "id": a.id, "sheet": a.sheet, "row": a.xl_row, "column": a.column,
+             "cell_ref": a.cell_ref, "value": a.value, "detector": a.detector, "message": a.message}
+            for a in run.anomalies if a.status == "open"]
+    return out
+
+
+def removed_rows(run: RunResult, exported: ExportResult) -> list[dict[str, Any]]:
+    issues = {i.id: i for i in run.validation.issues}
+    out = []
+    for c in exported.apply.applied:
+        if c["action"] != "delete_row":
+            continue
+        sheet, row = c.get("sheet"), c.get("row")
+        df = run.wb.sheets[sheet].df if sheet in run.wb.sheets else None
+        values = ({str(k): jsonable(v) for k, v in df.loc[row].items()}
+                  if df is not None and row in df.index else None)
+        issue = issues.get(c["issue_id"])
+        out.append({"sheet": sheet, "row_original": row, "reason": issue.message if issue else c.get("old"),
+                    "duplicate_of": (issue.context or {}).get("duplicate_of") if issue else None,
+                    "exact_copy": bool((issue.context or {}).get("exact")) if issue else None,
+                    "values": values, "approved_by": c.get("approved_by")})
+    return out
 
 
 def not_verified_columns(run: RunResult) -> list[dict[str, str]]:
@@ -87,9 +162,9 @@ def write_reports(run: RunResult, exported: ExportResult | None, out_dir: Path) 
     audit = build_audit(run, exported)
     stem = Path(run.wb.filename).stem
     paths = {
-        "json": out_dir / f"{stem}_audit.json",
-        "xlsx": out_dir / f"{stem}_audit.xlsx",
-        "html": out_dir / f"{stem}_report.html",
+        "json": out_dir / f"{stem}_cleaning_report.json",
+        "xlsx": out_dir / f"{stem}_cleaning_report.xlsx",
+        "html": out_dir / f"{stem}_cleaning_report.html",
     }
     write_json(audit, paths["json"])
     write_xlsx(audit, paths["xlsx"])
@@ -117,6 +192,9 @@ def write_xlsx(audit: dict[str, Any], path: Path) -> None:
     not_verified = ", ".join(f"{c['sheet']}.{c['column']}" for c in audit.get("not_verified", []))
     summary_rows = [
         ("Result", state),
+        ("Mode", "Safe Auto-Clean" if audit["config"]["mode"] == "safe_auto_clean" else "Manual review"),
+        ("Items needing review", len(audit.get("review_required", []))),
+        ("Rows removed", len(audit.get("removed_rows", []))),
         ("Tool", f"{audit['tool']['name']} {audit['tool']['version']}"),
         ("Run id", audit["run"]["id"]),
         ("Validated at", audit["run"]["created_at"]),
@@ -162,15 +240,27 @@ def write_xlsx(audit: dict[str, Any], path: Path) -> None:
                     "resolution"]
     unresolved_cols = ["corrected_cell_ref", "original_cell_ref", "rule_id", "severity", "value", "message",
                        "resolution", "resolution_note", "introduced_by_fix"]
-    change_cols = ["suggestion_id", "cell_ref", "action", "old", "new", "method", "rule_id", "approved_by", "approved_at"]
+    change_cols = ["suggestion_id", "cell_ref", "action", "old", "new", "method", "safety", "rule_id",
+                   "approved_by", "approved_at"]
     with pd.ExcelWriter(path, engine="openpyxl") as xw:
         pd.DataFrame(summary_rows, columns=["item", "value"]).to_excel(xw, sheet_name="Summary", index=False)
         pd.DataFrame(audit.get("unresolved", []), columns=unresolved_cols).to_excel(
             xw, sheet_name="Unresolved", index=False)
+        review_cols = ["type", "cell_ref", "action", "old", "new", "method", "safety", "confidence", "rule_id",
+                       "detector", "value", "message", "id"]
+        pd.DataFrame(audit.get("review_required", []), columns=review_cols).to_excel(
+            xw, sheet_name="Review required", index=False)
+        pd.DataFrame(_ml_rows(audit), columns=["section", "sheet", "name", "detail", "value"]).to_excel(
+            xw, sheet_name="Dataset for ML", index=False)
         pd.DataFrame(profile_rows).to_excel(xw, sheet_name="Profile", index=False)
         pd.DataFrame(audit["issues"], columns=issue_cols).to_excel(xw, sheet_name="Issues", index=False)
         pd.DataFrame(audit["anomalies"], columns=anomaly_cols).to_excel(xw, sheet_name="Anomalies", index=False)
-        pd.DataFrame(audit["changes"], columns=change_cols).to_excel(xw, sheet_name="Changes", index=False)
+        pd.DataFrame(audit["changes"], columns=[*change_cols[:2], "row_cleaned", *change_cols[2:]]).to_excel(
+            xw, sheet_name="Changes", index=False)
+        removed = [{**r, "values": json.dumps(r.get("values"), ensure_ascii=False, default=str)}
+                   for r in audit.get("removed_rows", [])]
+        pd.DataFrame(removed, columns=["sheet", "row_original", "reason", "duplicate_of", "exact_copy",
+                                       "approved_by", "values"]).to_excel(xw, sheet_name="Removed rows", index=False)
         skipped = [{**c, "reason": c.get("reason")} for c in audit["skipped_changes"]]
         pd.DataFrame(skipped, columns=[*change_cols, "reason"]).to_excel(xw, sheet_name="Skipped", index=False)
         for ws in xw.book.worksheets:
@@ -178,6 +268,48 @@ def write_xlsx(audit: dict[str, Any], path: Path) -> None:
             for col in ws.columns:
                 width = max((len(str(c.value)) for c in col if c.value is not None), default=8)
                 ws.column_dimensions[col[0].column_letter].width = min(60, max(10, width + 2))
+
+
+def _capped(items, sep: str, limit: int = 50) -> str:
+    """Join at most `limit` items for a spreadsheet cell; the JSON report keeps the full list."""
+    items = list(items)
+    text = sep.join(items[:limit])
+    return text + (f"{sep}... ({len(items)} in total; full list in the JSON report)" if len(items) > limit else "")
+
+
+def _ml_rows(audit: dict[str, Any]) -> list[tuple]:
+    rows: list[tuple] = []
+    for schema in audit.get("columns", []):
+        sheet = schema["sheet"]
+        for c in schema["columns"]:
+            rows.append(("column", sheet, c["name"], f"role={c['role']}", c["dtype"]))
+        for role, cols in schema["features"].items():
+            if cols:
+                rows.append(("feature list", sheet, role, ", ".join(cols), len(cols)))
+        for kind in ("identifier", "pii", "empty"):
+            if schema["excluded"][kind]:
+                rows.append(("excluded from features", sheet, kind, ", ".join(schema["excluded"][kind]), ""))
+        if schema["high_missing"]:
+            rows.append(("over 50% missing (kept; decide in your pipeline)", sheet, "",
+                         ", ".join(schema["high_missing"]), len(schema["high_missing"])))
+    for entry in audit.get("ml", {}).get("sheets", []):
+        if not entry.get("target"):
+            continue
+        sheet, ts = entry["sheet"], entry.get("target_summary") or {}
+        rows.append(("target", sheet, entry["target"], ts.get("kind", ""), f"{ts.get('missing', 0)} missing"))
+        for c in ts.get("classes", []):
+            rows.append(("class balance", sheet, c["label"], f"{c['share']:.1%}", c["count"]))
+        missing = entry.get("missing_target_rows", [])
+        conflicts = entry.get("label_conflicts", [])
+        rows.append(("missing labels (rows)", sheet, "", _capped(map(str, missing), ", "), len(missing)))
+        rows.append(("label conflicts (row groups)", sheet, "",
+                     _capped((" vs ".join(map(str, g)) for g in conflicts), "; "), len(conflicts)))
+        for s in entry.get("leakage_suspects", []):
+            rows.append(("possible leakage", sheet, s["column"], s["detail"], s["kind"]))
+    for k in (audit.get("dataset") or {}).get("kept_as_text", []):
+        rows.append(("kept as text", k["sheet"], k["column"], f"intended {k['intended_dtype']}",
+                     f"{k['unparseable_values']} unparseable"))
+    return rows
 
 
 # ----------------------------------------------------------------------------- HTML

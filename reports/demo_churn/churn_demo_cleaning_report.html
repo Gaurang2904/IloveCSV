@@ -1,0 +1,610 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dataset Preparation Report: churn_demo.xlsx</title>
+<style>
+:root {
+  color-scheme: light;
+  --surface-0: #f4f4f2; --surface-1: #fcfcfb; --border: #e2e1dc;
+  --text-primary: #0b0b0b; --text-secondary: #52514e; --text-muted: #77766f;
+  --series-1: #2a78d6; --track: #ecebe7;
+  --critical: #d03b3b; --warning: #fab219; --good: #0ca30c; --info: #6250d6;
+  --chip-critical: #fbe5e5; --chip-warning: #fdf1d3; --chip-info: #ebe8fa; --chip-good: #e2f4e2;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --surface-0: #121211; --surface-1: #1a1a19; --border: #33332f;
+    --text-primary: #f0efec; --text-secondary: #c3c2b7; --text-muted: #9a998f;
+    --series-1: #3987e5; --track: #2a2a27; --info: #9085e9;
+    --chip-critical: #3a1f1f; --chip-warning: #3a3018; --chip-info: #27243d; --chip-good: #1c321c;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --surface-0: #121211; --surface-1: #1a1a19; --border: #33332f;
+  --text-primary: #f0efec; --text-secondary: #c3c2b7; --text-muted: #9a998f;
+  --series-1: #3987e5; --track: #2a2a27; --info: #9085e9;
+  --chip-critical: #3a1f1f; --chip-warning: #3a3018; --chip-info: #27243d; --chip-good: #1c321c;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--surface-0); color: var(--text-primary);
+  font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+main { max-width: 1180px; margin: 0 auto; padding: 32px 16px 64px; }
+h1 { font-size: 26px; margin: 0 0 4px; letter-spacing: -0.01em; }
+h2 { font-size: 18px; margin: 40px 0 12px; }
+.sub { color: var(--text-secondary); margin: 0; }
+.mono { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 12px; }
+.card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-top: 24px; }
+.tile .label { color: var(--text-secondary); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.tile .value { font-size: 28px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.tile .delta { color: var(--text-muted); font-size: 12px; }
+.chip { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border-radius: 999px;
+  font-size: 12px; font-weight: 600; white-space: nowrap; color: var(--text-primary); }
+.chip::before { font-weight: 800; }
+.chip.error { background: var(--chip-critical); } .chip.error::before { content: "✕"; color: var(--critical); }
+.chip.warning { background: var(--chip-warning); } .chip.warning::before { content: "!"; color: var(--warning); }
+.chip.info { background: var(--chip-info); } .chip.info::before { content: "?"; color: var(--info); }
+.chip.good { background: var(--chip-good); } .chip.good::before { content: "✓"; color: var(--good); }
+.bars { display: grid; grid-template-columns: minmax(140px, 220px) 1fr 48px; gap: 6px 12px; align-items: center; }
+.bars .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.track { background: var(--track); border-radius: 4px; height: 12px; }
+.fill { background: var(--series-1); height: 12px; border-radius: 0 4px 4px 0; min-width: 2px; }
+.bars .n { text-align: right; font-variant-numeric: tabular-nums; color: var(--text-secondary); }
+.scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+th { color: var(--text-secondary); font-weight: 600; position: sticky; top: 0; background: var(--surface-1); }
+td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.hist .bar { fill: var(--series-1); }
+.hist g:hover .bar { opacity: .75; }
+.why { color: var(--text-muted); font-size: 12px; }
+.filter { width: 100%; max-width: 360px; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--surface-1); color: var(--text-primary); margin-bottom: 10px; font: inherit; }
+dl.prov { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; margin: 0; }
+dl.prov dt { color: var(--text-secondary); } dl.prov dd { margin: 0; word-break: break-all; }
+details summary { cursor: pointer; color: var(--text-secondary); }
+pre { white-space: pre-wrap; background: var(--surface-0); padding: 12px; border-radius: 8px; overflow-x: auto; }
+.warn { border-left: 3px solid var(--warning); padding-left: 10px; }
+.empty { color: var(--text-muted); }
+.status { margin-top: 20px; padding: 12px 16px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface-1); }
+.status.bad { border-left: 4px solid var(--critical); }
+.status.ok { border-left: 4px solid var(--good); }
+.status a { color: inherit; }
+</style>
+</head>
+<body>
+<main>
+  
+  <h1>Dataset Preparation Report</h1>
+  <p class="sub">churn_demo.xlsx · rows checked: Customers 403 · run 1b50cdbe2d21</p>
+
+  
+  <p class="warn">2 suggested fix(es) were still pending and were not applied.</p>
+  
+
+  
+  
+  <div class="status bad"><strong>Not fully clean.</strong> After cleaning, 4 error(s) and 2 warning(s) remain.
+    They are listed under <a href="#unresolved">Unresolved after cleaning</a> and highlighted orange, with a comment, in the corrected workbook.</div>
+  
+  
+
+  <section class="tiles" aria-label="Summary">
+    <div class="card tile" title="100 x (1 - (cells with errors + 0.5 x cells with only warnings) / cells checked)"><div class="label">Quality score</div>
+      <div class="value">99.42%</div>
+      <div class="delta">before cleaning: 99.31%</div></div>
+    <div class="card tile"><div class="label">Unresolved errors</div>
+      <div class="value">4</div>
+      <div class="delta">4 found before cleaning</div></div>
+    <div class="card tile"><div class="label">Unresolved warnings</div>
+      <div class="value">2</div>
+      <div class="delta">12 found before cleaning</div></div>
+    <div class="card tile"><div class="label">Anomalies</div><div class="value">0</div>
+      <div class="delta">0 confirmed · 0 open</div></div>
+    <div class="card tile"><div class="label">Changes applied</div><div class="value">9</div>
+      <div class="delta">0 skipped · 11 suggested</div></div>
+  </section>
+
+  
+  <div class="card" style="margin-top:12px">
+    <strong>How the score is calculated</strong>
+    <p class="why" style="margin:4px 0 8px">100 x (1 - (cells with errors + 0.5 x cells with only warnings) / cells checked). A duplicate row counts all its cells; anomalies count only when a reviewer confirms them.</p>
+    <div class="mono">Before cleaning: 100 x (1 - (22 + 0.5 x 11) / 4030) = 99.31</div>
+    <div class="mono">After cleaning (re-validation of the corrected file): 100 x (1 - (22 + 0.5 x 2) / 4030) = 99.42</div>
+    <p style="margin:10px 0 0">Issue outcomes:
+      <span class="chip good">resolved 10</span> <span class="chip error">open 4</span> <span class="chip warning">pending_review 2</span> </p>
+    
+  </div>
+
+  
+  <h2 id="unresolved">Unresolved after cleaning (6)</h2>
+  <div class="card scroll">
+    <table>
+      <thead><tr><th>Cell (corrected file)</th><th>Cell (original)</th><th>Rule</th><th>Value</th><th>Problem</th><th>Outcome</th></tr></thead>
+      <tbody>
+      
+      <tr><td class="mono">Customers!A403</td><td class="mono">Customers!A403</td>
+        <td class="mono">row.duplicate <span class="chip error">error</span></td>
+        <td class="mono"></td>
+        <td>Row is an exact copy of row 74.<div class="why">Suggested fix (remove_duplicate_row) was not reviewed.</div></td>
+        <td><span class="chip warning">pending_review</span></td></tr>
+      
+      <tr><td class="mono">Customers!A404</td><td class="mono">Customers!A404</td>
+        <td class="mono">row.duplicate <span class="chip error">error</span></td>
+        <td class="mono"></td>
+        <td>Row repeats row 80 (ignoring customer_id; case and spacing ignored).<div class="why">Suggested fix (remove_duplicate_row) was not reviewed.</div></td>
+        <td><span class="chip warning">pending_review</span></td></tr>
+      
+      <tr><td class="mono">Customers!J48</td><td class="mono">Customers!J48</td>
+        <td class="mono">target.missing <span class="chip error">error</span></td>
+        <td class="mono"></td>
+        <td>No target label: this row cannot be used for supervised training.<div class="why">No safe automatic correction exists; fix the source data by hand.</div></td>
+        <td><span class="chip error">open</span></td></tr>
+      
+      <tr><td class="mono">Customers!J54</td><td class="mono">Customers!J54</td>
+        <td class="mono">target.missing <span class="chip error">error</span></td>
+        <td class="mono"></td>
+        <td>No target label: this row cannot be used for supervised training.<div class="why">No safe automatic correction exists; fix the source data by hand.</div></td>
+        <td><span class="chip error">open</span></td></tr>
+      
+      <tr><td class="mono">Customers!J69</td><td class="mono">Customers!J69</td>
+        <td class="mono">target.conflict <span class="chip warning">warning</span></td>
+        <td class="mono">Yes</td>
+        <td>Same features as row(s) 402 but a different label (No vs Yes).<div class="why">No safe automatic correction exists; fix the source data by hand.</div></td>
+        <td><span class="chip error">open</span></td></tr>
+      
+      <tr><td class="mono">Customers!J402</td><td class="mono">Customers!J402</td>
+        <td class="mono">target.conflict <span class="chip warning">warning</span></td>
+        <td class="mono">No</td>
+        <td>Same features as row(s) 69 but a different label (No vs Yes).<div class="why">No safe automatic correction exists; fix the source data by hand.</div></td>
+        <td><span class="chip error">open</span></td></tr>
+      
+      </tbody>
+    </table>
+  </div>
+  
+
+  <h2>Dataset for ML</h2>
+  <p class="sub">What the cleaned dataset holds and how to feed it to a model. IloveCSV does not impute, scale, encode, drop columns or delete outliers: fit those steps on your training split only.</p>
+  
+  
+  <div class="card scroll" style="margin-top:12px">
+    <strong>Customers</strong>
+    <span class="sub"> · 403 → 403 rows · files:
+      <span class="mono">churn_demo_cleaned.csv</span></span>
+    <table style="margin-top:8px">
+      <thead><tr><th>Role</th><th>Columns</th></tr></thead>
+      <tbody>
+      <tr><td>numeric feature</td><td class="mono">monthly_charges, tenure_months, support_calls</td></tr><tr><td>categorical feature</td><td class="mono">plan, contract</td></tr><tr><td>datetime feature</td><td class="mono">signup_date, cancellation_date</td></tr>
+      <tr><td>target</td><td class="mono">churn</td></tr>
+      <tr><td>excluded (identifier)</td><td class="mono">customer_id</td></tr><tr><td>excluded (pii)</td><td class="mono">email</td></tr>
+      <tr><td>over 50% missing</td><td class="mono">cancellation_date <span class="why">(kept: missingness can be a signal; decide in your pipeline)</span></td></tr>
+      </tbody>
+    </table>
+    
+    <p style="margin:12px 0 4px"><strong>Target <span class="mono">churn</span></strong> · classification · 2 missing label(s) · imbalance 2.31:1</p>
+    <div class="bars">
+      <div class="name mono">No</div><div class="track" title="No: 280 rows"><div class="fill" style="width: 69.8%"></div></div><div class="n">280</div>
+    
+      <div class="name mono">Yes</div><div class="track" title="Yes: 121 rows"><div class="fill" style="width: 30.2%"></div></div><div class="n">121</div>
+    </div>
+    <p class="warn">1 group(s) of rows have identical features but different labels (rows 69 / 402).</p>
+    <p class="warn"><strong>Possible leakage:</strong> <span class="mono">cancellation_date</span>: empty -&gt; churn = &#39;No&#39;, filled -&gt; &#39;Yes&#39; for 99.8% of rows. Check it is known at prediction time before using it as a feature.</p>
+    
+  </div>
+  
+  
+
+  <h2>Review required (2)</h2>
+  <div class="card scroll">
+    <p class="why" style="margin-top:0">Not applied automatically: ambiguous, inferred or destructive changes, and anomalies. Approve or reject them in the review screen, then export again.</p>
+    <table>
+      <thead><tr><th>Cell</th><th>Type</th><th>Change / value</th><th>Method / detector</th></tr></thead>
+      <tbody>
+      
+      <tr><td class="mono">Customers!A403</td><td>suggestion (remove row)</td>
+        <td class="mono">Row is an exact copy of row 74.</td>
+        <td class="mono">remove_duplicate_row</td></tr>
+      
+      <tr><td class="mono">Customers!A404</td><td>suggestion (remove row)</td>
+        <td class="mono">Row repeats row 80 (ignoring customer_id; case and spacing ignored).</td>
+        <td class="mono">remove_duplicate_row</td></tr>
+      
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Issues by rule</h2>
+  <div class="card">
+    
+    <div class="bars">
+      
+      <div class="name"><span class="chip warning">warning</span> <span class="mono">format.null_token</span></div>
+      <div class="track" title="format.null_token: 4 issues"><div class="fill" style="width: 100.0%"></div></div>
+      <div class="n">4</div>
+      
+      <div class="name"><span class="chip warning">warning</span> <span class="mono">allowed.noncanonical</span></div>
+      <div class="track" title="allowed.noncanonical: 3 issues"><div class="fill" style="width: 75.0%"></div></div>
+      <div class="n">3</div>
+      
+      <div class="name"><span class="chip warning">warning</span> <span class="mono">type.stored_as_text</span></div>
+      <div class="track" title="type.stored_as_text: 2 issues"><div class="fill" style="width: 50.0%"></div></div>
+      <div class="n">2</div>
+      
+      <div class="name"><span class="chip error">error</span> <span class="mono">row.duplicate</span></div>
+      <div class="track" title="row.duplicate: 2 issues"><div class="fill" style="width: 50.0%"></div></div>
+      <div class="n">2</div>
+      
+      <div class="name"><span class="chip error">error</span> <span class="mono">target.missing</span></div>
+      <div class="track" title="target.missing: 2 issues"><div class="fill" style="width: 50.0%"></div></div>
+      <div class="n">2</div>
+      
+      <div class="name"><span class="chip warning">warning</span> <span class="mono">target.conflict</span></div>
+      <div class="track" title="target.conflict: 2 issues"><div class="fill" style="width: 50.0%"></div></div>
+      <div class="n">2</div>
+      
+      <div class="name"><span class="chip warning">warning</span> <span class="mono">format.whitespace</span></div>
+      <div class="track" title="format.whitespace: 1 issues"><div class="fill" style="width: 25.0%"></div></div>
+      <div class="n">1</div>
+      
+    </div>
+    
+  </div>
+
+  <h2>Column profile</h2>
+  
+  <div class="card scroll" style="margin-bottom:12px">
+    <strong>Customers</strong> <span class="sub">· 403 rows · 10 columns · header row 1 · 1 duplicate rows</span>
+    <table>
+      <thead><tr><th>Column</th><th>Type</th><th>Missing</th><th>Distinct</th><th>Range / top values</th><th>Distribution</th><th>Format notes</th></tr></thead>
+      <tbody>
+      
+      <tr>
+        <td><strong>customer_id</strong> <span class="mono why">A</span> <span class="why">id</span></td>
+        <td>text <span class="why">100%</span></td>
+        <td class="num">0 <span class="why">0.0%</span></td>
+        <td class="num">402</td>
+        <td>CU0073 <span class="why">(2)</span>, CU0001 <span class="why">(1)</span>, CU0002 <span class="why">(1)</span></td>
+        <td></td>
+        <td class="why"></td>
+      </tr>
+      
+      <tr>
+        <td><strong>signup_date</strong> <span class="mono why">B</span></td>
+        <td>date <span class="why">100%</span></td>
+        <td class="num">0 <span class="why">0.0%</span></td>
+        <td class="num">343</td>
+        <td>2021-01-26 … 2024-04-14
+            </td>
+        <td></td>
+        <td class="why"></td>
+      </tr>
+      
+      <tr>
+        <td><strong>plan</strong> <span class="mono why">C</span></td>
+        <td>category <span class="why">100%</span></td>
+        <td class="num">1 <span class="why">0.2%</span></td>
+        <td class="num">3</td>
+        <td>Basic <span class="why">(137)</span>, Premium <span class="why">(136)</span>, Standard <span class="why">(129)</span></td>
+        <td></td>
+        <td class="why"></td>
+      </tr>
+      
+      <tr>
+        <td><strong>contract</strong> <span class="mono why">D</span></td>
+        <td>category <span class="why">100%</span></td>
+        <td class="num">1 <span class="why">0.2%</span></td>
+        <td class="num">3</td>
+        <td>Month-to-month <span class="why">(207)</span>, One year <span class="why">(109)</span>, Two year <span class="why">(86)</span></td>
+        <td></td>
+        <td class="why"></td>
+      </tr>
+      
+      <tr>
+        <td><strong>monthly_charges</strong> <span class="mono why">E</span></td>
+        <td>float <span class="why">100%</span></td>
+        <td class="num">1 <span class="why">0.2%</span></td>
+        <td class="num">390</td>
+        <td>279 … 1,997 <span class="why">median 598.3</span>
+            </td>
+        <td><svg class="hist" viewBox="0 0 168 40" width="168" height="40" role="img" aria-label="Distribution histogram"><g><title>280.4 to 354.2: 132 rows</title><rect x="0.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="0.0" y="2.0" width="15.0" height="38.0" rx="1.5"/></g><g><title>354.2 to 428: 0 rows</title><rect x="17.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="17.0" y="40.0" width="15.0" height="0.0" rx="1.5"/></g><g><title>428 to 501.7: 0 rows</title><rect x="34.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="34.0" y="40.0" width="15.0" height="0.0" rx="1.5"/></g><g><title>501.7 to 575.5: 0 rows</title><rect x="51.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="51.0" y="40.0" width="15.0" height="0.0" rx="1.5"/></g><g><title>575.5 to 649.3: 128 rows</title><rect x="68.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="68.0" y="3.2" width="15.0" height="36.8" rx="1.5"/></g><g><title>649.3 to 723.1: 0 rows</title><rect x="85.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="85.0" y="40.0" width="15.0" height="0.0" rx="1.5"/></g><g><title>723.1 to 796.9: 0 rows</title><rect x="102.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="102.0" y="40.0" width="15.0" height="0.0" rx="1.5"/></g><g><title>796.9 to 870.7: 0 rows</title><rect x="119.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="119.0" y="40.0" width="15.0" height="0.0" rx="1.5"/></g><g><title>870.7 to 944.4: 0 rows</title><rect x="136.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="136.0" y="40.0" width="15.0" height="0.0" rx="1.5"/></g><g><title>944.4 to 1,018: 132 rows</title><rect x="153.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="153.0" y="2.0" width="15.0" height="38.0" rx="1.5"/></g></svg><div class="why">+10 outside the 1st–99th percentile</div></td>
+        <td class="why">2 numbers as text. </td>
+      </tr>
+      
+      <tr>
+        <td><strong>tenure_months</strong> <span class="mono why">F</span></td>
+        <td>int <span class="why">100%</span></td>
+        <td class="num">0 <span class="why">0.0%</span></td>
+        <td class="num">72</td>
+        <td>1 … 72 <span class="why">median 35</span>
+            </td>
+        <td><svg class="hist" viewBox="0 0 168 40" width="168" height="40" role="img" aria-label="Distribution histogram"><g><title>2 to 8.9: 40 rows</title><rect x="0.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="0.0" y="7.7" width="15.0" height="32.3" rx="1.5"/></g><g><title>8.9 to 15.8: 43 rows</title><rect x="17.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="17.0" y="5.2" width="15.0" height="34.8" rx="1.5"/></g><g><title>15.8 to 22.7: 41 rows</title><rect x="34.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="34.0" y="6.9" width="15.0" height="33.1" rx="1.5"/></g><g><title>22.7 to 29.6: 39 rows</title><rect x="51.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="51.0" y="8.5" width="15.0" height="31.5" rx="1.5"/></g><g><title>29.6 to 36.5: 44 rows</title><rect x="68.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="68.0" y="4.4" width="15.0" height="35.6" rx="1.5"/></g><g><title>36.5 to 43.4: 41 rows</title><rect x="85.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="85.0" y="6.9" width="15.0" height="33.1" rx="1.5"/></g><g><title>43.4 to 50.3: 33 rows</title><rect x="102.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="102.0" y="13.3" width="15.0" height="26.7" rx="1.5"/></g><g><title>50.3 to 57.2: 34 rows</title><rect x="119.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="119.0" y="12.5" width="15.0" height="27.5" rx="1.5"/></g><g><title>57.2 to 64.1: 47 rows</title><rect x="136.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="136.0" y="2.0" width="15.0" height="38.0" rx="1.5"/></g><g><title>64.1 to 71: 31 rows</title><rect x="153.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="153.0" y="14.9" width="15.0" height="25.1" rx="1.5"/></g></svg><div class="why">+10 outside the 1st–99th percentile</div></td>
+        <td class="why"></td>
+      </tr>
+      
+      <tr>
+        <td><strong>support_calls</strong> <span class="mono why">G</span></td>
+        <td>int <span class="why">100%</span></td>
+        <td class="num">1 <span class="why">0.2%</span></td>
+        <td class="num">10</td>
+        <td>0 … 9 <span class="why">median 4.5</span>
+            </td>
+        <td><svg class="hist" viewBox="0 0 168 40" width="168" height="40" role="img" aria-label="Distribution histogram"><g><title>0 to 0.9: 36 rows</title><rect x="0.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="0.0" y="11.5" width="15.0" height="28.5" rx="1.5"/></g><g><title>0.9 to 1.8: 40 rows</title><rect x="17.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="17.0" y="8.3" width="15.0" height="31.7" rx="1.5"/></g><g><title>1.8 to 2.7: 39 rows</title><rect x="34.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="34.0" y="9.1" width="15.0" height="30.9" rx="1.5"/></g><g><title>2.7 to 3.6: 45 rows</title><rect x="51.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="51.0" y="4.4" width="15.0" height="35.6" rx="1.5"/></g><g><title>3.6 to 4.5: 41 rows</title><rect x="68.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="68.0" y="7.5" width="15.0" height="32.5" rx="1.5"/></g><g><title>4.5 to 5.4: 36 rows</title><rect x="85.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="85.0" y="11.5" width="15.0" height="28.5" rx="1.5"/></g><g><title>5.4 to 6.3: 47 rows</title><rect x="102.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="102.0" y="2.8" width="15.0" height="37.2" rx="1.5"/></g><g><title>6.3 to 7.2: 48 rows</title><rect x="119.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="119.0" y="2.0" width="15.0" height="38.0" rx="1.5"/></g><g><title>7.2 to 8.1: 40 rows</title><rect x="136.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="136.0" y="8.3" width="15.0" height="31.7" rx="1.5"/></g><g><title>8.1 to 9: 30 rows</title><rect x="153.0" y="0" width="15.0" height="40" fill="transparent"/><rect class="bar" x="153.0" y="16.2" width="15.0" height="23.8" rx="1.5"/></g></svg></td>
+        <td class="why"></td>
+      </tr>
+      
+      <tr>
+        <td><strong>email</strong> <span class="mono why">H</span></td>
+        <td>text <span class="why">100%</span></td>
+        <td class="num">0 <span class="why">0.0%</span></td>
+        <td class="num">400</td>
+        <td>user68@example.net <span class="why">(2)</span>, user73@example.net <span class="why">(2)</span>, user79@example.net <span class="why">(2)</span></td>
+        <td></td>
+        <td class="why"></td>
+      </tr>
+      
+      <tr>
+        <td><strong>cancellation_date</strong> <span class="mono why">I</span></td>
+        <td>date <span class="why">100%</span></td>
+        <td class="num">281 <span class="why">69.7%</span></td>
+        <td class="num">118</td>
+        <td>2021-05-15 … 2029-07-31
+            </td>
+        <td></td>
+        <td class="why"></td>
+      </tr>
+      
+      <tr>
+        <td><strong>churn</strong> <span class="mono why">J</span></td>
+        <td>category <span class="why">100%</span></td>
+        <td class="num">2 <span class="why">0.5%</span></td>
+        <td class="num">4</td>
+        <td>No <span class="why">(277)</span>, Yes <span class="why">(121)</span>, NO <span class="why">(2)</span></td>
+        <td></td>
+        <td class="why">1 extra spaces. 1 case variant groups. </td>
+      </tr>
+      
+      </tbody>
+    </table>
+  </div>
+  
+  <div class="card scroll" style="margin-bottom:12px">
+    <strong>Readme</strong> <span class="sub">· 1 rows · 1 columns · header row 1 · 0 duplicate rows</span>
+    <table>
+      <thead><tr><th>Column</th><th>Type</th><th>Missing</th><th>Distinct</th><th>Range / top values</th><th>Distribution</th><th>Format notes</th></tr></thead>
+      <tbody>
+      
+      <tr>
+        <td><strong>About this file</strong> <span class="mono why">A</span> <span class="why">id</span></td>
+        <td>text <span class="why">100%</span></td>
+        <td class="num">0 <span class="why">0.0%</span></td>
+        <td class="num">1</td>
+        <td>Synthetic churn data generated by IloveCSV for demos and tests; no real customers. <span class="why">(1)</span></td>
+        <td></td>
+        <td class="why"></td>
+      </tr>
+      
+      </tbody>
+    </table>
+  </div>
+  
+
+  <h2>Errors and warnings (16)</h2>
+  <div class="card">
+    <input class="filter" type="search" placeholder="Filter by rule, cell, column or value…" data-table="issues-table" aria-label="Filter issues">
+    <div class="scroll"><table id="issues-table">
+      <thead><tr><th>Cell</th><th>Rule</th><th>Severity</th><th>Value</th><th>Problem</th><th>Outcome</th></tr></thead>
+      <tbody>
+      
+      <tr><td class="mono">Customers!E60</td><td class="mono">type.stored_as_text</td>
+        <td><span class="chip warning">warning</span></td>
+        <td class="mono">₹1,997.36</td>
+        <td>Number stored as text: &#39;₹1,997.36&#39;.<div class="why">The value is a number or boolean stored as text; Excel and most tools will not sum or compare it correctly.</div></td>
+        <td><span class="chip good">resolved</span><div class="why">Fixed by text_to_number; passes re-validation.</div></td></tr>
+      
+      <tr><td class="mono">Customers!E62</td><td class="mono">type.stored_as_text</td>
+        <td><span class="chip warning">warning</span></td>
+        <td class="mono">₹1,616.01</td>
+        <td>Number stored as text: &#39;₹1,616.01&#39;.<div class="why">The value is a number or boolean stored as text; Excel and most tools will not sum or compare it correctly.</div></td>
+        <td><span class="chip good">resolved</span><div class="why">Fixed by text_to_number; passes re-validation.</div></td></tr>
+      
+      <tr><td class="mono">Customers!J32</td><td class="mono">allowed.noncanonical</td>
+        <td><span class="chip warning">warning</span></td>
+        <td class="mono">no</td>
+        <td>&#39;no&#39; should be written &#39;No&#39;.<div class="why">The category is valid but spelled with different case or spacing, which splits one group into several.</div></td>
+        <td><span class="chip good">resolved</span><div class="why">Fixed by canonical_category; passes re-validation.</div></td></tr>
+      
+      <tr><td class="mono">Customers!J38</td><td class="mono">allowed.noncanonical</td>
+        <td><span class="chip warning">warning</span></td>
+        <td class="mono">NO </td>
+        <td>&#39;NO&#39; should be written &#39;No&#39;.<div class="why">The category is valid but spelled with different case or spacing, which splits one group into several.</div></td>
+        <td><span class="chip good">resolved</span><div class="why">Fixed by canonical_category; passes re-validation.</div></td></tr>
+      
+      <tr><td class="mono">Customers!J42</td><td class="mono">allowed.noncanonical</td>
+        <td><span class="chip warning">warning</span></td>
+        <td class="mono">NO</td>
+        <td>&#39;NO&#39; should be written &#39;No&#39;.<div class="why">The category is valid but spelled with different case or spacing, which splits one group into several.</div></td>
+        <td><span class="chip good">resolved</span><div class="why">Fixed by canonical_category; passes re-validation.</div></td></tr>
+      
+      <tr><td class="mono">Customers!J38</td><td class="mono">format.whitespace</td>
+        <td><span class="chip warning">warning</span></td>
+        <td class="mono">NO </td>
+        <td>Extra spaces in &#39;NO &#39;.<div class="why">Leading, trailing or repeated spaces make equal values look different to filters and lookups.</div></td>
+        <td><span class="chip good">resolved</span><div class="why">Fixed by canonical_category; passes re-validation.</div></td></tr>
+      
+      <tr><td class="mono">Customers!A403</td><td class="mono">row.duplicate</td>
+        <td><span class="chip error">error</span></td>
+        <td class="mono"></td>
+        <td>Row is an exact copy of row 74.<div class="why">The whole row repeats an earlier row; totals that include both will double-count.</div></td>
+        <td><span class="chip warning">pending_review</span><div class="why">Suggested fix (remove_duplicate_row) was not reviewed.</div></td></tr>
+      
+      <tr><td class="mono">Customers!A404</td><td class="mono">row.duplicate</td>
+        <td><span class="chip error">error</span></td>
+        <td class="mono"></td>
+        <td>Row repeats row 80 (ignoring customer_id; case and spacing ignored).<div class="why">The whole row repeats an earlier row; totals that include both will double-count.</div></td>
+        <td><span class="chip warning">pending_review</span><div class="why">Suggested fix (remove_duplicate_row) was not reviewed.</div></td></tr>
+      
+      <tr><td class="mono">Customers!C24</td><td class="mono">format.null_token</td>
+        <td><span class="chip warning">warning</span></td>
+        <td class="mono">n/a</td>
+        <td>Placeholder &#39;n/a&#39; stands for a missing value.<div class="why">A cross-column business rule from the rule file was not satisfied.</div></td>
+        <td><span class="chip good">resolved</span><div class="why">Fixed by null_token_to_empty; passes re-validation.</div></td></tr>
+      
+      <tr><td class="mono">Customers!D12</td><td class="mono">format.null_token</td>
+        <td><span class="chip warning">warning</span></td>
+        <td class="mono">-</td>
+        <td>Placeholder &#39;-&#39; stands for a missing value.<div class="why">A cross-column business rule from the rule file was not satisfied.</div></td>
+        <td><span class="chip good">resolved</span><div class="why">Fixed by null_token_to_empty; passes re-validation.</div></td></tr>
+      
+      <tr><td class="mono">Customers!E18</td><td class="mono">format.null_token</td>
+        <td><span class="chip warning">warning</span></td>
+        <td class="mono">null</td>
+        <td>Placeholder &#39;null&#39; stands for a missing value.<div class="why">A cross-column business rule from the rule file was not satisfied.</div></td>
+        <td><span class="chip good">resolved</span><div class="why">Fixed by null_token_to_empty; passes re-validation.</div></td></tr>
+      
+      <tr><td class="mono">Customers!G6</td><td class="mono">format.null_token</td>
+        <td><span class="chip warning">warning</span></td>
+        <td class="mono">N/A</td>
+        <td>Placeholder &#39;N/A&#39; stands for a missing value.<div class="why">A cross-column business rule from the rule file was not satisfied.</div></td>
+        <td><span class="chip good">resolved</span><div class="why">Fixed by null_token_to_empty; passes re-validation.</div></td></tr>
+      
+      <tr><td class="mono">Customers!J48</td><td class="mono">target.missing</td>
+        <td><span class="chip error">error</span></td>
+        <td class="mono"></td>
+        <td>No target label: this row cannot be used for supervised training.<div class="why">A cross-column business rule from the rule file was not satisfied.</div></td>
+        <td><span class="chip error">open</span><div class="why">No safe automatic correction exists; fix the source data by hand.</div></td></tr>
+      
+      <tr><td class="mono">Customers!J54</td><td class="mono">target.missing</td>
+        <td><span class="chip error">error</span></td>
+        <td class="mono"></td>
+        <td>No target label: this row cannot be used for supervised training.<div class="why">A cross-column business rule from the rule file was not satisfied.</div></td>
+        <td><span class="chip error">open</span><div class="why">No safe automatic correction exists; fix the source data by hand.</div></td></tr>
+      
+      <tr><td class="mono">Customers!J69</td><td class="mono">target.conflict</td>
+        <td><span class="chip warning">warning</span></td>
+        <td class="mono">Yes</td>
+        <td>Same features as row(s) 402 but a different label (No vs Yes).<div class="why">A cross-column business rule from the rule file was not satisfied.</div></td>
+        <td><span class="chip error">open</span><div class="why">No safe automatic correction exists; fix the source data by hand.</div></td></tr>
+      
+      <tr><td class="mono">Customers!J402</td><td class="mono">target.conflict</td>
+        <td><span class="chip warning">warning</span></td>
+        <td class="mono">No</td>
+        <td>Same features as row(s) 69 but a different label (No vs Yes).<div class="why">A cross-column business rule from the rule file was not satisfied.</div></td>
+        <td><span class="chip error">open</span><div class="why">No safe automatic correction exists; fix the source data by hand.</div></td></tr>
+      
+      </tbody>
+    </table></div>
+    
+  </div>
+
+  <h2>Anomalies (0)</h2>
+  <p class="sub">Statistically unusual values that break no rule. They are never corrected automatically. A reviewer marks each one as a confirmed error or dismisses it.</p>
+  <div class="card scroll" style="margin-top:12px">
+    <table>
+      <thead><tr><th>Cell</th><th>Detector</th><th>Score</th><th>Value</th><th>Why flagged</th><th>Status</th></tr></thead>
+      <tbody>
+      <tr><td colspan="6" class="empty">No anomalies detected.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Change log (9 applied)</h2>
+  <div class="card scroll">
+    <table>
+      <thead><tr><th>Cell</th><th>Action</th><th>Old</th><th>New</th><th>Method</th><th>Rule</th><th>Approved by</th></tr></thead>
+      <tbody>
+      
+      <tr><td class="mono">Customers!E60</td><td>set</td><td class="mono">₹1,997.36</td>
+        <td class="mono">1997.36</td><td class="mono">text_to_number</td><td class="mono">type.stored_as_text</td>
+        <td>safe-auto-clean <span class="why">2026-10-18T06:33:14+00:00</span></td></tr>
+      
+      <tr><td class="mono">Customers!E62</td><td>set</td><td class="mono">₹1,616.01</td>
+        <td class="mono">1616.01</td><td class="mono">text_to_number</td><td class="mono">type.stored_as_text</td>
+        <td>safe-auto-clean <span class="why">2026-10-18T06:33:14+00:00</span></td></tr>
+      
+      <tr><td class="mono">Customers!J32</td><td>set</td><td class="mono">no</td>
+        <td class="mono">No</td><td class="mono">canonical_category</td><td class="mono">allowed.noncanonical</td>
+        <td>safe-auto-clean <span class="why">2026-10-18T06:33:14+00:00</span></td></tr>
+      
+      <tr><td class="mono">Customers!J38</td><td>set</td><td class="mono">NO </td>
+        <td class="mono">No</td><td class="mono">canonical_category</td><td class="mono">allowed.noncanonical</td>
+        <td>safe-auto-clean <span class="why">2026-10-18T06:33:14+00:00</span></td></tr>
+      
+      <tr><td class="mono">Customers!J42</td><td>set</td><td class="mono">NO</td>
+        <td class="mono">No</td><td class="mono">canonical_category</td><td class="mono">allowed.noncanonical</td>
+        <td>safe-auto-clean <span class="why">2026-10-18T06:33:14+00:00</span></td></tr>
+      
+      <tr><td class="mono">Customers!C24</td><td>set</td><td class="mono">n/a</td>
+        <td class="mono"></td><td class="mono">null_token_to_empty</td><td class="mono">format.null_token</td>
+        <td>safe-auto-clean <span class="why">2026-10-18T06:33:14+00:00</span></td></tr>
+      
+      <tr><td class="mono">Customers!D12</td><td>set</td><td class="mono">-</td>
+        <td class="mono"></td><td class="mono">null_token_to_empty</td><td class="mono">format.null_token</td>
+        <td>safe-auto-clean <span class="why">2026-10-18T06:33:14+00:00</span></td></tr>
+      
+      <tr><td class="mono">Customers!E18</td><td>set</td><td class="mono">null</td>
+        <td class="mono"></td><td class="mono">null_token_to_empty</td><td class="mono">format.null_token</td>
+        <td>safe-auto-clean <span class="why">2026-10-18T06:33:14+00:00</span></td></tr>
+      
+      <tr><td class="mono">Customers!G6</td><td>set</td><td class="mono">N/A</td>
+        <td class="mono"></td><td class="mono">null_token_to_empty</td><td class="mono">format.null_token</td>
+        <td>safe-auto-clean <span class="why">2026-10-18T06:33:14+00:00</span></td></tr>
+      
+      </tbody>
+    </table>
+    
+  </div>
+
+  <h2>Provenance</h2>
+  <div class="card">
+    <dl class="prov">
+      <dt>Tool</dt><dd>IloveCSV 0.1.0</dd>
+      <dt>Validated</dt><dd>2026-10-18T06:33:14+00:00</dd>
+      <dt>Exported</dt><dd>2026-10-18T06:33:14+00:00</dd>
+      <dt>Input SHA-256</dt><dd class="mono">374fc97c15434cc5fa6c839301ff3fa6fe20214d9872ed43e8ea7a8f75b6ff85</dd>
+      <dt>Rules SHA-256</dt><dd class="mono">fc85c64a8cf816212510fea09933fd37a0e5526651fa3122c037448bb273e168</dd>
+      <dt>Output</dt><dd>churn_demo_cleaned.xlsx</dd>
+      <dt>Output SHA-256</dt><dd class="mono">a3f52697b5eed944a4c5be7c00e1d2221ac9aad2668cae38cc0a75fb2821a775</dd>
+    </dl>
+    <details style="margin-top:12px"><summary>Rule file used</summary><pre class="mono"># IloveCSV prepare config: rules + policy. Re-use with `ilovecsv prepare --config` to clean new
+# batches (e.g. later scoring data) exactly the same way.
+version: 1
+sheet: Customers
+columns:
+  customer_id: {required: true, type: text, min_length: 6, max_length: 6}
+  signup_date: {type: date}
+  plan:
+    type: text
+    allowed: [Basic, Premium, Standard]
+  contract:
+    type: text
+    allowed: [Month-to-month, One year, Two year]
+  monthly_charges: {type: float, min: 0, max: 3800}
+  tenure_months: {type: int, min: 0, max: 150}
+  support_calls: {type: int, min: 0, max: 18}
+  email: {format: email}
+  cancellation_date: {type: date}
+  churn:
+    type: text
+    allowed: [&#39;No&#39;, &#39;Yes&#39;]
+target: churn
+</pre></details>
+  </div>
+</main>
+<script>
+document.querySelectorAll("input.filter").forEach(function (input) {
+  var rows = document.getElementById(input.dataset.table).tBodies[0].rows;
+  input.addEventListener("input", function () {
+    var q = input.value.toLowerCase();
+    for (var i = 0; i < rows.length; i++) {
+      rows[i].style.display = rows[i].textContent.toLowerCase().indexOf(q) === -1 ? "none" : "";
+    }
+  });
+});
+</script>
+</body>
+</html>

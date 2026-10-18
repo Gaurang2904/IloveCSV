@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import math
+import shutil
 import uuid
 from collections import Counter
 from collections.abc import Iterable
@@ -22,9 +23,10 @@ from .corrections import ApplyResult, apply_corrections, mark_unresolved, sugges
 from .models import ANOMALY, APPROVED, ERROR, PENDING, REJECTED, Issue, Suggestion
 from .profiling import SheetProfile, profile_workbook
 from .reader import WorkbookData, read_workbook, sha256_file
-from .resolution import apply_pre_export, finalize
+from .resolution import apply_pre_export, finalize, row_maps
 from .rules.engine import ValidationResult, validate
 from .rules.schema import RuleSet, load_rules, rules_sha256
+from .rules.suggest import suggest_rules, with_prepare_options
 from .values import normalise_nulls
 
 
@@ -44,6 +46,7 @@ class RunResult:
     validation: ValidationResult
     anomalies: list[Issue]
     suggestions: list[Suggestion]
+    auto_cleaned: bool = False  # Safe Auto-Clean was applied (decide(mode="safe"))
 
     @property
     def issues(self) -> list[Issue]:
@@ -56,10 +59,36 @@ class RunResult:
 
 @dataclass
 class ExportResult:
-    corrected_path: Path
+    corrected_path: Path  # same format as the input: annotated .xlsx, or the cleaned .csv
     apply: ApplyResult
     after: dict[str, Any]
     reports: dict[str, Path] = field(default_factory=dict)
+    after_run: RunResult | None = None  # validation of the corrected file
+    datasets: dict[str, dict[str, str]] = field(default_factory=dict)  # sheet -> {format: file name}
+    kept_as_text: list[dict[str, Any]] = field(default_factory=list)
+    to_cleaned_row: dict[str, dict[int, int]] = field(default_factory=dict)  # original row -> cleaned row
+    original_copy: Path | None = None
+    config_path: Path | None = None
+    out_dir: Path | None = None
+
+
+@dataclass
+class PreparedResult:
+    run: RunResult
+    exported: ExportResult
+
+    @property
+    def report(self) -> Path:
+        return self.exported.reports["json"]
+
+    @property
+    def unresolved(self) -> list[dict[str, Any]]:
+        return self.exported.after.get("unresolved", [])
+
+    def dataset_path(self, fmt: str = "csv", sheet: str | None = None) -> Path:
+        files = self.exported.datasets
+        name = files[sheet or next(iter(files))][fmt]
+        return (self.exported.out_dir or self.report.parent) / name
 
 
 def run_checks(
@@ -101,12 +130,17 @@ def decide(
     approver: str = "cli",
     min_confidence: float | None = None,
     include_row_deletions: bool = False,
+    mode: str | None = None,
 ) -> int:
-    """Approve/reject suggestions by id, or approve all at or above min_confidence.
+    """Approve/reject suggestions by id, approve every *safe* one (mode="safe"), or approve all at
+    or above min_confidence.
 
-    Bulk approval by confidence never deletes rows unless include_row_deletions is set:
-    duplicate removal should be approved after looking at both rows.
+    mode="safe" is Safe Auto-Clean: only fixes classified "safe" (lossless formatting, unambiguous
+    conversions, user-declared aliases, and exact-duplicate removal when the policy allows it).
+    Bulk approval by confidence never deletes rows unless include_row_deletions is set.
     """
+    if mode not in (None, "safe"):
+        raise ValueError("mode must be None or 'safe'")
     approve, reject = set(approve), set(reject)
     changed = 0
     for s in run.suggestions:
@@ -116,21 +150,37 @@ def decide(
             target = REJECTED
         elif s.id in approve or (min_confidence is not None and s.confidence >= min_confidence and bulk_ok):
             target = APPROVED
+        elif mode == "safe" and s.safety == "safe" and s.status == PENDING:
+            target = APPROVED
         if target and s.status != target:
             s.status, s.decided_by, s.decided_at = target, approver, now_iso()
             changed += 1
+    if mode == "safe":
+        run.auto_cleaned = True
     apply_pre_export(run.issues, run.suggestions)
     return changed
 
 
-def export(run: RunResult, out_dir: str | Path, annotate: bool = True, write_reports: bool = True) -> ExportResult:
+def export(run: RunResult, out_dir: str | Path, annotate: bool = True, write_reports: bool = True,
+           formats: tuple[str, ...] = ("csv",), preserve_original: bool = True,
+           save_config: bool = True) -> ExportResult:
+    """Apply approved fixes, re-validate, and write everything the user and their ML code need.
+
+    Writes (stem = input file name without extension):
+      {stem}_cleaned.xlsx                 Excel input: the workbook with changes and unresolved cells marked
+      {stem}_cleaned.csv / .parquet       the dataset (one per validated sheet when there are several)
+      {stem}_cleaning_report.json/.xlsx/.html
+      {stem}_prepare_config.yaml          the exact rules + policy, to clean new batches the same way
+      original/{input file}               an untouched copy of the input
+    """
+    from .dataset import write_datasets
     from .report import write_reports as _write_reports  # local import: jinja2 only needed here
 
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     stem = Path(run.wb.filename).stem
     suffix = ".csv" if run.wb.file_type == "csv" else ".xlsx"
-    corrected = out_dir / f"{stem}_corrected{suffix}"
+    corrected = out_dir / f"{stem}_cleaned{suffix}"
     applied = apply_corrections(run.wb, run.suggestions, corrected, annotate=annotate)
 
     # Re-validate the corrected file with the same rules: proves what the fixes achieved.
@@ -145,10 +195,51 @@ def export(run: RunResult, out_dir: str | Path, annotate: bool = True, write_rep
     after["unresolved"] = resolution.unresolved
     after["resolution_counts"] = resolution.counts
 
-    result = ExportResult(corrected, applied, after)
+    _, to_original = row_maps(run, applied)
+    to_cleaned = {sheet: {o: c for c, o in m.items()} for sheet, m in to_original.items()}
+    datasets, kept = write_datasets(after_run, out_dir, stem, formats,
+                                    corrected_csv=corrected if run.wb.file_type == "csv" else None)
+    result = ExportResult(corrected, applied, after, after_run=after_run, datasets=datasets, kept_as_text=kept,
+                          to_cleaned_row=to_cleaned, out_dir=out_dir)
+    if preserve_original:
+        (out_dir / "original").mkdir(exist_ok=True)
+        result.original_copy = out_dir / "original" / run.wb.filename
+        shutil.copyfile(run.wb.path, result.original_copy)
+    if save_config:
+        result.config_path = out_dir / f"{stem}_prepare_config.yaml"
+        result.config_path.write_text(run.rules_text, encoding="utf-8")
     if write_reports:
         result.reports = _write_reports(run, result, out_dir)
     return result
+
+
+def prepare(
+    path: str | Path,
+    out_dir: str | Path = "prepared",
+    target: str | None = None,
+    config: str | Path | None = None,
+    remove_exact_duplicates: bool | None = None,
+    formats: tuple[str, ...] = ("csv",),
+    filename: str | None = None,
+    approver: str = "safe-auto-clean",
+) -> PreparedResult:
+    """One click: profile, validate, apply Safe Auto-Clean, re-validate and export.
+
+    Review-required items (ambiguous dates, fuzzy matches, near-duplicates, anomalies, ...) are
+    left pending and listed in the report; nothing is imputed, scaled, dropped or deleted unless it
+    is safe. `config` re-uses a saved {stem}_prepare_config.yaml instead of suggesting new rules.
+    """
+    wb = read_workbook(path, filename)
+    if config is not None:
+        rules_text = Path(config).read_text(encoding="utf-8")
+    else:
+        rules_text = suggest_rules(profile_workbook(wb), for_ml=True)
+    if target is not None or remove_exact_duplicates is not None:
+        columns = {name: [str(c) for c in s.df.columns] for name, s in wb.sheets.items()}
+        rules_text = with_prepare_options(rules_text, columns, target, remove_exact_duplicates)
+    run = run_on_workbook(wb, load_rules(rules_text), rules_text)
+    decide(run, mode="safe", approver=approver)
+    return PreparedResult(run, export(run, out_dir, formats=formats))
 
 
 def summarise(

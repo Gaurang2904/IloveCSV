@@ -33,7 +33,8 @@ def test_value_kinds_keep_identifiers_as_text():
     assert value_kind(" N/A ") == "null"
     assert value_kind(3.0) == "int"
     assert value_kind(datetime(2024, 1, 1)) == "date"
-    assert value_kind("yes") == "bool_text"
+    assert value_kind("true") == "bool_text"
+    assert value_kind("yes") == "text"  # Yes/No is a category or label unless a rule declares bool
     assert to_number(True) is None
     assert to_text(5.0) == "5"
 

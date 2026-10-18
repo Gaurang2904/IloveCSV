@@ -1,0 +1,2269 @@
+{
+  "schema_version": "1.0",
+  "tool": {
+    "name": "IloveCSV",
+    "version": "0.1.0"
+  },
+  "run": {
+    "id": "1b50cdbe2d21",
+    "created_at": "2026-10-18T06:33:14+00:00",
+    "exported_at": "2026-10-18T06:33:14+00:00"
+  },
+  "input": {
+    "filename": "churn_demo.xlsx",
+    "file_type": "xlsx",
+    "sha256": "374fc97c15434cc5fa6c839301ff3fa6fe20214d9872ed43e8ea7a8f75b6ff85",
+    "sheets": [
+      {
+        "name": "Customers",
+        "rows": 403,
+        "columns": 10,
+        "header_row": 1,
+        "dropped_blank_rows": [],
+        "formula_cells": 0
+      },
+      {
+        "name": "Readme",
+        "rows": 1,
+        "columns": 1,
+        "header_row": 1,
+        "dropped_blank_rows": [],
+        "formula_cells": 0
+      }
+    ],
+    "warnings": [],
+    "preserved_copy": "original\\churn_demo.xlsx"
+  },
+  "rules": {
+    "sha256": "fc85c64a8cf816212510fea09933fd37a0e5526651fa3122c037448bb273e168",
+    "text": "# IloveCSV prepare config: rules + policy. Re-use with `ilovecsv prepare --config` to clean new\n# batches (e.g. later scoring data) exactly the same way.\nversion: 1\nsheet: Customers\ncolumns:\n  customer_id: {required: true, type: text, min_length: 6, max_length: 6}\n  signup_date: {type: date}\n  plan:\n    type: text\n    allowed: [Basic, Premium, Standard]\n  contract:\n    type: text\n    allowed: [Month-to-month, One year, Two year]\n  monthly_charges: {type: float, min: 0, max: 3800}\n  tenure_months: {type: int, min: 0, max: 150}\n  support_calls: {type: int, min: 0, max: 18}\n  email: {format: email}\n  cancellation_date: {type: date}\n  churn:\n    type: text\n    allowed: ['No', 'Yes']\ntarget: churn\n"
+  },
+  "summary": {
+    "sheets_checked": [
+      "Customers"
+    ],
+    "rows_by_sheet": {
+      "Customers": 403
+    },
+    "rows": 403,
+    "cells": 4030,
+    "errors": 4,
+    "warnings": 12,
+    "anomalies": 0,
+    "anomalies_open": 0,
+    "anomalies_confirmed": 0,
+    "cells_with_errors": 22,
+    "cells_with_warnings": 11,
+    "quality_score": 99.31,
+    "quality_formula": "100 x (1 - (cells with errors + 0.5 x cells with only warnings) / cells checked)",
+    "quality_calculation": "100 x (1 - (22 + 0.5 x 11) / 4030) = 99.31",
+    "resolutions": {
+      "resolved": 10,
+      "pending_review": 2,
+      "open": 4
+    },
+    "by_rule": {
+      "format.null_token": 4,
+      "allowed.noncanonical": 3,
+      "type.stored_as_text": 2,
+      "row.duplicate": 2,
+      "target.missing": 2,
+      "target.conflict": 2,
+      "format.whitespace": 1
+    },
+    "suggestions": 11,
+    "suggestions_by_status": {
+      "pending": 2,
+      "approved": 9,
+      "rejected": 0
+    },
+    "rule_errors": []
+  },
+  "profiles": [
+    {
+      "name": "Customers",
+      "n_rows": 403,
+      "n_cols": 10,
+      "header_row": 1,
+      "duplicate_rows": [
+        403
+      ],
+      "dropped_blank_rows": [],
+      "dropped_blank_cols": [],
+      "columns": [
+        {
+          "name": "customer_id",
+          "letter": "A",
+          "inferred_type": "text",
+          "type_share": 1.0,
+          "n_rows": 403,
+          "n_missing": 0,
+          "missing_rate": 0.0,
+          "n_distinct": 402,
+          "top_values": [
+            {
+              "value": "CU0073",
+              "count": 2
+            },
+            {
+              "value": "CU0001",
+              "count": 1
+            },
+            {
+              "value": "CU0002",
+              "count": 1
+            },
+            {
+              "value": "CU0003",
+              "count": 1
+            },
+            {
+              "value": "CU0004",
+              "count": 1
+            },
+            {
+              "value": "CU0005",
+              "count": 1
+            },
+            {
+              "value": "CU0006",
+              "count": 1
+            },
+            {
+              "value": "CU0007",
+              "count": 1
+            },
+            {
+              "value": "CU0008",
+              "count": 1
+            },
+            {
+              "value": "CU0009",
+              "count": 1
+            }
+          ],
+          "kinds": {
+            "text": 403
+          },
+          "numeric": null,
+          "dates": null,
+          "lengths": {
+            "min": 6,
+            "max": 6,
+            "mean": 6.0,
+            "mode": 6,
+            "mode_share": 1.0,
+            "off_mode": 0
+          },
+          "patterns": [
+            {
+              "pattern": "AA9999",
+              "count": 403
+            }
+          ],
+          "n_whitespace": 0,
+          "case_variants": [],
+          "n_numeric_text": 0,
+          "n_date_text": 0,
+          "n_serial_dates": 0,
+          "is_identifier": true,
+          "dominant_value": null,
+          "semantic": null,
+          "phone_digits": null,
+          "sequential_id": true,
+          "categories": null
+        },
+        {
+          "name": "signup_date",
+          "letter": "B",
+          "inferred_type": "date",
+          "type_share": 1.0,
+          "n_rows": 403,
+          "n_missing": 0,
+          "missing_rate": 0.0,
+          "n_distinct": 343,
+          "top_values": [
+            {
+              "value": "2021-11-24",
+              "count": 4
+            },
+            {
+              "value": "2022-11-13",
+              "count": 3
+            },
+            {
+              "value": "2022-03-13",
+              "count": 3
+            },
+            {
+              "value": "2023-01-07",
+              "count": 3
+            },
+            {
+              "value": "2022-10-22",
+              "count": 3
+            },
+            {
+              "value": "2021-11-19",
+              "count": 2
+            },
+            {
+              "value": "2022-08-26",
+              "count": 2
+            },
+            {
+              "value": "2021-06-20",
+              "count": 2
+            },
+            {
+              "value": "2023-03-25",
+              "count": 2
+            },
+            {
+              "value": "2023-03-19",
+              "count": 2
+            }
+          ],
+          "kinds": {
+            "date": 403
+          },
+          "numeric": null,
+          "dates": {
+            "min": "2021-01-26",
+            "max": "2024-04-14"
+          },
+          "lengths": null,
+          "patterns": [],
+          "n_whitespace": 0,
+          "case_variants": [],
+          "n_numeric_text": 0,
+          "n_date_text": 0,
+          "n_serial_dates": 0,
+          "is_identifier": false,
+          "dominant_value": null,
+          "semantic": null,
+          "phone_digits": null,
+          "sequential_id": false,
+          "categories": null
+        },
+        {
+          "name": "plan",
+          "letter": "C",
+          "inferred_type": "category",
+          "type_share": 1.0,
+          "n_rows": 403,
+          "n_missing": 1,
+          "missing_rate": 0.0025,
+          "n_distinct": 3,
+          "top_values": [
+            {
+              "value": "Basic",
+              "count": 137
+            },
+            {
+              "value": "Premium",
+              "count": 136
+            },
+            {
+              "value": "Standard",
+              "count": 129
+            }
+          ],
+          "kinds": {
+            "text": 402,
+            "null": 1
+          },
+          "numeric": null,
+          "dates": null,
+          "lengths": {
+            "min": 5,
+            "max": 8,
+            "mean": 6.64,
+            "mode": 5,
+            "mode_share": 0.3408,
+            "off_mode": 265
+          },
+          "patterns": [
+            {
+              "pattern": "AAAAA",
+              "count": 137
+            },
+            {
+              "pattern": "AAAAAAA",
+              "count": 136
+            },
+            {
+              "pattern": "AAAAAAAA",
+              "count": 129
+            }
+          ],
+          "n_whitespace": 0,
+          "case_variants": [],
+          "n_numeric_text": 0,
+          "n_date_text": 0,
+          "n_serial_dates": 0,
+          "is_identifier": false,
+          "dominant_value": null,
+          "semantic": null,
+          "phone_digits": null,
+          "sequential_id": false,
+          "categories": [
+            {
+              "value": "Basic",
+              "count": 137
+            },
+            {
+              "value": "Premium",
+              "count": 136
+            },
+            {
+              "value": "Standard",
+              "count": 129
+            }
+          ]
+        },
+        {
+          "name": "contract",
+          "letter": "D",
+          "inferred_type": "category",
+          "type_share": 1.0,
+          "n_rows": 403,
+          "n_missing": 1,
+          "missing_rate": 0.0025,
+          "n_distinct": 3,
+          "top_values": [
+            {
+              "value": "Month-to-month",
+              "count": 207
+            },
+            {
+              "value": "One year",
+              "count": 109
+            },
+            {
+              "value": "Two year",
+              "count": 86
+            }
+          ],
+          "kinds": {
+            "text": 402,
+            "null": 1
+          },
+          "numeric": null,
+          "dates": null,
+          "lengths": {
+            "min": 8,
+            "max": 14,
+            "mean": 11.09,
+            "mode": 14,
+            "mode_share": 0.5149,
+            "off_mode": 195
+          },
+          "patterns": [
+            {
+              "pattern": "AAAAA-AA-AAAAA",
+              "count": 207
+            },
+            {
+              "pattern": "AAA_AAAA",
+              "count": 195
+            }
+          ],
+          "n_whitespace": 0,
+          "case_variants": [],
+          "n_numeric_text": 0,
+          "n_date_text": 0,
+          "n_serial_dates": 0,
+          "is_identifier": false,
+          "dominant_value": null,
+          "semantic": null,
+          "phone_digits": null,
+          "sequential_id": false,
+          "categories": [
+            {
+              "value": "Month-to-month",
+              "count": 207
+            },
+            {
+              "value": "One year",
+              "count": 109
+            },
+            {
+              "value": "Two year",
+              "count": 86
+            }
+          ]
+        },
+        {
+          "name": "monthly_charges",
+          "letter": "E",
+          "inferred_type": "float",
+          "type_share": 1.0,
+          "n_rows": 403,
+          "n_missing": 1,
+          "missing_rate": 0.0025,
+          "n_distinct": 390,
+          "top_values": [
+            {
+              "value": "598.99",
+              "count": 2
+            },
+            {
+              "value": "1015.94",
+              "count": 2
+            },
+            {
+              "value": "1007.05",
+              "count": 2
+            },
+            {
+              "value": "284.3",
+              "count": 2
+            },
+            {
+              "value": "316.08",
+              "count": 2
+            },
+            {
+              "value": "611.59",
+              "count": 2
+            },
+            {
+              "value": "609.61",
+              "count": 2
+            },
+            {
+              "value": "292.53",
+              "count": 2
+            },
+            {
+              "value": "982.88",
+              "count": 2
+            },
+            {
+              "value": "1009.61",
+              "count": 2
+            }
+          ],
+          "kinds": {
+            "float": 395,
+            "null": 1,
+            "numeric_text": 2,
+            "int": 5
+          },
+          "numeric": {
+            "bulk_min": 279.03,
+            "bulk_max": 1997.36,
+            "min": 279.03,
+            "max": 1997.36,
+            "mean": 636.8575373134328,
+            "std": 301.816177380923,
+            "p05": 284.97450000000003,
+            "p25": 306.7075,
+            "median": 598.27,
+            "p75": 990.9399999999999,
+            "p95": 1013.286,
+            "histogram": {
+              "edges": [
+                280.4,
+                354.182,
+                427.964,
+                501.746,
+                575.528,
+                649.3100000000001,
+                723.0920000000001,
+                796.874,
+                870.6560000000001,
+                944.4380000000001,
+                1018.22
+              ],
+              "counts": [
+                132,
+                0,
+                0,
+                0,
+                128,
+                0,
+                0,
+                0,
+                0,
+                132
+              ],
+              "outside": 10
+            }
+          },
+          "dates": null,
+          "lengths": {
+            "min": 9,
+            "max": 9,
+            "mean": 9.0,
+            "mode": 9,
+            "mode_share": 1.0,
+            "off_mode": 0
+          },
+          "patterns": [
+            {
+              "pattern": "₹9,999.99",
+              "count": 2
+            }
+          ],
+          "n_whitespace": 0,
+          "case_variants": [],
+          "n_numeric_text": 2,
+          "n_date_text": 0,
+          "n_serial_dates": 0,
+          "is_identifier": false,
+          "dominant_value": null,
+          "semantic": null,
+          "phone_digits": null,
+          "sequential_id": false,
+          "categories": null
+        },
+        {
+          "name": "tenure_months",
+          "letter": "F",
+          "inferred_type": "int",
+          "type_share": 1.0,
+          "n_rows": 403,
+          "n_missing": 0,
+          "missing_rate": 0.0,
+          "n_distinct": 72,
+          "top_values": [
+            {
+              "value": "39",
+              "count": 10
+            },
+            {
+              "value": "13",
+              "count": 10
+            },
+            {
+              "value": "40",
+              "count": 10
+            },
+            {
+              "value": "18",
+              "count": 9
+            },
+            {
+              "value": "58",
+              "count": 9
+            },
+            {
+              "value": "67",
+              "count": 9
+            },
+            {
+              "value": "34",
+              "count": 9
+            },
+            {
+              "value": "16",
+              "count": 8
+            },
+            {
+              "value": "61",
+              "count": 8
+            },
+            {
+              "value": "52",
+              "count": 8
+            }
+          ],
+          "kinds": {
+            "int": 403
+          },
+          "numeric": {
+            "bulk_min": 1.0,
+            "bulk_max": 72.0,
+            "min": 1.0,
+            "max": 72.0,
+            "mean": 35.459057071960295,
+            "std": 20.539009991890637,
+            "p05": 4.0,
+            "p25": 17.0,
+            "median": 35.0,
+            "p75": 53.5,
+            "p95": 68.0,
+            "histogram": {
+              "edges": [
+                2.0,
+                8.9,
+                15.8,
+                22.700000000000003,
+                29.6,
+                36.5,
+                43.400000000000006,
+                50.300000000000004,
+                57.2,
+                64.1,
+                71.0
+              ],
+              "counts": [
+                40,
+                43,
+                41,
+                39,
+                44,
+                41,
+                33,
+                34,
+                47,
+                31
+              ],
+              "outside": 10
+            }
+          },
+          "dates": null,
+          "lengths": null,
+          "patterns": [],
+          "n_whitespace": 0,
+          "case_variants": [],
+          "n_numeric_text": 0,
+          "n_date_text": 0,
+          "n_serial_dates": 0,
+          "is_identifier": false,
+          "dominant_value": null,
+          "semantic": null,
+          "phone_digits": null,
+          "sequential_id": false,
+          "categories": null
+        },
+        {
+          "name": "support_calls",
+          "letter": "G",
+          "inferred_type": "int",
+          "type_share": 1.0,
+          "n_rows": 403,
+          "n_missing": 1,
+          "missing_rate": 0.0025,
+          "n_distinct": 10,
+          "top_values": [
+            {
+              "value": "7",
+              "count": 48
+            },
+            {
+              "value": "6",
+              "count": 47
+            },
+            {
+              "value": "3",
+              "count": 45
+            },
+            {
+              "value": "4",
+              "count": 41
+            },
+            {
+              "value": "1",
+              "count": 40
+            },
+            {
+              "value": "8",
+              "count": 40
+            },
+            {
+              "value": "2",
+              "count": 39
+            },
+            {
+              "value": "5",
+              "count": 36
+            },
+            {
+              "value": "0",
+              "count": 36
+            },
+            {
+              "value": "9",
+              "count": 30
+            }
+          ],
+          "kinds": {
+            "int": 402,
+            "null": 1
+          },
+          "numeric": {
+            "bulk_min": 0.0,
+            "bulk_max": 9.0,
+            "min": 0.0,
+            "max": 9.0,
+            "mean": 4.490049751243781,
+            "std": 2.7743302303339945,
+            "p05": 0.0,
+            "p25": 2.0,
+            "median": 4.5,
+            "p75": 7.0,
+            "p95": 9.0,
+            "histogram": {
+              "edges": [
+                0.0,
+                0.9,
+                1.8,
+                2.7,
+                3.6,
+                4.5,
+                5.4,
+                6.3,
+                7.2,
+                8.1,
+                9.0
+              ],
+              "counts": [
+                36,
+                40,
+                39,
+                45,
+                41,
+                36,
+                47,
+                48,
+                40,
+                30
+              ],
+              "outside": 0
+            }
+          },
+          "dates": null,
+          "lengths": null,
+          "patterns": [],
+          "n_whitespace": 0,
+          "case_variants": [],
+          "n_numeric_text": 0,
+          "n_date_text": 0,
+          "n_serial_dates": 0,
+          "is_identifier": false,
+          "dominant_value": null,
+          "semantic": null,
+          "phone_digits": null,
+          "sequential_id": false,
+          "categories": null
+        },
+        {
+          "name": "email",
+          "letter": "H",
+          "inferred_type": "text",
+          "type_share": 1.0,
+          "n_rows": 403,
+          "n_missing": 0,
+          "missing_rate": 0.0,
+          "n_distinct": 400,
+          "top_values": [
+            {
+              "value": "user68@example.net",
+              "count": 2
+            },
+            {
+              "value": "user73@example.net",
+              "count": 2
+            },
+            {
+              "value": "user79@example.net",
+              "count": 2
+            },
+            {
+              "value": "user1@example.net",
+              "count": 1
+            },
+            {
+              "value": "user2@example.net",
+              "count": 1
+            },
+            {
+              "value": "user3@example.net",
+              "count": 1
+            },
+            {
+              "value": "user4@example.net",
+              "count": 1
+            },
+            {
+              "value": "user5@example.net",
+              "count": 1
+            },
+            {
+              "value": "user6@example.net",
+              "count": 1
+            },
+            {
+              "value": "user7@example.net",
+              "count": 1
+            }
+          ],
+          "kinds": {
+            "text": 403
+          },
+          "numeric": null,
+          "dates": null,
+          "lengths": {
+            "min": 17,
+            "max": 19,
+            "mean": 18.72,
+            "mode": 19,
+            "mode_share": 0.7469,
+            "off_mode": 102
+          },
+          "patterns": [
+            {
+              "pattern": "AAAA999@AAAAAAA.AAA",
+              "count": 301
+            },
+            {
+              "pattern": "AAAA99@AAAAAAA.AAA",
+              "count": 93
+            },
+            {
+              "pattern": "AAAA9@AAAAAAA.AAA",
+              "count": 9
+            }
+          ],
+          "n_whitespace": 0,
+          "case_variants": [],
+          "n_numeric_text": 0,
+          "n_date_text": 0,
+          "n_serial_dates": 0,
+          "is_identifier": false,
+          "dominant_value": null,
+          "semantic": "email",
+          "phone_digits": null,
+          "sequential_id": false,
+          "categories": null
+        },
+        {
+          "name": "cancellation_date",
+          "letter": "I",
+          "inferred_type": "date",
+          "type_share": 1.0,
+          "n_rows": 403,
+          "n_missing": 281,
+          "missing_rate": 0.6973,
+          "n_distinct": 118,
+          "top_values": [
+            {
+              "value": "2024-05-25",
+              "count": 2
+            },
+            {
+              "value": "2027-10-07",
+              "count": 2
+            },
+            {
+              "value": "2026-02-22",
+              "count": 2
+            },
+            {
+              "value": "2025-06-21",
+              "count": 2
+            },
+            {
+              "value": "2024-10-14",
+              "count": 1
+            },
+            {
+              "value": "2029-07-31",
+              "count": 1
+            },
+            {
+              "value": "2024-03-20",
+              "count": 1
+            },
+            {
+              "value": "2023-10-21",
+              "count": 1
+            },
+            {
+              "value": "2025-09-28",
+              "count": 1
+            },
+            {
+              "value": "2025-09-29",
+              "count": 1
+            }
+          ],
+          "kinds": {
+            "null": 281,
+            "date": 122
+          },
+          "numeric": null,
+          "dates": {
+            "min": "2021-05-15",
+            "max": "2029-07-31"
+          },
+          "lengths": null,
+          "patterns": [],
+          "n_whitespace": 0,
+          "case_variants": [],
+          "n_numeric_text": 0,
+          "n_date_text": 0,
+          "n_serial_dates": 0,
+          "is_identifier": false,
+          "dominant_value": null,
+          "semantic": null,
+          "phone_digits": null,
+          "sequential_id": false,
+          "categories": null
+        },
+        {
+          "name": "churn",
+          "letter": "J",
+          "inferred_type": "category",
+          "type_share": 1.0,
+          "n_rows": 403,
+          "n_missing": 2,
+          "missing_rate": 0.005,
+          "n_distinct": 4,
+          "top_values": [
+            {
+              "value": "No",
+              "count": 277
+            },
+            {
+              "value": "Yes",
+              "count": 121
+            },
+            {
+              "value": "NO",
+              "count": 2
+            },
+            {
+              "value": "no",
+              "count": 1
+            }
+          ],
+          "kinds": {
+            "text": 401,
+            "null": 2
+          },
+          "numeric": null,
+          "dates": null,
+          "lengths": {
+            "min": 2,
+            "max": 3,
+            "mean": 2.3,
+            "mode": 2,
+            "mode_share": 0.6958,
+            "off_mode": 122
+          },
+          "patterns": [
+            {
+              "pattern": "AA",
+              "count": 280
+            },
+            {
+              "pattern": "AAA",
+              "count": 121
+            }
+          ],
+          "n_whitespace": 1,
+          "case_variants": [
+            {
+              "canonical": "No",
+              "variants": [
+                {
+                  "value": "No",
+                  "count": 277
+                },
+                {
+                  "value": "no",
+                  "count": 1
+                },
+                {
+                  "value": "NO ",
+                  "count": 1
+                },
+                {
+                  "value": "NO",
+                  "count": 1
+                }
+              ]
+            }
+          ],
+          "n_numeric_text": 0,
+          "n_date_text": 0,
+          "n_serial_dates": 0,
+          "is_identifier": false,
+          "dominant_value": null,
+          "semantic": null,
+          "phone_digits": null,
+          "sequential_id": false,
+          "categories": [
+            {
+              "value": "No",
+              "count": 277
+            },
+            {
+              "value": "Yes",
+              "count": 121
+            },
+            {
+              "value": "NO",
+              "count": 2
+            },
+            {
+              "value": "no",
+              "count": 1
+            }
+          ]
+        }
+      ],
+      "n_duplicate_rows": 1
+    },
+    {
+      "name": "Readme",
+      "n_rows": 1,
+      "n_cols": 1,
+      "header_row": 1,
+      "duplicate_rows": [],
+      "dropped_blank_rows": [],
+      "dropped_blank_cols": [],
+      "columns": [
+        {
+          "name": "About this file",
+          "letter": "A",
+          "inferred_type": "text",
+          "type_share": 1.0,
+          "n_rows": 1,
+          "n_missing": 0,
+          "missing_rate": 0.0,
+          "n_distinct": 1,
+          "top_values": [
+            {
+              "value": "Synthetic churn data generated by IloveCSV for demos and tests; no real customers.",
+              "count": 1
+            }
+          ],
+          "kinds": {
+            "text": 1
+          },
+          "numeric": null,
+          "dates": null,
+          "lengths": {
+            "min": 82,
+            "max": 82,
+            "mean": 82.0,
+            "mode": 82,
+            "mode_share": 1.0,
+            "off_mode": 0
+          },
+          "patterns": [
+            {
+              "pattern": "AAAAAAAAA_AAAAA_AAAA_AAA…",
+              "count": 1
+            }
+          ],
+          "n_whitespace": 0,
+          "case_variants": [],
+          "n_numeric_text": 0,
+          "n_date_text": 0,
+          "n_serial_dates": 0,
+          "is_identifier": true,
+          "dominant_value": null,
+          "semantic": null,
+          "phone_digits": null,
+          "sequential_id": false,
+          "categories": null
+        }
+      ],
+      "n_duplicate_rows": 0
+    }
+  ],
+  "issues": [
+    {
+      "kind": "error",
+      "sheet": "Customers",
+      "rule_id": "type.stored_as_text",
+      "severity": "warning",
+      "message": "Number stored as text: '₹1,997.36'.",
+      "xl_row": 60,
+      "column": "monthly_charges",
+      "cell_ref": "Customers!E60",
+      "value": "₹1,997.36",
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "resolution": "resolved",
+      "resolution_note": "Fixed by text_to_number; passes re-validation.",
+      "context": null,
+      "id": "e-6f1792d4c668",
+      "why": "The value is a number or boolean stored as text; Excel and most tools will not sum or compare it correctly."
+    },
+    {
+      "kind": "error",
+      "sheet": "Customers",
+      "rule_id": "type.stored_as_text",
+      "severity": "warning",
+      "message": "Number stored as text: '₹1,616.01'.",
+      "xl_row": 62,
+      "column": "monthly_charges",
+      "cell_ref": "Customers!E62",
+      "value": "₹1,616.01",
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "resolution": "resolved",
+      "resolution_note": "Fixed by text_to_number; passes re-validation.",
+      "context": null,
+      "id": "e-db9698b3dd4e",
+      "why": "The value is a number or boolean stored as text; Excel and most tools will not sum or compare it correctly."
+    },
+    {
+      "kind": "error",
+      "sheet": "Customers",
+      "rule_id": "allowed.noncanonical",
+      "severity": "warning",
+      "message": "'no' should be written 'No'.",
+      "xl_row": 32,
+      "column": "churn",
+      "cell_ref": "Customers!J32",
+      "value": "no",
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "resolution": "resolved",
+      "resolution_note": "Fixed by canonical_category; passes re-validation.",
+      "context": null,
+      "id": "e-44993aa4144d",
+      "why": "The category is valid but spelled with different case or spacing, which splits one group into several."
+    },
+    {
+      "kind": "error",
+      "sheet": "Customers",
+      "rule_id": "allowed.noncanonical",
+      "severity": "warning",
+      "message": "'NO' should be written 'No'.",
+      "xl_row": 38,
+      "column": "churn",
+      "cell_ref": "Customers!J38",
+      "value": "NO ",
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "resolution": "resolved",
+      "resolution_note": "Fixed by canonical_category; passes re-validation.",
+      "context": null,
+      "id": "e-060fb3dd2343",
+      "why": "The category is valid but spelled with different case or spacing, which splits one group into several."
+    },
+    {
+      "kind": "error",
+      "sheet": "Customers",
+      "rule_id": "allowed.noncanonical",
+      "severity": "warning",
+      "message": "'NO' should be written 'No'.",
+      "xl_row": 42,
+      "column": "churn",
+      "cell_ref": "Customers!J42",
+      "value": "NO",
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "resolution": "resolved",
+      "resolution_note": "Fixed by canonical_category; passes re-validation.",
+      "context": null,
+      "id": "e-8215c6d5ef88",
+      "why": "The category is valid but spelled with different case or spacing, which splits one group into several."
+    },
+    {
+      "kind": "error",
+      "sheet": "Customers",
+      "rule_id": "format.whitespace",
+      "severity": "warning",
+      "message": "Extra spaces in 'NO '.",
+      "xl_row": 38,
+      "column": "churn",
+      "cell_ref": "Customers!J38",
+      "value": "NO ",
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "resolution": "resolved",
+      "resolution_note": "Fixed by canonical_category; passes re-validation.",
+      "context": null,
+      "id": "e-b86a28d639c3",
+      "why": "Leading, trailing or repeated spaces make equal values look different to filters and lookups."
+    },
+    {
+      "kind": "error",
+      "sheet": "Customers",
+      "rule_id": "row.duplicate",
+      "severity": "error",
+      "message": "Row is an exact copy of row 74.",
+      "xl_row": 403,
+      "column": null,
+      "cell_ref": "Customers!A403",
+      "value": null,
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "resolution": "pending_review",
+      "resolution_note": "Suggested fix (remove_duplicate_row) was not reviewed.",
+      "context": {
+        "duplicate_of": 74,
+        "exact": true,
+        "compared_columns": [
+          "signup_date",
+          "plan",
+          "contract",
+          "monthly_charges",
+          "tenure_months",
+          "support_calls",
+          "email",
+          "cancellation_date",
+          "churn"
+        ],
+        "ignored_columns": [
+          "customer_id"
+        ],
+        "match": "normalized"
+      },
+      "id": "e-fb3fde8ad47c",
+      "why": "The whole row repeats an earlier row; totals that include both will double-count."
+    },
+    {
+      "kind": "error",
+      "sheet": "Customers",
+      "rule_id": "row.duplicate",
+      "severity": "error",
+      "message": "Row repeats row 80 (ignoring customer_id; case and spacing ignored).",
+      "xl_row": 404,
+      "column": null,
+      "cell_ref": "Customers!A404",
+      "value": null,
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "resolution": "pending_review",
+      "resolution_note": "Suggested fix (remove_duplicate_row) was not reviewed.",
+      "context": {
+        "duplicate_of": 80,
+        "exact": false,
+        "compared_columns": [
+          "signup_date",
+          "plan",
+          "contract",
+          "monthly_charges",
+          "tenure_months",
+          "support_calls",
+          "email",
+          "cancellation_date",
+          "churn"
+        ],
+        "ignored_columns": [
+          "customer_id"
+        ],
+        "match": "normalized"
+      },
+      "id": "e-600cb50e1e7c",
+      "why": "The whole row repeats an earlier row; totals that include both will double-count."
+    },
+    {
+      "kind": "error",
+      "sheet": "Customers",
+      "rule_id": "format.null_token",
+      "severity": "warning",
+      "message": "Placeholder 'n/a' stands for a missing value.",
+      "xl_row": 24,
+      "column": "plan",
+      "cell_ref": "Customers!C24",
+      "value": "n/a",
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "resolution": "resolved",
+      "resolution_note": "Fixed by null_token_to_empty; passes re-validation.",
+      "context": null,
+      "id": "e-c0160b6b2d4b",
+      "why": "A cross-column business rule from the rule file was not satisfied."
+    },
+    {
+      "kind": "error",
+      "sheet": "Customers",
+      "rule_id": "format.null_token",
+      "severity": "warning",
+      "message": "Placeholder '-' stands for a missing value.",
+      "xl_row": 12,
+      "column": "contract",
+      "cell_ref": "Customers!D12",
+      "value": "-",
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "resolution": "resolved",
+      "resolution_note": "Fixed by null_token_to_empty; passes re-validation.",
+      "context": null,
+      "id": "e-294fe927dee8",
+      "why": "A cross-column business rule from the rule file was not satisfied."
+    },
+    {
+      "kind": "error",
+      "sheet": "Customers",
+      "rule_id": "format.null_token",
+      "severity": "warning",
+      "message": "Placeholder 'null' stands for a missing value.",
+      "xl_row": 18,
+      "column": "monthly_charges",
+      "cell_ref": "Customers!E18",
+      "value": "null",
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "resolution": "resolved",
+      "resolution_note": "Fixed by null_token_to_empty; passes re-validation.",
+      "context": null,
+      "id": "e-f536d04a065e",
+      "why": "A cross-column business rule from the rule file was not satisfied."
+    },
+    {
+      "kind": "error",
+      "sheet": "Customers",
+      "rule_id": "format.null_token",
+      "severity": "warning",
+      "message": "Placeholder 'N/A' stands for a missing value.",
+      "xl_row": 6,
+      "column": "support_calls",
+      "cell_ref": "Customers!G6",
+      "value": "N/A",
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "resolution": "resolved",
+      "resolution_note": "Fixed by null_token_to_empty; passes re-validation.",
+      "context": null,
+      "id": "e-ee2ed61adfea",
+      "why": "A cross-column business rule from the rule file was not satisfied."
+    },
+    {
+      "kind": "error",
+      "sheet": "Customers",
+      "rule_id": "target.missing",
+      "severity": "error",
+      "message": "No target label: this row cannot be used for supervised training.",
+      "xl_row": 48,
+      "column": "churn",
+      "cell_ref": "Customers!J48",
+      "value": null,
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "resolution": "open",
+      "resolution_note": "No safe automatic correction exists; fix the source data by hand.",
+      "context": null,
+      "id": "e-ef1551ddfc78",
+      "why": "A cross-column business rule from the rule file was not satisfied."
+    },
+    {
+      "kind": "error",
+      "sheet": "Customers",
+      "rule_id": "target.missing",
+      "severity": "error",
+      "message": "No target label: this row cannot be used for supervised training.",
+      "xl_row": 54,
+      "column": "churn",
+      "cell_ref": "Customers!J54",
+      "value": null,
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "resolution": "open",
+      "resolution_note": "No safe automatic correction exists; fix the source data by hand.",
+      "context": null,
+      "id": "e-53de0d9af5c2",
+      "why": "A cross-column business rule from the rule file was not satisfied."
+    },
+    {
+      "kind": "error",
+      "sheet": "Customers",
+      "rule_id": "target.conflict",
+      "severity": "warning",
+      "message": "Same features as row(s) 402 but a different label (No vs Yes).",
+      "xl_row": 69,
+      "column": "churn",
+      "cell_ref": "Customers!J69",
+      "value": "Yes",
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "resolution": "open",
+      "resolution_note": "No safe automatic correction exists; fix the source data by hand.",
+      "context": {
+        "rows": [
+          69,
+          402
+        ],
+        "labels": [
+          "No",
+          "Yes"
+        ]
+      },
+      "id": "e-604d0d0ea374",
+      "why": "A cross-column business rule from the rule file was not satisfied."
+    },
+    {
+      "kind": "error",
+      "sheet": "Customers",
+      "rule_id": "target.conflict",
+      "severity": "warning",
+      "message": "Same features as row(s) 69 but a different label (No vs Yes).",
+      "xl_row": 402,
+      "column": "churn",
+      "cell_ref": "Customers!J402",
+      "value": "No",
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "resolution": "open",
+      "resolution_note": "No safe automatic correction exists; fix the source data by hand.",
+      "context": {
+        "rows": [
+          69,
+          402
+        ],
+        "labels": [
+          "No",
+          "Yes"
+        ]
+      },
+      "id": "e-616f242deefe",
+      "why": "A cross-column business rule from the rule file was not satisfied."
+    }
+  ],
+  "anomalies": [],
+  "suggestions": [
+    {
+      "issue_id": "e-fb3fde8ad47c",
+      "sheet": "Customers",
+      "action": "delete_row",
+      "method": "remove_duplicate_row",
+      "confidence": 0.95,
+      "xl_row": 403,
+      "column": null,
+      "cell_ref": "Customers!A403",
+      "old": "Row is an exact copy of row 74.",
+      "new": null,
+      "rule_id": "row.duplicate",
+      "status": "pending",
+      "decided_by": null,
+      "decided_at": null,
+      "safety": "review",
+      "id": "s-de61f100c834"
+    },
+    {
+      "issue_id": "e-600cb50e1e7c",
+      "sheet": "Customers",
+      "action": "delete_row",
+      "method": "remove_duplicate_row",
+      "confidence": 0.85,
+      "xl_row": 404,
+      "column": null,
+      "cell_ref": "Customers!A404",
+      "old": "Row repeats row 80 (ignoring customer_id; case and spacing ignored).",
+      "new": null,
+      "rule_id": "row.duplicate",
+      "status": "pending",
+      "decided_by": null,
+      "decided_at": null,
+      "safety": "review",
+      "id": "s-1f258464c7c0"
+    },
+    {
+      "issue_id": "e-6f1792d4c668",
+      "sheet": "Customers",
+      "action": "set",
+      "method": "text_to_number",
+      "confidence": 0.95,
+      "xl_row": 60,
+      "column": "monthly_charges",
+      "cell_ref": "Customers!E60",
+      "old": "₹1,997.36",
+      "new": 1997.36,
+      "rule_id": "type.stored_as_text",
+      "status": "approved",
+      "decided_by": "safe-auto-clean",
+      "decided_at": "2026-10-18T06:33:14+00:00",
+      "safety": "safe",
+      "id": "s-545e76b312db"
+    },
+    {
+      "issue_id": "e-db9698b3dd4e",
+      "sheet": "Customers",
+      "action": "set",
+      "method": "text_to_number",
+      "confidence": 0.95,
+      "xl_row": 62,
+      "column": "monthly_charges",
+      "cell_ref": "Customers!E62",
+      "old": "₹1,616.01",
+      "new": 1616.01,
+      "rule_id": "type.stored_as_text",
+      "status": "approved",
+      "decided_by": "safe-auto-clean",
+      "decided_at": "2026-10-18T06:33:14+00:00",
+      "safety": "safe",
+      "id": "s-b42c877fe580"
+    },
+    {
+      "issue_id": "e-44993aa4144d",
+      "sheet": "Customers",
+      "action": "set",
+      "method": "canonical_category",
+      "confidence": 0.97,
+      "xl_row": 32,
+      "column": "churn",
+      "cell_ref": "Customers!J32",
+      "old": "no",
+      "new": "No",
+      "rule_id": "allowed.noncanonical",
+      "status": "approved",
+      "decided_by": "safe-auto-clean",
+      "decided_at": "2026-10-18T06:33:14+00:00",
+      "safety": "safe",
+      "id": "s-855fa222275e"
+    },
+    {
+      "issue_id": "e-060fb3dd2343",
+      "sheet": "Customers",
+      "action": "set",
+      "method": "canonical_category",
+      "confidence": 0.97,
+      "xl_row": 38,
+      "column": "churn",
+      "cell_ref": "Customers!J38",
+      "old": "NO ",
+      "new": "No",
+      "rule_id": "allowed.noncanonical",
+      "status": "approved",
+      "decided_by": "safe-auto-clean",
+      "decided_at": "2026-10-18T06:33:14+00:00",
+      "safety": "safe",
+      "id": "s-e07c3c36e738"
+    },
+    {
+      "issue_id": "e-8215c6d5ef88",
+      "sheet": "Customers",
+      "action": "set",
+      "method": "canonical_category",
+      "confidence": 0.97,
+      "xl_row": 42,
+      "column": "churn",
+      "cell_ref": "Customers!J42",
+      "old": "NO",
+      "new": "No",
+      "rule_id": "allowed.noncanonical",
+      "status": "approved",
+      "decided_by": "safe-auto-clean",
+      "decided_at": "2026-10-18T06:33:14+00:00",
+      "safety": "safe",
+      "id": "s-fca8929971cc"
+    },
+    {
+      "issue_id": "e-c0160b6b2d4b",
+      "sheet": "Customers",
+      "action": "set",
+      "method": "null_token_to_empty",
+      "confidence": 0.99,
+      "xl_row": 24,
+      "column": "plan",
+      "cell_ref": "Customers!C24",
+      "old": "n/a",
+      "new": null,
+      "rule_id": "format.null_token",
+      "status": "approved",
+      "decided_by": "safe-auto-clean",
+      "decided_at": "2026-10-18T06:33:14+00:00",
+      "safety": "safe",
+      "id": "s-547f326d854a"
+    },
+    {
+      "issue_id": "e-294fe927dee8",
+      "sheet": "Customers",
+      "action": "set",
+      "method": "null_token_to_empty",
+      "confidence": 0.99,
+      "xl_row": 12,
+      "column": "contract",
+      "cell_ref": "Customers!D12",
+      "old": "-",
+      "new": null,
+      "rule_id": "format.null_token",
+      "status": "approved",
+      "decided_by": "safe-auto-clean",
+      "decided_at": "2026-10-18T06:33:14+00:00",
+      "safety": "safe",
+      "id": "s-bbd77cd40caf"
+    },
+    {
+      "issue_id": "e-f536d04a065e",
+      "sheet": "Customers",
+      "action": "set",
+      "method": "null_token_to_empty",
+      "confidence": 0.99,
+      "xl_row": 18,
+      "column": "monthly_charges",
+      "cell_ref": "Customers!E18",
+      "old": "null",
+      "new": null,
+      "rule_id": "format.null_token",
+      "status": "approved",
+      "decided_by": "safe-auto-clean",
+      "decided_at": "2026-10-18T06:33:14+00:00",
+      "safety": "safe",
+      "id": "s-680ab0cd08ec"
+    },
+    {
+      "issue_id": "e-ee2ed61adfea",
+      "sheet": "Customers",
+      "action": "set",
+      "method": "null_token_to_empty",
+      "confidence": 0.99,
+      "xl_row": 6,
+      "column": "support_calls",
+      "cell_ref": "Customers!G6",
+      "old": "N/A",
+      "new": null,
+      "rule_id": "format.null_token",
+      "status": "approved",
+      "decided_by": "safe-auto-clean",
+      "decided_at": "2026-10-18T06:33:14+00:00",
+      "safety": "safe",
+      "id": "s-7ac68ca310ea"
+    }
+  ],
+  "changes": [
+    {
+      "suggestion_id": "s-545e76b312db",
+      "issue_id": "e-6f1792d4c668",
+      "sheet": "Customers",
+      "row": 60,
+      "column": "monthly_charges",
+      "cell_ref": "Customers!E60",
+      "action": "set",
+      "old": "₹1,997.36",
+      "new": 1997.36,
+      "method": "text_to_number",
+      "safety": "safe",
+      "rule_id": "type.stored_as_text",
+      "approved_by": "safe-auto-clean",
+      "approved_at": "2026-10-18T06:33:14+00:00",
+      "row_cleaned": 60
+    },
+    {
+      "suggestion_id": "s-b42c877fe580",
+      "issue_id": "e-db9698b3dd4e",
+      "sheet": "Customers",
+      "row": 62,
+      "column": "monthly_charges",
+      "cell_ref": "Customers!E62",
+      "action": "set",
+      "old": "₹1,616.01",
+      "new": 1616.01,
+      "method": "text_to_number",
+      "safety": "safe",
+      "rule_id": "type.stored_as_text",
+      "approved_by": "safe-auto-clean",
+      "approved_at": "2026-10-18T06:33:14+00:00",
+      "row_cleaned": 62
+    },
+    {
+      "suggestion_id": "s-855fa222275e",
+      "issue_id": "e-44993aa4144d",
+      "sheet": "Customers",
+      "row": 32,
+      "column": "churn",
+      "cell_ref": "Customers!J32",
+      "action": "set",
+      "old": "no",
+      "new": "No",
+      "method": "canonical_category",
+      "safety": "safe",
+      "rule_id": "allowed.noncanonical",
+      "approved_by": "safe-auto-clean",
+      "approved_at": "2026-10-18T06:33:14+00:00",
+      "row_cleaned": 32
+    },
+    {
+      "suggestion_id": "s-e07c3c36e738",
+      "issue_id": "e-060fb3dd2343",
+      "sheet": "Customers",
+      "row": 38,
+      "column": "churn",
+      "cell_ref": "Customers!J38",
+      "action": "set",
+      "old": "NO ",
+      "new": "No",
+      "method": "canonical_category",
+      "safety": "safe",
+      "rule_id": "allowed.noncanonical",
+      "approved_by": "safe-auto-clean",
+      "approved_at": "2026-10-18T06:33:14+00:00",
+      "row_cleaned": 38
+    },
+    {
+      "suggestion_id": "s-fca8929971cc",
+      "issue_id": "e-8215c6d5ef88",
+      "sheet": "Customers",
+      "row": 42,
+      "column": "churn",
+      "cell_ref": "Customers!J42",
+      "action": "set",
+      "old": "NO",
+      "new": "No",
+      "method": "canonical_category",
+      "safety": "safe",
+      "rule_id": "allowed.noncanonical",
+      "approved_by": "safe-auto-clean",
+      "approved_at": "2026-10-18T06:33:14+00:00",
+      "row_cleaned": 42
+    },
+    {
+      "suggestion_id": "s-547f326d854a",
+      "issue_id": "e-c0160b6b2d4b",
+      "sheet": "Customers",
+      "row": 24,
+      "column": "plan",
+      "cell_ref": "Customers!C24",
+      "action": "set",
+      "old": "n/a",
+      "new": null,
+      "method": "null_token_to_empty",
+      "safety": "safe",
+      "rule_id": "format.null_token",
+      "approved_by": "safe-auto-clean",
+      "approved_at": "2026-10-18T06:33:14+00:00",
+      "row_cleaned": 24
+    },
+    {
+      "suggestion_id": "s-bbd77cd40caf",
+      "issue_id": "e-294fe927dee8",
+      "sheet": "Customers",
+      "row": 12,
+      "column": "contract",
+      "cell_ref": "Customers!D12",
+      "action": "set",
+      "old": "-",
+      "new": null,
+      "method": "null_token_to_empty",
+      "safety": "safe",
+      "rule_id": "format.null_token",
+      "approved_by": "safe-auto-clean",
+      "approved_at": "2026-10-18T06:33:14+00:00",
+      "row_cleaned": 12
+    },
+    {
+      "suggestion_id": "s-680ab0cd08ec",
+      "issue_id": "e-f536d04a065e",
+      "sheet": "Customers",
+      "row": 18,
+      "column": "monthly_charges",
+      "cell_ref": "Customers!E18",
+      "action": "set",
+      "old": "null",
+      "new": null,
+      "method": "null_token_to_empty",
+      "safety": "safe",
+      "rule_id": "format.null_token",
+      "approved_by": "safe-auto-clean",
+      "approved_at": "2026-10-18T06:33:14+00:00",
+      "row_cleaned": 18
+    },
+    {
+      "suggestion_id": "s-7ac68ca310ea",
+      "issue_id": "e-ee2ed61adfea",
+      "sheet": "Customers",
+      "row": 6,
+      "column": "support_calls",
+      "cell_ref": "Customers!G6",
+      "action": "set",
+      "old": "N/A",
+      "new": null,
+      "method": "null_token_to_empty",
+      "safety": "safe",
+      "rule_id": "format.null_token",
+      "approved_by": "safe-auto-clean",
+      "approved_at": "2026-10-18T06:33:14+00:00",
+      "row_cleaned": 6
+    }
+  ],
+  "skipped_changes": [],
+  "after": {
+    "sheets_checked": [
+      "Customers"
+    ],
+    "rows_by_sheet": {
+      "Customers": 403
+    },
+    "rows": 403,
+    "cells": 4030,
+    "errors": 4,
+    "warnings": 2,
+    "anomalies": 1,
+    "anomalies_open": 1,
+    "anomalies_confirmed": 0,
+    "cells_with_errors": 22,
+    "cells_with_warnings": 2,
+    "quality_score": 99.42,
+    "quality_formula": "100 x (1 - (cells with errors + 0.5 x cells with only warnings) / cells checked)",
+    "quality_calculation": "100 x (1 - (22 + 0.5 x 2) / 4030) = 99.42",
+    "resolutions": {
+      "pending_review": 3,
+      "open": 4
+    },
+    "by_rule": {
+      "row.duplicate": 2,
+      "target.missing": 2,
+      "target.conflict": 2
+    },
+    "suggestions": 2,
+    "suggestions_by_status": {
+      "pending": 2,
+      "approved": 0,
+      "rejected": 0
+    },
+    "rule_errors": [],
+    "resolution_counts": {
+      "resolved": 10,
+      "pending_review": 2,
+      "open": 4
+    }
+  },
+  "unresolved": [
+    {
+      "kind": "error",
+      "sheet": "Customers",
+      "rule_id": "row.duplicate",
+      "severity": "error",
+      "message": "Row is an exact copy of row 74.",
+      "xl_row": 403,
+      "column": null,
+      "cell_ref": "Customers!A403",
+      "value": null,
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "resolution": "pending_review",
+      "resolution_note": "Suggested fix (remove_duplicate_row) was not reviewed.",
+      "context": {
+        "duplicate_of": 74,
+        "exact": true,
+        "compared_columns": [
+          "signup_date",
+          "plan",
+          "contract",
+          "monthly_charges",
+          "tenure_months",
+          "support_calls",
+          "email",
+          "cancellation_date",
+          "churn"
+        ],
+        "ignored_columns": [
+          "customer_id"
+        ],
+        "match": "normalized"
+      },
+      "id": "e-fb3fde8ad47c",
+      "corrected_cell_ref": "Customers!A403",
+      "original_cell_ref": "Customers!A403",
+      "introduced_by_fix": false,
+      "original_issue_id": "e-fb3fde8ad47c",
+      "row_original": 403,
+      "row_cleaned": 403
+    },
+    {
+      "kind": "error",
+      "sheet": "Customers",
+      "rule_id": "row.duplicate",
+      "severity": "error",
+      "message": "Row repeats row 80 (ignoring customer_id; case and spacing ignored).",
+      "xl_row": 404,
+      "column": null,
+      "cell_ref": "Customers!A404",
+      "value": null,
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "resolution": "pending_review",
+      "resolution_note": "Suggested fix (remove_duplicate_row) was not reviewed.",
+      "context": {
+        "duplicate_of": 80,
+        "exact": false,
+        "compared_columns": [
+          "signup_date",
+          "plan",
+          "contract",
+          "monthly_charges",
+          "tenure_months",
+          "support_calls",
+          "email",
+          "cancellation_date",
+          "churn"
+        ],
+        "ignored_columns": [
+          "customer_id"
+        ],
+        "match": "normalized"
+      },
+      "id": "e-600cb50e1e7c",
+      "corrected_cell_ref": "Customers!A404",
+      "original_cell_ref": "Customers!A404",
+      "introduced_by_fix": false,
+      "original_issue_id": "e-600cb50e1e7c",
+      "row_original": 404,
+      "row_cleaned": 404
+    },
+    {
+      "kind": "error",
+      "sheet": "Customers",
+      "rule_id": "target.missing",
+      "severity": "error",
+      "message": "No target label: this row cannot be used for supervised training.",
+      "xl_row": 48,
+      "column": "churn",
+      "cell_ref": "Customers!J48",
+      "value": null,
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "resolution": "open",
+      "resolution_note": "No safe automatic correction exists; fix the source data by hand.",
+      "context": null,
+      "id": "e-ef1551ddfc78",
+      "corrected_cell_ref": "Customers!J48",
+      "original_cell_ref": "Customers!J48",
+      "introduced_by_fix": false,
+      "original_issue_id": "e-ef1551ddfc78",
+      "row_original": 48,
+      "row_cleaned": 48
+    },
+    {
+      "kind": "error",
+      "sheet": "Customers",
+      "rule_id": "target.missing",
+      "severity": "error",
+      "message": "No target label: this row cannot be used for supervised training.",
+      "xl_row": 54,
+      "column": "churn",
+      "cell_ref": "Customers!J54",
+      "value": null,
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "resolution": "open",
+      "resolution_note": "No safe automatic correction exists; fix the source data by hand.",
+      "context": null,
+      "id": "e-53de0d9af5c2",
+      "corrected_cell_ref": "Customers!J54",
+      "original_cell_ref": "Customers!J54",
+      "introduced_by_fix": false,
+      "original_issue_id": "e-53de0d9af5c2",
+      "row_original": 54,
+      "row_cleaned": 54
+    },
+    {
+      "kind": "error",
+      "sheet": "Customers",
+      "rule_id": "target.conflict",
+      "severity": "warning",
+      "message": "Same features as row(s) 402 but a different label (No vs Yes).",
+      "xl_row": 69,
+      "column": "churn",
+      "cell_ref": "Customers!J69",
+      "value": "Yes",
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "resolution": "open",
+      "resolution_note": "No safe automatic correction exists; fix the source data by hand.",
+      "context": {
+        "rows": [
+          69,
+          402
+        ],
+        "labels": [
+          "No",
+          "Yes"
+        ]
+      },
+      "id": "e-604d0d0ea374",
+      "corrected_cell_ref": "Customers!J69",
+      "original_cell_ref": "Customers!J69",
+      "introduced_by_fix": false,
+      "original_issue_id": "e-604d0d0ea374",
+      "row_original": 69,
+      "row_cleaned": 69
+    },
+    {
+      "kind": "error",
+      "sheet": "Customers",
+      "rule_id": "target.conflict",
+      "severity": "warning",
+      "message": "Same features as row(s) 69 but a different label (No vs Yes).",
+      "xl_row": 402,
+      "column": "churn",
+      "cell_ref": "Customers!J402",
+      "value": "No",
+      "detector": null,
+      "score": null,
+      "status": "open",
+      "resolution": "open",
+      "resolution_note": "No safe automatic correction exists; fix the source data by hand.",
+      "context": {
+        "rows": [
+          69,
+          402
+        ],
+        "labels": [
+          "No",
+          "Yes"
+        ]
+      },
+      "id": "e-616f242deefe",
+      "corrected_cell_ref": "Customers!J402",
+      "original_cell_ref": "Customers!J402",
+      "introduced_by_fix": false,
+      "original_issue_id": "e-616f242deefe",
+      "row_original": 402,
+      "row_cleaned": 402
+    }
+  ],
+  "output": {
+    "filename": "churn_demo_cleaned.xlsx",
+    "sha256": "a3f52697b5eed944a4c5be7c00e1d2221ac9aad2668cae38cc0a75fb2821a775"
+  },
+  "not_verified": [],
+  "config": {
+    "mode": "safe_auto_clean",
+    "targets": {
+      "Customers": "churn"
+    },
+    "exact_duplicates": {
+      "Customers": "review"
+    },
+    "rules_sha256": "fc85c64a8cf816212510fea09933fd37a0e5526651fa3122c037448bb273e168"
+  },
+  "dataset": {
+    "rows_before": {
+      "Customers": 403
+    },
+    "rows_after": {
+      "Customers": 403
+    },
+    "files": {
+      "Customers": {
+        "csv": "churn_demo_cleaned.csv"
+      }
+    },
+    "sha256": {
+      "Customers": {
+        "csv": "824d489f08f4feadd7bc4f6cf172f5a74b16f13473cebb14fd0d2b8ad2db88a8"
+      }
+    },
+    "kept_as_text": [],
+    "config_file": "churn_demo_prepare_config.yaml"
+  },
+  "columns": [
+    {
+      "sheet": "Customers",
+      "columns": [
+        {
+          "name": "customer_id",
+          "role": "identifier",
+          "dtype": "string",
+          "inferred_type": "text",
+          "missing": 0,
+          "missing_rate": 0.0,
+          "distinct": 402
+        },
+        {
+          "name": "signup_date",
+          "role": "datetime",
+          "dtype": "datetime64[ns]",
+          "inferred_type": "date",
+          "missing": 0,
+          "missing_rate": 0.0,
+          "distinct": 343
+        },
+        {
+          "name": "plan",
+          "role": "categorical",
+          "dtype": "category",
+          "inferred_type": "category",
+          "missing": 1,
+          "missing_rate": 0.0025,
+          "distinct": 3
+        },
+        {
+          "name": "contract",
+          "role": "categorical",
+          "dtype": "category",
+          "inferred_type": "category",
+          "missing": 1,
+          "missing_rate": 0.0025,
+          "distinct": 3
+        },
+        {
+          "name": "monthly_charges",
+          "role": "numeric",
+          "dtype": "Float64",
+          "inferred_type": "float",
+          "missing": 1,
+          "missing_rate": 0.0025,
+          "distinct": 390
+        },
+        {
+          "name": "tenure_months",
+          "role": "numeric",
+          "dtype": "Int64",
+          "inferred_type": "int",
+          "missing": 0,
+          "missing_rate": 0.0,
+          "distinct": 72
+        },
+        {
+          "name": "support_calls",
+          "role": "numeric",
+          "dtype": "Int64",
+          "inferred_type": "int",
+          "missing": 1,
+          "missing_rate": 0.0025,
+          "distinct": 10
+        },
+        {
+          "name": "email",
+          "role": "pii",
+          "dtype": "string",
+          "inferred_type": "text",
+          "missing": 0,
+          "missing_rate": 0.0,
+          "distinct": 400
+        },
+        {
+          "name": "cancellation_date",
+          "role": "datetime",
+          "dtype": "datetime64[ns]",
+          "inferred_type": "date",
+          "missing": 281,
+          "missing_rate": 0.6973,
+          "distinct": 118
+        },
+        {
+          "name": "churn",
+          "role": "target",
+          "dtype": "category",
+          "inferred_type": "category",
+          "missing": 2,
+          "missing_rate": 0.005,
+          "distinct": 2
+        }
+      ],
+      "features": {
+        "numeric": [
+          "monthly_charges",
+          "tenure_months",
+          "support_calls"
+        ],
+        "categorical": [
+          "plan",
+          "contract"
+        ],
+        "datetime": [
+          "signup_date",
+          "cancellation_date"
+        ],
+        "boolean": [],
+        "text": []
+      },
+      "excluded": {
+        "identifier": [
+          "customer_id"
+        ],
+        "pii": [
+          "email"
+        ],
+        "empty": [],
+        "target": "churn"
+      },
+      "high_missing": [
+        "cancellation_date"
+      ]
+    }
+  ],
+  "ml": {
+    "sheets": [
+      {
+        "sheet": "Customers",
+        "target": "churn",
+        "target_summary": {
+          "column": "churn",
+          "rows": 403,
+          "missing": 2,
+          "kind": "classification",
+          "classes": [
+            {
+              "label": "No",
+              "count": 280,
+              "share": 0.6983
+            },
+            {
+              "label": "Yes",
+              "count": 121,
+              "share": 0.3017
+            }
+          ],
+          "imbalance_ratio": 2.31
+        },
+        "leakage_suspects": [
+          {
+            "column": "cancellation_date",
+            "kind": "missingness",
+            "accuracy": 0.9975,
+            "detail": "empty -> churn = 'No', filled -> 'Yes' for 99.8% of rows"
+          }
+        ],
+        "missing_target_rows": [
+          48,
+          54
+        ],
+        "label_conflicts": [
+          [
+            69,
+            402
+          ]
+        ]
+      }
+    ]
+  },
+  "removed_rows": [],
+  "review_required": [
+    {
+      "type": "suggestion",
+      "id": "s-de61f100c834",
+      "sheet": "Customers",
+      "row": 403,
+      "column": null,
+      "cell_ref": "Customers!A403",
+      "action": "delete_row",
+      "old": "Row is an exact copy of row 74.",
+      "new": null,
+      "method": "remove_duplicate_row",
+      "safety": "review",
+      "confidence": 0.95,
+      "rule_id": "row.duplicate"
+    },
+    {
+      "type": "suggestion",
+      "id": "s-1f258464c7c0",
+      "sheet": "Customers",
+      "row": 404,
+      "column": null,
+      "cell_ref": "Customers!A404",
+      "action": "delete_row",
+      "old": "Row repeats row 80 (ignoring customer_id; case and spacing ignored).",
+      "new": null,
+      "method": "remove_duplicate_row",
+      "safety": "review",
+      "confidence": 0.85,
+      "rule_id": "row.duplicate"
+    }
+  ]
+}

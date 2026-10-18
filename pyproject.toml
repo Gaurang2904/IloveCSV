@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "ilovecsv"
 version = "0.1.0"
-description = "Spreadsheet quality and validation engine: profiling, rule-based validation, anomaly detection and an approval-based correction workflow"
+description = "Automated dataset quality and preparation for machine learning: one-click safe cleaning, review queue, auditable reports"
 requires-python = ">=3.11"
 dependencies = [
   "pandas>=2.2",
@@ -24,7 +24,8 @@ dependencies = [
 
 [project.optional-dependencies]
 ui = ["streamlit>=1.35"]
-dev = ["pytest>=8", "pytest-cov>=5", "ruff>=0.4"]
+parquet = ["pyarrow>=14"]
+dev = ["pytest>=8", "pytest-cov>=5", "ruff>=0.4", "pyarrow>=14"]
 
 [project.scripts]
 ilovecsv = "ilovecsv.cli:main"

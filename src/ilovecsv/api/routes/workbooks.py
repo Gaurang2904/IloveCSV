@@ -12,8 +12,8 @@ from ...reader import ReadError, read_workbook
 from ...rules.suggest import suggest_rules
 from ..deps import audit, current_user, get_db
 from ..errors import Problem
-from ..schemas import RulesIn
-from ..service import create_run, get_workbook, load_wb, parse_rules
+from ..schemas import PrepareIn, RulesIn
+from ..service import create_run, get_workbook, load_wb, parse_rules, prepare_run
 from ..uploads import save_upload
 
 router = APIRouter(prefix="/v1", tags=["workbooks"])
@@ -97,3 +97,27 @@ def start_run(workbook_id: str, body: RulesIn, user: User = Depends(current_user
     from .runs import run_out
 
     return run_out(run)
+
+
+@router.post("/workbooks/{workbook_id}/prepare", status_code=201,
+             summary="One click: validate, apply Safe Auto-Clean and export the cleaned dataset")
+def prepare(workbook_id: str, request: Request, body: PrepareIn | None = None, user: User = Depends(current_user),
+            db: Session = Depends(get_db)):
+    body = body or PrepareIn()
+    wb_row = get_workbook(db, user, workbook_id)
+    run, exported, applied = prepare_run(db, user, wb_row, request.app.state.settings, body.target,
+                                         body.remove_exact_duplicates, list(body.formats), body.rules_yaml)
+    audit(db, user, "run.prepared", workbook_id=wb_row.id, run_id=run.id, detail={
+        "target": body.target, "remove_exact_duplicates": body.remove_exact_duplicates,
+        "safe_fixes_approved": applied, "applied": len(exported.apply.applied),
+        "errors_after": exported.after["errors"], "warnings_after": exported.after["warnings"],
+        "output_sha256": exported.apply.sha256,
+    })
+    db.commit()
+    from .runs import run_out
+
+    out = run_out(run)
+    out["safe_fixes_applied"] = len(exported.apply.applied)
+    out["review_required"] = run.summary["suggestions_by_status"]["pending"] + run.summary["anomalies_open"]
+    out["datasets"] = exported.datasets
+    return out

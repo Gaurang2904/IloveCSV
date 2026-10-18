@@ -18,7 +18,10 @@ DEFAULT_NULLS = ("", "na", "n/a", "-", "null", "none", "nan", "#n/a")
 
 _NUMERIC_TEXT = re.compile(r"^[+-]?[₹$€£]?\s?(\d{1,3}(,\d{3})+|\d+)(\.\d+)?$|^[+-]?\.\d+$")
 _LEADING_ZERO_ID = re.compile(r"^0\d+$")
-_BOOL_TEXT = {"true": True, "false": False, "yes": True, "no": False}
+_BOOL_TEXT = {"true": True, "false": False, "yes": True, "no": False}  # accepted when type: bool is declared
+# Only true/false text is *inferred* as boolean: Yes/No columns are usually labels or categories
+# (Churn = Yes/No) and should keep their values unless a rule says otherwise.
+_INFERRED_BOOL_TEXT = {"true", "false"}
 
 # Excel serial day 1 is 1900-01-01; with the 1900 leap-year bug, day 0 is 1899-12-30.
 _EXCEL_EPOCH = datetime(1899, 12, 30)
@@ -179,7 +182,7 @@ def value_kind(v: Any, nulls: frozenset[str] | tuple[str, ...] = DEFAULT_NULLS) 
             return "text"  # identifiers such as 00123 must stay text
         if parse_number_text(t) is not None:
             return "numeric_text"
-        if t.lower() in _BOOL_TEXT:
+        if t.lower() in _INFERRED_BOOL_TEXT:
             return "bool_text"
         if parse_date_text(t)[0] is not None:
             return "date_text"

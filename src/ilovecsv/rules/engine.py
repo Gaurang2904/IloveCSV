@@ -164,6 +164,10 @@ class SheetValidator:
             self._duplicate_rows()
         if self.srules.checks.case_variants:
             self._case_variants()
+        if self.srules.checks.null_tokens:
+            self._null_tokens()
+        if self.srules.target:
+            self._target_checks(self.srules.target)
         for trule in self.srules.rules:
             try:
                 self._table_rule(trule)
@@ -329,7 +333,8 @@ class SheetValidator:
             elif t == "bool":
                 if k == "bool":
                     continue
-                if k == "bool_text":
+                if k == "bool_text" or (isinstance(v, str) and to_bool(v, self.nulls) is not None):
+                    # yes/no are accepted for a column *declared* bool, never inferred as one
                     self.emit("type.stored_as_text", "warning", f"Boolean stored as text: '{v}'.", xl_row, col, v)
                     continue
                 self.emit("type", sev, msg or f"'{v}' is not true/false.", xl_row, col, v)
@@ -396,12 +401,63 @@ class SheetValidator:
             if key in first:
                 orig = first[key]
                 exact = tuple(raw_rows[orig]) == tuple(raw_rows[int(xl_row)])  # every cell identical, ids too
-                self.emit("row.duplicate", "error", f"Row repeats row {orig}{note}.", int(xl_row),
+                text = f"Row is an exact copy of row {orig}." if exact else f"Row repeats row {orig}{note}."
+                self.emit("row.duplicate", "error", text, int(xl_row),
                           context={"duplicate_of": orig, "exact": exact, "compared_columns": [str(c) for c in cols],
                                    "ignored_columns": [str(c) for c in ignored],
                                    "match": self.srules.checks.duplicate_match})
             else:
                 first[key] = int(xl_row)
+
+    def _null_tokens(self) -> None:
+        """Text such as 'N/A', '-' or 'null' standing in for a missing value.
+
+        Validation already treats these as missing; the issue exists so the cleaned file holds a
+        real empty cell, which pandas and other tools read as missing without extra settings.
+        """
+        for col in self.sheet.df.columns:
+            for xl_row, v in self.sheet.df[col].items():
+                if isinstance(v, str) and is_null(v, self.nulls) and not self.sheet.is_formula(int(xl_row), col):
+                    shown = v if v.strip() else "(spaces only)"
+                    self.emit("format.null_token", "warning",
+                              f"Placeholder '{shown}' stands for a missing value.", int(xl_row), col, v)
+
+    def _target_checks(self, target: str) -> None:
+        df = self.sheet.df
+        if target not in df.columns:
+            self.emit("column_missing", "error", f"Target column '{target}' is missing.", column=target)
+            return
+        for xl_row, v in df[target].items():
+            if is_null(v, self.nulls):
+                self.emit("target.missing", "error",
+                          "No target label: this row cannot be used for supervised training.",
+                          int(xl_row), target, v)
+        # Identical features, different labels: contradictory training examples.
+        ignored = self.duplicate_ignored_columns()  # a surrogate id would make every row unique
+        features = [c for c in df.columns if c != target and c not in ignored]
+        if not features:
+            return
+
+        def norm(v: Any) -> str | None:
+            t = to_text(v, self.nulls)
+            return None if t is None else collapse_ws(t).casefold()
+
+        groups: dict[tuple, list[int]] = defaultdict(list)
+        for xl_row, row in zip(df.index, df[features].itertuples(index=False), strict=True):
+            key = tuple(norm(v) for v in row)
+            if any(k is not None for k in key):
+                groups[key].append(int(xl_row))
+        for rows in groups.values():
+            labels = {norm(df.at[r, target]) for r in rows} - {None}
+            if len(rows) < 2 or len(labels) < 2:
+                continue
+            shown = sorted({str(to_text(df.at[r, target], self.nulls)) for r in rows})
+            for r in rows:
+                others = [o for o in rows if o != r]
+                self.emit("target.conflict", "warning",
+                          f"Same features as row(s) {', '.join(map(str, others))} but a different label "
+                          f"({' vs '.join(shown)}).", r, target, df.at[r, target],
+                          context={"rows": rows, "labels": shown})
 
     def _case_variants(self) -> None:
         """Same value written with different capitalisation in one column (mumbai / MUMBAI / Mumbai)."""

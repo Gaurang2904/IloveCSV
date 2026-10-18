@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Data Quality Report: demo_orders.xlsx</title>
+<title>Dataset Preparation Report: demo_orders.xlsx</title>
 <style>
 :root {
   color-scheme: light;
@@ -79,8 +79,8 @@ pre { white-space: pre-wrap; background: var(--surface-0); padding: 12px; border
 <body>
 <main>
   
-  <h1>Data Quality Report</h1>
-  <p class="sub">demo_orders.xlsx · rows checked: Orders 301, Customers 40 · run 05ee690e179f</p>
+  <h1>Dataset Preparation Report</h1>
+  <p class="sub">demo_orders.xlsx · rows checked: Orders 301, Customers 40 · run 1217eae69086</p>
 
   
   <p class="warn">1 suggested fix(es) were still pending and were not applied.</p>
@@ -203,7 +203,7 @@ pre { white-space: pre-wrap; background: var(--surface-0); padding: 12px; border
       <tr><td class="mono">Orders!A302</td><td class="mono">Orders!A302</td>
         <td class="mono">row.duplicate <span class="chip error">error</span></td>
         <td class="mono"></td>
-        <td>Row repeats row 129 (ignoring order_id; case and spacing ignored).<div class="why">Approved fix not effective: workbook contains formulas; deleting rows could break references, so the row was kept and marked.</div></td>
+        <td>Row is an exact copy of row 129.<div class="why">Approved fix not effective: workbook contains formulas; deleting rows could break references, so the row was kept and marked.</div></td>
         <td><span class="chip error">open</span></td></tr>
       
       <tr><td class="mono">Orders!C278</td><td class="mono">Orders!C278</td>
@@ -240,6 +240,81 @@ pre { white-space: pre-wrap; background: var(--surface-0); padding: 12px; border
     </table>
   </div>
   
+
+  <h2>Dataset for ML</h2>
+  <p class="sub">What the cleaned dataset holds and how to feed it to a model. IloveCSV does not impute, scale, encode, drop columns or delete outliers: fit those steps on your training split only.</p>
+  
+  
+  <div class="card scroll" style="margin-top:12px">
+    <strong>Orders</strong>
+    <span class="sub"> · 301 → 301 rows · files:
+      <span class="mono">demo_orders_Orders_cleaned.csv</span></span>
+    <table style="margin-top:8px">
+      <thead><tr><th>Role</th><th>Columns</th></tr></thead>
+      <tbody>
+      <tr><td>numeric feature</td><td class="mono">quantity, unit_price, shipping_cost, total</td></tr><tr><td>categorical feature</td><td class="mono">status, channel</td></tr><tr><td>datetime feature</td><td class="mono">order_date, ship_date</td></tr><tr><td>text feature</td><td class="mono">customer_id</td></tr>
+      
+      <tr><td>excluded (identifier)</td><td class="mono">order_id</td></tr><tr><td>excluded (pii)</td><td class="mono">email</td></tr>
+      
+      </tbody>
+    </table>
+    
+  </div>
+  
+  
+  <div class="card scroll" style="margin-top:12px">
+    <strong>Customers</strong>
+    <span class="sub"> · 40 → 40 rows · files:
+      <span class="mono">demo_orders_Customers_cleaned.csv</span></span>
+    <table style="margin-top:8px">
+      <thead><tr><th>Role</th><th>Columns</th></tr></thead>
+      <tbody>
+      <tr><td>numeric feature</td><td class="mono">credit_limit</td></tr><tr><td>categorical feature</td><td class="mono">region</td></tr>
+      
+      <tr><td>excluded (identifier)</td><td class="mono">customer_id, name</td></tr>
+      
+      </tbody>
+    </table>
+    
+  </div>
+  
+  <p class="warn">Kept as text because some values could not be parsed:
+    <span class="mono">Orders.order_date</span> (1 value(s), intended datetime64[ns]), <span class="mono">Orders.quantity</span> (1 value(s), intended Int64).</p>
+
+  <h2>Review required (6)</h2>
+  <div class="card scroll">
+    <p class="why" style="margin-top:0">Not applied automatically: ambiguous, inferred or destructive changes, and anomalies. Approve or reject them in the review screen, then export again.</p>
+    <table>
+      <thead><tr><th>Cell</th><th>Type</th><th>Change / value</th><th>Method / detector</th></tr></thead>
+      <tbody>
+      
+      <tr><td class="mono">Orders!J135</td><td>suggestion</td>
+        <td class="mono">19848.4 → 19748.4</td>
+        <td class="mono">rule_fix</td></tr>
+      
+      <tr><td class="mono">Orders!H56</td><td>anomaly</td>
+        <td class="mono">9800</td>
+        <td class="mono">robust_z</td></tr>
+      
+      <tr><td class="mono">Orders!I106</td><td>anomaly</td>
+        <td class="mono">950</td>
+        <td class="mono">robust_z</td></tr>
+      
+      <tr><td class="mono">Orders!F274</td><td>anomaly</td>
+        <td class="mono">Fax</td>
+        <td class="mono">rare_category</td></tr>
+      
+      <tr><td class="mono">Orders!I140</td><td>anomaly</td>
+        <td class="mono">165</td>
+        <td class="mono">isolation_forest</td></tr>
+      
+      <tr><td class="mono">Orders!I244</td><td>anomaly</td>
+        <td class="mono">22</td>
+        <td class="mono">isolation_forest</td></tr>
+      
+      </tbody>
+    </table>
+  </div>
 
   <h2>Issues by rule</h2>
   <div class="card">
@@ -652,7 +727,7 @@ pre { white-space: pre-wrap; background: var(--surface-0); padding: 12px; border
       <tr><td class="mono">Orders!A302</td><td class="mono">row.duplicate</td>
         <td><span class="chip error">error</span></td>
         <td class="mono"></td>
-        <td>Row repeats row 129 (ignoring order_id; case and spacing ignored).<div class="why">The whole row repeats an earlier row; totals that include both will double-count.</div></td>
+        <td>Row is an exact copy of row 129.<div class="why">The whole row repeats an earlier row; totals that include both will double-count.</div></td>
         <td><span class="chip error">open</span><div class="why">Approved fix not effective: workbook contains formulas; deleting rows could break references, so the row was kept and marked.</div></td></tr>
       
       <tr><td class="mono">Orders!C278</td><td class="mono">ship_after_order</td>
@@ -735,39 +810,39 @@ pre { white-space: pre-wrap; background: var(--surface-0); padding: 12px; border
       
       <tr><td class="mono">Orders!B235</td><td>set</td><td class="mono">15/03/2024</td>
         <td class="mono">2024-03-15</td><td class="mono">text_to_date</td><td class="mono">type.date_as_text</td>
-        <td>demo-reviewer <span class="why">2026-10-18T05:52:56+00:00</span></td></tr>
+        <td>demo-reviewer <span class="why">2026-10-18T06:33:15+00:00</span></td></tr>
       
       <tr><td class="mono">Orders!B269</td><td>set</td><td class="mono">45000</td>
         <td class="mono">2023-03-15</td><td class="mono">serial_to_date</td><td class="mono">type.date_serial</td>
-        <td>demo-reviewer <span class="why">2026-10-18T05:52:56+00:00</span></td></tr>
+        <td>demo-reviewer <span class="why">2026-10-18T06:33:15+00:00</span></td></tr>
       
       <tr><td class="mono">Orders!E17</td><td>set</td><td class="mono">delivered</td>
         <td class="mono">Delivered</td><td class="mono">canonical_category</td><td class="mono">allowed.noncanonical</td>
-        <td>demo-reviewer <span class="why">2026-10-18T05:52:56+00:00</span></td></tr>
+        <td>demo-reviewer <span class="why">2026-10-18T06:33:15+00:00</span></td></tr>
       
       <tr><td class="mono">Orders!E75</td><td>set</td><td class="mono">Shiped</td>
         <td class="mono">Shipped</td><td class="mono">fuzzy_category</td><td class="mono">allowed</td>
-        <td>demo-reviewer <span class="why">2026-10-18T05:52:56+00:00</span></td></tr>
+        <td>demo-reviewer <span class="why">2026-10-18T06:33:15+00:00</span></td></tr>
       
       <tr><td class="mono">Orders!G100</td><td>set</td><td class="mono">12</td>
         <td class="mono">12</td><td class="mono">text_to_number</td><td class="mono">type.stored_as_text</td>
-        <td>demo-reviewer <span class="why">2026-10-18T05:52:56+00:00</span></td></tr>
+        <td>demo-reviewer <span class="why">2026-10-18T06:33:15+00:00</span></td></tr>
       
       <tr><td class="mono">Orders!H166</td><td>set</td><td class="mono">1,200.50</td>
         <td class="mono">1200.5</td><td class="mono">text_to_number</td><td class="mono">type.stored_as_text</td>
-        <td>demo-reviewer <span class="why">2026-10-18T05:52:56+00:00</span></td></tr>
+        <td>demo-reviewer <span class="why">2026-10-18T06:33:15+00:00</span></td></tr>
       
       <tr><td class="mono">Orders!E52</td><td>set</td><td class="mono">Pending </td>
         <td class="mono">Pending</td><td class="mono">trim_whitespace</td><td class="mono">format.whitespace</td>
-        <td>demo-reviewer <span class="why">2026-10-18T05:52:56+00:00</span></td></tr>
+        <td>demo-reviewer <span class="why">2026-10-18T06:33:15+00:00</span></td></tr>
       
       <tr><td class="mono">Customers!C6</td><td>set</td><td class="mono">Nort</td>
         <td class="mono">North</td><td class="mono">fuzzy_category</td><td class="mono">allowed</td>
-        <td>demo-reviewer <span class="why">2026-10-18T05:52:56+00:00</span></td></tr>
+        <td>demo-reviewer <span class="why">2026-10-18T06:33:15+00:00</span></td></tr>
       
       <tr><td class="mono">Customers!C11</td><td>set</td><td class="mono">south</td>
         <td class="mono">South</td><td class="mono">canonical_category</td><td class="mono">allowed.noncanonical</td>
-        <td>demo-reviewer <span class="why">2026-10-18T05:52:56+00:00</span></td></tr>
+        <td>demo-reviewer <span class="why">2026-10-18T06:33:15+00:00</span></td></tr>
       
       </tbody>
     </table>
@@ -783,12 +858,12 @@ pre { white-space: pre-wrap; background: var(--surface-0); padding: 12px; border
   <div class="card">
     <dl class="prov">
       <dt>Tool</dt><dd>IloveCSV 0.1.0</dd>
-      <dt>Validated</dt><dd>2026-10-18T05:52:56+00:00</dd>
-      <dt>Exported</dt><dd>2026-10-18T05:52:56+00:00</dd>
-      <dt>Input SHA-256</dt><dd class="mono">146d95ec7a25a5a815efe3cfbcd4e4d7992640e67ed7615cddc97dfe3ac5de51</dd>
+      <dt>Validated</dt><dd>2026-10-18T06:33:15+00:00</dd>
+      <dt>Exported</dt><dd>2026-10-18T06:33:15+00:00</dd>
+      <dt>Input SHA-256</dt><dd class="mono">ff8087c14a0c3c28e42becbbc16c8ca1f145e1683c3c1aac4b4f15d846858d24</dd>
       <dt>Rules SHA-256</dt><dd class="mono">1f44a51bf7cf6b2a3620a24fbfb93621b64c16548dd9146108ec2277281fc85d</dd>
-      <dt>Output</dt><dd>demo_orders_corrected.xlsx</dd>
-      <dt>Output SHA-256</dt><dd class="mono">d1eaa17344ad8f7eecc5922cb1ff96fc89778a6642c71f6a162aedd10f7ec0b0</dd>
+      <dt>Output</dt><dd>demo_orders_cleaned.xlsx</dd>
+      <dt>Output SHA-256</dt><dd class="mono">982f3cb742072588b9fd325541ebf2778e5cd56a62ea984c343ef16c0e5aaeff</dd>
     </dl>
     <details style="margin-top:12px"><summary>Rule file used</summary><pre class="mono">version: 1
 dayfirst: true

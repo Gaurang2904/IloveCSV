@@ -246,7 +246,9 @@ def profile_column(name: str, letter: str, values: list[Any], nulls=DEFAULT_NULL
     if inferred == "category":  # at most 20 distinct values by definition: keep them all
         prof.categories = [{"value": v, "count": c} for v, c in counts.most_common()]
     prof.semantic = None if inferred == "date" else detect_semantic(name, non_null_texts)
-    prof.sequential_id = inferred in ("text", "int") and is_sequential_id(non_null_texts)
+    # A surrogate row counter is unique per row; tenure 1..72 repeated across rows is a quantity.
+    prof.sequential_id = (inferred in ("text", "int") and n_distinct >= 0.95 * len(non_null_texts)
+                          and is_sequential_id(non_null_texts))
     if prof.semantic == "phone":
         local = [sum(ch.isdigit() for ch in t) for t in non_null_texts if not t.startswith(("+", "00"))]
         prof.phone_digits = Counter(local).most_common(1)[0][0] if local else None

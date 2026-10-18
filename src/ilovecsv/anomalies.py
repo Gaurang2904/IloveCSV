@@ -115,6 +115,8 @@ def _numeric_columns(prof: SheetProfile, srules: SheetRules, cfg: AnomalyConfig)
         ctype = declared.type if declared and declared.type else c.inferred_type
         if ctype not in ("int", "float", "number") or c.is_identifier or name in cfg.exclude:
             continue
+        if name == srules.target:
+            continue  # a rare label (fraud, churn) is the signal, not an anomaly
         if cfg.columns is not None and name not in cfg.columns:
             continue
         if c.n_rows - c.n_missing < 10:
@@ -129,6 +131,8 @@ def _category_columns(prof: SheetProfile, srules: SheetRules, cfg: AnomalyConfig
         declared = srules.columns.get(name)
         if declared and declared.allowed is not None:
             continue  # the allowed rule already decides validity
+        if name == srules.target:
+            continue  # a rare class is the signal, not an anomaly
         if name in cfg.exclude or c.is_identifier:
             continue
         non_null = c.n_rows - c.n_missing

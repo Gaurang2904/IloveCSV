@@ -1,63 +1,162 @@
-# IloveCSV: Spreadsheet Quality and Validation Engine
+# IloveCSV: Automated Dataset Quality and Preparation for Machine Learning
 
-Upload an Excel workbook (or CSV) and get back:
+One command takes a raw CSV or Excel file and returns a **cleaned dataset** plus a **machine-readable cleaning report**, ready for your own feature-engineering and training code. It replaces inspecting every new dataset and rewriting the same basic cleaning code.
 
-1. a **data-quality report** covering column profiles, rule violations and statistical anomalies, with a cell reference for every issue;
-2. a **corrected workbook** that contains only the fixes a person approved, with every changed cell highlighted and annotated;
-3. an **audit trail** with SHA-256 of the input, rules and output, who approved what and when, and a re-validation of the corrected file.
+```bash
+ilovecsv prepare customers.xlsx --target churn
+```
+
+It handles the generic data-quality stage only. Changes are **reproducible and auditable**: every change, removal and remaining problem is recorded with its reason. Anything task-dependent stays in your ML pipeline.
 
 Built with Python, pandas, openpyxl, scikit-learn, SQLAlchemy (SQLite), FastAPI and Streamlit.
 
-![HTML audit report](reports/figures/report_html.png)
+![Dataset preparation report](reports/figures/report_html.png)
 
-## What it does
+## One-click prepare
+
+| Step | What happens |
+|---|---|
+| Profile | Detects numeric, categorical, datetime, boolean, text, id and contact (PII) columns, missingness, and placeholder values |
+| Validate | Draft rules from the profile (or your saved config): types, ranges from the non-outlier bulk, formats, keys, duplicates |
+| **Safe Auto-Clean** | Applies only lossless or pure-formatting fixes: trimming, case variants, `N/A`/`-`/`null` → empty cells, email/phone formats, unambiguous number and date conversions, declared aliases |
+| **Review Required** | Queues everything ambiguous, inferred or destructive: fuzzy matches, inferred or ambiguous dates, formula fixes, duplicate-row removal, anomalies |
+| Re-validate | Re-checks the cleaned output and reports what is still wrong, and why |
+| Export | The cleaned dataset, a JSON + Excel + HTML report, a reproducible config, and an untouched copy of the input |
+
+One click never means "one click followed by silent corruption". Nothing is deleted, imputed or guessed without a person. Exact duplicates are removed automatically only if you turn that on (`--remove-exact-duplicates`); near-duplicates always go to review.
+
+### Where IloveCSV stops
+
+It **does not** impute missing values, scale, encode, drop columns, or delete outliers. Those choices depend on the ML task:
+* mean imputation is wrong for skewed data;
+* an "outlier" may be the fraud case you want to learn;
+* a mostly-empty column may still be a strong predictor.
+
+Steps whose parameters are learned from data (imputation, scaling, encoding) must be **fitted on the training split only** and then applied to validation and test data. Fitting them on the full dataset leaks information. IloveCSV hands over a clean, typed, documented table for exactly that pipeline.
+
+### ML-specific checks (flag only)
+
+With `--target <column>`:
+* **Missing labels:** rows without a label are flagged as unusable for supervised training; they are kept, not dropped.
+* **Label conflicts:** rows identical on every feature but with different labels.
+* **Class balance**, or a distribution summary for a numeric target.
+* **Possible leakage:** a column, or its missingness, that predicts the target with ≥ 99% accuracy. Example: `cancellation_date` exists only for churned customers.
+* **Label protection:** the target is excluded from anomaly detection (a rare class is the signal). Its labels get only case and spacing fixes automatically; aliases on the target need review.
+
+The report always includes a **feature schema**: each column's role and pandas dtype, plus feature lists for a scikit-learn `ColumnTransformer`. IDs and PII are listed as excluded from features.
+
+### Outputs (`prepared/`)
+
+| File | Contents |
+|---|---|
+| `{name}_cleaned.csv` | The dataset: ISO-8601 dates, plain numbers, empty cells for missing values (one file per data sheet) |
+| `{name}_cleaned.parquet` | Optional (`--format parquet`): typed columns (`Int64`, `Float64`, `datetime64`, `category`) |
+| `{name}_cleaned.xlsx` | Excel input only: the workbook with changed cells (yellow) and unresolved cells (orange) marked and commented |
+| `{name}_cleaning_report.json` | Machine-readable: `schema_version`, config, dataset rows before/after, feature schema, ML checks, every change and removed row (with original and cleaned row numbers), the review queue, unresolved issues |
+| `{name}_cleaning_report.xlsx` / `.html` | Human-readable audit: summary, unresolved, review required, dataset for ML, changes, removed rows |
+| `{name}_prepare_config.yaml` | The exact rules and policy, to clean new batches the same way |
+| `original/{file}` | Untouched copy of the input (its SHA-256 is in the report) |
+
+A column whose values can't all be parsed (e.g. `"about a year"` in a numeric column) stays text in the typed outputs. The report says so; nothing is silently set to NaN.
+
+### Use the result in your pipeline
+
+```python
+from ilovecsv.ml import load_prepared
+from sklearn.compose import ColumnTransformer
+from sklearn.impute import SimpleImputer
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+
+df, schema = load_prepared("prepared/customers_cleaning_report.json")  # cleaned CSV with recorded dtypes
+df = df.dropna(subset=[schema["excluded"]["target"]])                  # your decision, made explicitly
+num, cat = schema["features"]["numeric"], schema["features"]["categorical"]
+X_train, X_test, y_train, y_test = train_test_split(df[num + cat], df[schema["excluded"]["target"]],
+                                                    stratify=df[schema["excluded"]["target"]], random_state=0)
+prep = ColumnTransformer([
+    ("num", make_pipeline(SimpleImputer(strategy="median"), StandardScaler()), num),
+    ("cat", make_pipeline(SimpleImputer(strategy="most_frequent"), OneHotEncoder(handle_unknown="ignore")), cat),
+])
+prep.fit(X_train)  # learned on the training split only
+```
+
+### Reproducible on new data
+
+```bash
+ilovecsv prepare train.csv --target churn --out prepared/
+ilovecsv prepare next_month.csv --config prepared/train_prepare_config.yaml --out prepared_next/
+```
+
+The second run reuses the same rules instead of re-suggesting them from the new data, so training data and later scoring data are cleaned identically.
+
+### Entry points
+
+* **CLI:** `ilovecsv prepare FILE [--target COL] [--out DIR] [--config CFG] [--remove-exact-duplicates] [--format csv --format parquet]`. Exits with code 1 while unresolved errors remain, so it can gate a data pipeline in CI.
+* **Python:** `from ilovecsv.pipeline import prepare; res = prepare("data.csv", target="churn")`, then `res.dataset_path()`, `res.report` and `res.unresolved`.
+* **API:** `POST /v1/workbooks/{id}/prepare`, then `GET /v1/runs/{id}/dataset`, `/report` and `/config`.
+* **UI:** the first page, **★ One-click prepare**: upload, pick the target (auto-guessed), Prepare, then download. The numbered pages are the advanced review flow for working through the review queue.
+
+On the demo churn table (`python scripts/make_demo.py`: 403 rows, planted problems), one click:
+* applies 9 safe fixes: 4 placeholders emptied, 3 label case variants, 2 currency strings converted to numbers;
+* queues the exact and near-duplicate rows for review;
+* flags 2 missing labels, 1 label conflict and the `cancellation_date` leak;
+* keeps all 403 rows and every column.
+
+## What else it does
 
 | Capability | How |
 |---|---|
-| **Rule-based validation** | A YAML rule file covers required fields, types, numeric and date ranges, not-in-future dates, allowed categories, **known aliases** (`Bangalore → Bengaluru`), **email and phone formats**, regex, length, uniqueness and composite keys. It also supports **cross-column checks** (`ship_date >= order_date`), **conditional requirements** (`when status == 'Shipped'` require `ship_date`) and **lookups** against another sheet. Built-in checks flag **duplicate records** (ignoring a surrogate id such as `C001, C002…`), extra spaces, and values capitalised differently elsewhere in the column. |
-| **Data profiling** | Per column: inferred type and how much of the column fits it, missing rate (with configurable null tokens such as `N/A` and `-`), distinct count, top values, quantiles, histogram, date range, text shape patterns, extra spaces, case variants, numbers and dates stored as text, Excel serial dates, email and phone columns, surrogate ids, and **placeholder values** (e.g. one date used in 4% of rows). Per sheet: duplicate rows and skipped blank rows. Documentation sheets such as `Readme` are recognised. |
-| **Anomaly detection** | Robust z-score (median/MAD) per numeric column, an IQR fallback, rare categories, and a row-level **Isolation Forest** after PCA whitening, which catches combinations that are each normal on their own. Anomalies are **kept separate from errors**: they never get an automatic fix, and a reviewer confirms or dismisses each one. |
-| **Safe correction workflow** | The tool suggests fixes only where the intended value is clear: trimming spaces, normalising category case and spelling, applying declared aliases, lowercasing emails, normalising phone numbers (`+91-98765 43210` → `9876543210`), fuzzy-matching typos (with a margin over the runner-up), converting text numbers and dates (ambiguous `03/04/2024` gets low confidence), converting Excel serial dates, removing duplicate rows, or applying a fix expression declared in the rules. Missing values are **never imputed** and out-of-range numbers are never guessed. Only **approved** fixes are written. Formulas are never overwritten. |
-| **Audit report** | HTML, Excel (Summary / Profile / Issues / Anomalies / Changes / Skipped) and JSON, all built from one data structure. The corrected file is **re-validated with the same rules**, so the report shows before and after counts, including any new problems a fix exposed. |
+| **Rule-based validation** | A YAML rule file covers required fields, types, numeric and date ranges, not-in-future dates, allowed categories, **known aliases** (`Bangalore → Bengaluru`), **email and phone formats**, regex, length, uniqueness and composite keys. It also supports **cross-column checks** (`ship_date >= order_date`), **conditional requirements** (`when status == 'Shipped'` require `ship_date`) and **lookups** against another sheet. Built-in checks flag **duplicate records** (ignoring a surrogate id such as `C001, C002…`), extra spaces, placeholder nulls, and values capitalised differently elsewhere in the column. |
+| **Data profiling** | Per column: inferred type and how much of the column fits it, missing rate (with configurable null tokens), distinct count, top values, quantiles, histogram, date range, text shape patterns, extra spaces, case variants, numbers and dates stored as text, Excel serial dates, email and phone columns, surrogate ids, and **placeholder values** (e.g. one date used in 4% of rows). Documentation sheets such as `Readme` are recognised and skipped. |
+| **Anomaly detection** | Robust z-score (median/MAD) per numeric column, an IQR fallback, rare categories, and a row-level **Isolation Forest** after PCA whitening, which catches combinations that are each normal on their own. Anomalies are **kept separate from errors**: never auto-fixed, never deleted; a reviewer confirms or dismisses each one. |
+| **Review workflow** | Each issue's outcome is decided by re-validating the cleaned output: resolved, open, pending_review, approved, rejected or dismissed. Duplicate pairs are shown side by side before removal. Unresolved cells are marked in the cleaned workbook. |
 | **API engineering** | FastAPI with API-key auth (keys stored as SHA-256 hashes), per-user isolation, a streaming body-size limit, extension and magic-byte checks, zip-bomb and macro rejection, RFC 9457 `application/problem+json` errors, and a SQL-backed audit log. |
-| **Testing** | Seeded synthetic workbooks with **known injected errors and a ground-truth manifest**. Tests check that each rule catches *exactly* the cells it should, with no misses and no extras, across several seeds. They also check that a clean workbook produces zero issues. |
+| **Testing** | 132 tests. Seeded synthetic datasets carry **known planted problems and a ground-truth manifest**. Tests check that each rule catches *exactly* the cells it should, across several seeds; that a clean file produces zero issues; that Safe Auto-Clean changes only safe things; and the report contract. |
 
 ## Architecture
 
 ```
 Streamlit UI ──httpx──► FastAPI (/v1) ──► core engine (pure Python, no web dependencies)
-                            │             reader → profiler → rules → anomalies → corrections → report
+                            │             reader → profiler → rules → anomalies → corrections
+                            │             → resolution → dataset + ml → report
                             └──► SQLite: users, workbooks, runs, issues, suggestions, audit_events
 ```
 
-* The **core engine** (`src/ilovecsv/`) is used directly by the CLI and the tests.
-* The **API** stores issues and decisions in SQLite. Validation is deterministic, with ids derived from the sheet, row, column and rule. Export therefore re-runs the pipeline and overlays the stored decisions, and the database never has to hold workbook contents.
+* The **core engine** (`src/ilovecsv/`) is used directly by the CLI, `prepare()` and the tests.
+* The **API** stores issues and decisions in SQLite. Validation is deterministic, with ids derived from the sheet, row, column and rule. Export therefore re-runs the pipeline and overlays the stored decisions, and the database never has to hold dataset contents.
 * The **UI** talks only to the API.
 
 | Module | Role |
 |---|---|
-| `reader.py` | openpyxl/CSV loading. Finds the header row (skipping title rows), spreads merged header cells, keeps Excel row numbers and column letters, marks formula cells, keeps raw values (so `00123` stays text). |
+| `reader.py` | openpyxl/CSV loading. Finds the header row (skipping title rows), spreads merged header cells, keeps row numbers and column letters, marks formula cells, keeps raw values (so `00123` stays text). |
 | `profiling.py` | Column and sheet profiles. |
-| `rules/schema.py` | Pydantic models for the YAML. Bad regexes, expressions or bounds fail at load time with a location. |
-| `rules/expr.py` | **Safe expression evaluator.** It parses with `ast` against a whitelist and evaluates vectorised over pandas. `eval` and `DataFrame.eval` are never called. Nulls are SQL-style *unknown*, which is not a failure. |
-| `rules/engine.py` | Turns rules into `Issue`s with cell references. |
+| `rules/schema.py`, `rules/suggest.py` | Pydantic models for the YAML; draft rules from a profile; the prepare options (target, duplicate policy). |
+| `rules/expr.py` | **Safe expression evaluator.** It parses with `ast` against a whitelist and evaluates vectorised over pandas. `eval` and `DataFrame.eval` are never called. |
+| `rules/engine.py` | Turns rules and built-in checks (including target checks) into `Issue`s with cell references. |
 | `anomalies.py` | Statistical detectors and Isolation Forest. |
-| `corrections.py` | Generates suggestions and writes only approved ones. |
-| `report.py`, `explain.py` | HTML/Excel/JSON reports and plain-English explanations. |
+| `corrections.py` | Suggests fixes, classifies each as **safe** or **review**, and writes only approved ones. |
+| `resolution.py` | Decides each issue's outcome from re-validation, mapping deleted rows back to original row numbers. |
+| `ml.py`, `dataset.py` | Feature schema, target summary, leakage suspects, typed frames, `load_prepared`; cleaned CSV/Parquet writers. |
+| `pipeline.py` | `run_checks`, `decide`, `export` and `prepare`. |
+| `report.py`, `explain.py` | Cleaning report (JSON contract, Excel, HTML) and plain-English explanations. |
 | `api/` | FastAPI app, auth, uploads, problem+json errors, routes. |
-| `synth.py` | Synthetic workbooks plus the ground-truth manifest. |
+| `synth.py` | Synthetic datasets (churn, orders, edge cases) with ground truth. |
 
 ## Quick start
 
 ```bash
 python -m venv .venv && .venv\Scripts\activate        # Windows (source .venv/bin/activate elsewhere)
-pip install -e ".[ui,dev]"
+pip install -e ".[ui,dev,parquet]"
 
-python scripts/make_demo.py      # builds examples/demo_orders.xlsx + rules, writes reports/demo/
-pytest                           # 116 tests
+python scripts/make_demo.py      # builds examples/churn_demo.xlsx + the orders demo, writes reports/
+ilovecsv prepare examples/churn_demo.xlsx --target churn --out prepared/
+pytest                           # 132 tests
 ```
 
-### CLI
+### CLI: rule-file workflow
+
+For data-quality audits with your own rules (no auto-approval):
 
 ```bash
 ilovecsv profile examples/demo_orders.xlsx
@@ -169,6 +268,7 @@ A single-sheet layout (`sheet`, `columns` and `rules` at the top level) also wor
 | GET | `/v1/workbooks/{id}/profile` | Column profiles |
 | GET | `/v1/workbooks/{id}/rules/suggested` | Draft rule file from the profile |
 | POST | `/v1/rules/validate` | Check a rule file |
+| POST | `/v1/workbooks/{id}/prepare` | **One click**: suggested (or saved) rules + target + duplicate policy, Safe Auto-Clean, export |
 | POST | `/v1/workbooks/{id}/runs` | Validate (YAML in the body, or omit it to use suggested rules) |
 | GET | `/v1/runs/{id}` | Summary, plus before/after counts once exported |
 | GET | `/v1/runs/{id}/issues` | Filter by kind, severity, rule, column, sheet, status, resolution and `q`; paginated |
@@ -177,10 +277,12 @@ A single-sheet layout (`sheet`, `columns` and `rules` at the top level) also wor
 | PATCH | `/v1/runs/{id}/issues/{issue_id}` | Confirm or dismiss an **anomaly** (409 for rule errors) |
 | GET | `/v1/runs/{id}/suggestions` | Suggested corrections |
 | GET | `/v1/runs/{id}/duplicates` | Duplicate pairs with both rows, for review before removal |
-| POST | `/v1/runs/{id}/decisions` | Approve/reject by id, or bulk-approve by confidence, rule or method |
+| POST | `/v1/runs/{id}/decisions` | Approve/reject by id, `approve_safe` (Safe Auto-Clean), or bulk-approve by confidence |
 | POST | `/v1/runs/{id}/export` | Write corrected file and reports, then re-validate |
 | GET | `/v1/runs/{id}/report?format=html\|xlsx\|json` | Report (a preview before export) |
-| GET | `/v1/runs/{id}/corrected` | Corrected workbook |
+| GET | `/v1/runs/{id}/corrected` | Cleaned file in the input format (annotated `.xlsx`, or `.csv`) |
+| GET | `/v1/runs/{id}/dataset?format=csv\|parquet&sheet=` | Cleaned dataset for ML |
+| GET | `/v1/runs/{id}/config` | Prepare config (rules + policy) to reuse on new batches |
 | GET | `/v1/runs/{id}/audit-log` | Every recorded action |
 
 Every error is `application/problem+json`:
@@ -276,6 +378,8 @@ I also ran it on the public [BODMAS](https://whyisyoung.github.io/BODMAS/) malwa
 * Row deletion is skipped in workbooks that contain formulas or merged body cells. The row is marked instead.
 * Validation is synchronous: about 10 s for 134k rows × 3 columns. Much larger files would need a background job queue.
 * `.xls` and `.xlsm` files are rejected by design.
+* The leakage check looks at one column at a time, for classification targets with up to 20 classes. It cannot see leaks that only appear in combinations of columns or through time ordering.
+* Column roles are heuristics from the profile; the report lists them so you can override them in your own code.
 * `explain.py` uses fixed templates. It is the single place to plug in an LLM later for context-specific explanations.
 
 ## Project layout
@@ -283,8 +387,9 @@ I also ran it on the public [BODMAS](https://whyisyoung.github.io/BODMAS/) malwa
 ```
 src/ilovecsv/        core engine, API (api/), report template (templates/)
 app/                 Streamlit UI
-tests/               116 tests: per-rule ground truth, anomalies, corrections, audit, API, CLI
+tests/               132 tests: per-rule ground truth, anomalies, corrections, prepare, audit, API, CLI
 scripts/             make_demo.py, create_api_key.py
-examples/            demo workbook + rule file (synthetic)
-reports/demo/        demo outputs: corrected workbook, HTML/Excel/JSON audit
+examples/            churn_demo.xlsx (ML demo), demo_orders.xlsx + rule file (rule-engine demo); all synthetic
+reports/demo_churn/  one-click prepare output: cleaned CSV, annotated XLSX, cleaning report, config
+reports/demo/        rule-engine demo output
 ```

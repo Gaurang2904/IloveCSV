@@ -36,10 +36,13 @@ def is_documentation_sheet(p: SheetProfile) -> bool:
             and any(c.lengths and c.lengths["mean"] >= 40 for c in cols))
 
 
-def suggest_rules(profiles: dict[str, SheetProfile]) -> str:
+def suggest_rules(profiles: dict[str, SheetProfile], for_ml: bool = False) -> str:
+    """Draft rules. for_ml=True (one-click prepare) only requires id columns: in a training table
+    missing feature values are normal and are handled by imputation in the ML pipeline, so they
+    are reported as missingness per column, not as errors."""
     data_sheets = [p for p in profiles.values() if not is_documentation_sheet(p)] or list(profiles.values())
     skipped = [p.name for p in profiles.values() if p not in data_sheets]
-    sheets = [_sheet_rules(p) for p in data_sheets]
+    sheets = [_sheet_rules(p, for_ml) for p in data_sheets]
     doc: dict[str, Any] = {"version": 1}
     if len(sheets) == 1:
         doc.update(sheets[0])
@@ -57,14 +60,41 @@ def suggest_rules(profiles: dict[str, SheetProfile]) -> str:
     return header + body + _rules_example()
 
 
-def _sheet_rules(p: SheetProfile) -> dict[str, Any]:
+def with_prepare_options(rules_text: str, sheet_columns: dict[str, list[str]], target: str | None = None,
+                         remove_exact_duplicates: bool | None = None) -> str:
+    """Set the target and the exact-duplicate policy in a rule file (suggested or saved).
+
+    `sheet_columns` maps sheet name -> column names; the target goes to the first validated sheet
+    that has that column. Raises ValueError if no sheet has it.
+    """
+    doc = yaml.safe_load(rules_text) or {}
+    single = "sheets" not in doc
+    blocks = [doc] if single else doc["sheets"]
+    first_sheet = next(iter(sheet_columns), None)
+    if target:
+        block = next((b for b in blocks if target in sheet_columns.get(b.get("sheet") or first_sheet, [])), None)
+        if block is None:
+            raise ValueError(f"target column '{target}' was not found in the validated sheets")
+        block["target"] = target
+        rule = (block.get("columns") or {}).get(target)
+        if isinstance(rule, dict):
+            rule.pop("required", None)  # a missing label is reported as target.missing instead
+    if remove_exact_duplicates is not None:
+        for b in blocks:
+            b["duplicates"] = {"exact": "remove" if remove_exact_duplicates else "review"}
+    header = "# IloveCSV prepare config: rules + policy. Re-use with `ilovecsv prepare --config` to clean new\n" \
+             "# batches (e.g. later scoring data) exactly the same way.\n"
+    return header + yaml.safe_dump(doc, sort_keys=False, allow_unicode=True, default_flow_style=None, width=100)
+
+
+def _sheet_rules(p: SheetProfile, for_ml: bool = False) -> dict[str, Any]:
     columns: dict[str, Any] = {}
     key: list[str] | None = None
     for name, c in p.columns.items():
         if c.inferred_type == "empty":
             continue
         r: dict[str, Any] = {}
-        if c.missing_rate <= REQUIRED_MAX_MISSING:
+        if c.missing_rate <= REQUIRED_MAX_MISSING and (c.is_identifier or not for_ml):
             r["required"] = True
         if c.semantic == "email":
             r["format"] = "email"

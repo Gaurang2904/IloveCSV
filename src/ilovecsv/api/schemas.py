@@ -24,6 +24,8 @@ class DecisionIn(BaseModel):
     )
     rule_id: str | None = Field(default=None, description="Limit approve_min_confidence to one rule.")
     method: str | None = Field(default=None, description="Limit approve_min_confidence to one method.")
+    approve_safe: bool = Field(
+        default=False, description="Approve every pending suggestion classified 'safe' (Safe Auto-Clean).")
     include_row_deletions: bool = Field(
         default=False,
         description="Let approve_min_confidence also approve duplicate-row deletions. Off by default: "
@@ -40,6 +42,18 @@ class IssuePatch(BaseModel):
 class ExportIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
     annotate: bool = Field(default=True, description="Highlight changed cells and add comments with the old value.")
+    formats: list[Literal["csv", "parquet"]] = Field(default_factory=lambda: ["csv"],
+                                                      description="Dataset files to write.")
+
+
+class PrepareIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    target: str | None = Field(default=None, max_length=255, description="Label column for supervised learning.")
+    remove_exact_duplicates: bool = Field(
+        default=False, description="Let Safe Auto-Clean delete rows identical in every column (ids too).")
+    formats: list[Literal["csv", "parquet"]] = Field(default_factory=lambda: ["csv"])
+    rules_yaml: str | None = Field(default=None, max_length=200_000,
+                                   description="A saved prepare config to reuse instead of suggested rules.")
 
 
 def issue_out(r: IssueRow) -> dict[str, Any]:
@@ -57,6 +71,6 @@ def suggestion_out(r: SuggestionRow) -> dict[str, Any]:
     return {
         "id": r.id, "issue_id": r.issue_id, "sheet": r.sheet, "action": r.action, "method": r.method,
         "confidence": r.confidence, "xl_row": r.xl_row, "column": r.column, "cell_ref": r.cell_ref,
-        "old": r.old, "new": r.new, "rule_id": r.rule_id, "status": r.status,
+        "old": r.old, "new": r.new, "rule_id": r.rule_id, "safety": r.safety, "status": r.status,
         "decided_by": r.decided_by, "decided_at": r.decided_at,
     }

@@ -11,10 +11,12 @@ from sqlalchemy.orm import Session
 from ..db import IssueRow, Run, SuggestionRow, User, Workbook, utcnow
 from ..models import stable_id
 from ..pipeline import ExportResult, RunResult, export, run_on_workbook
+from ..profiling import profile_workbook
 from ..reader import ReadError, read_workbook
 from ..report import write_reports
 from ..resolution import apply_pre_export
 from ..rules.schema import RulesError, load_rules
+from ..rules.suggest import suggest_rules, with_prepare_options
 from .errors import Problem
 from .settings import Settings
 
@@ -69,6 +71,7 @@ def rebuild(db: Session, run: Run) -> RunResult:
     assert wb_row is not None
     result = run_on_workbook(load_wb(wb_row), parse_rules(run.rules_text), run.rules_text, run_id=run.id)
     result.created_at = run.created_at
+    result.auto_cleaned = run.mode == "safe_auto_clean"
     issue_state = {r.id: r for r in db.scalars(select(IssueRow).where(IssueRow.run_id == run.id))}
     for i in result.issues:
         if i.id in issue_state:
@@ -110,15 +113,52 @@ def refresh_counts(db: Session, run: Run) -> None:
     run.summary = summary
 
 
-def export_run(db: Session, run: Run, settings: Settings, annotate: bool) -> ExportResult:
+def approve_safe(db: Session, run: Run, approver: str) -> int:
+    """Safe Auto-Clean on the stored suggestions: approve every pending 'safe' one."""
+    now, n = utcnow(), 0
+    for s in db.scalars(select(SuggestionRow).where(SuggestionRow.run_id == run.id, SuggestionRow.safety == "safe",
+                                                    SuggestionRow.status == "pending")):
+        s.status, s.decided_by, s.decided_at = "approved", approver, now
+        n += 1
+    run.mode = "safe_auto_clean"
+    db.flush()
+    return n
+
+
+def prepare_run(db: Session, user: User, wb_row: Workbook, settings: Settings, target: str | None,
+                remove_exact_duplicates: bool, formats: list[str], rules_yaml: str | None = None
+                ) -> tuple[Run, ExportResult, int]:
+    """One click: suggested (or saved) rules + options, validate, Safe Auto-Clean, export."""
+    wb = load_wb(wb_row)
+    text = rules_yaml or suggest_rules(profile_workbook(wb), for_ml=True)
+    columns = {name: [str(c) for c in s.df.columns] for name, s in wb.sheets.items()}
+    try:
+        text = with_prepare_options(text, columns, target, remove_exact_duplicates)
+    except ValueError as e:
+        raise Problem(422, "invalid-target", str(e)) from e
+    run, _ = create_run(db, user, wb_row, text)
+    db.flush()
+    applied = approve_safe(db, run, f"{user.name} (safe auto-clean)")
+    refresh_resolutions(db, run)
+    exported = export_run(db, run, settings, annotate=True, formats=formats)
+    return run, exported, applied
+
+
+def export_run(db: Session, run: Run, settings: Settings, annotate: bool,
+               formats: list[str] | tuple[str, ...] = ("csv",)) -> ExportResult:
     result = rebuild(db, run)
     out_dir = settings.data_dir / "runs" / run.id
-    exported = export(result, out_dir, annotate=annotate)
+    exported = export(result, out_dir, annotate=annotate, formats=tuple(formats))
     run.status = "exported"
     run.exported_at = utcnow()
     run.out_dir = str(out_dir)
     run.corrected_path = str(exported.corrected_path)
-    run.reports = {k: str(v) for k, v in exported.reports.items()}
+    run.reports = {
+        **{k: str(v) for k, v in exported.reports.items()},
+        "datasets": {sheet: {fmt: str(out_dir / name) for fmt, name in files.items()}
+                     for sheet, files in exported.datasets.items()},
+        "config": str(exported.config_path) if exported.config_path else None,
+    }
     run.after = {k: v for k, v in exported.after.items() if k != "unresolved"}
     run.summary = result.summary()
     _store_final_resolutions(db, run, result, exported.after.get("unresolved", []))

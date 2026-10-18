@@ -1,17 +1,18 @@
 {
+  "schema_version": "1.0",
   "tool": {
     "name": "IloveCSV",
     "version": "0.1.0"
   },
   "run": {
-    "id": "05ee690e179f",
-    "created_at": "2026-10-18T05:52:56+00:00",
-    "exported_at": "2026-10-18T05:52:56+00:00"
+    "id": "1217eae69086",
+    "created_at": "2026-10-18T06:33:15+00:00",
+    "exported_at": "2026-10-18T06:33:15+00:00"
   },
   "input": {
     "filename": "demo_orders.xlsx",
     "file_type": "xlsx",
-    "sha256": "146d95ec7a25a5a815efe3cfbcd4e4d7992640e67ed7615cddc97dfe3ac5de51",
+    "sha256": "ff8087c14a0c3c28e42becbbc16c8ca1f145e1683c3c1aac4b4f15d846858d24",
     "sheets": [
       {
         "name": "Orders",
@@ -38,7 +39,8 @@
         "formula_cells": 2
       }
     ],
-    "warnings": []
+    "warnings": [],
+    "preserved_copy": "original\\demo_orders.xlsx"
   },
   "rules": {
     "sha256": "1f44a51bf7cf6b2a3620a24fbfb93621b64c16548dd9146108ec2277281fc85d",
@@ -442,7 +444,7 @@
           "dominant_value": null,
           "semantic": null,
           "phone_digits": null,
-          "sequential_id": true,
+          "sequential_id": false,
           "categories": null
         },
         {
@@ -787,7 +789,7 @@
           "dominant_value": null,
           "semantic": null,
           "phone_digits": null,
-          "sequential_id": true,
+          "sequential_id": false,
           "categories": null
         },
         {
@@ -2053,7 +2055,7 @@
       "sheet": "Orders",
       "rule_id": "row.duplicate",
       "severity": "error",
-      "message": "Row repeats row 129 (ignoring order_id; case and spacing ignored).",
+      "message": "Row is an exact copy of row 129.",
       "xl_row": 302,
       "column": null,
       "cell_ref": "Orders!A302",
@@ -2308,12 +2310,13 @@
       "xl_row": 302,
       "column": null,
       "cell_ref": "Orders!A302",
-      "old": "Row repeats row 129 (ignoring order_id; case and spacing ignored).",
+      "old": "Row is an exact copy of row 129.",
       "new": null,
       "rule_id": "row.duplicate",
       "status": "approved",
       "decided_by": "demo-reviewer",
-      "decided_at": "2026-10-18T05:52:56+00:00",
+      "decided_at": "2026-10-18T06:33:15+00:00",
+      "safety": "review",
       "id": "s-7774b41ecf04"
     },
     {
@@ -2330,7 +2333,8 @@
       "rule_id": "type.date_as_text",
       "status": "approved",
       "decided_by": "demo-reviewer",
-      "decided_at": "2026-10-18T05:52:56+00:00",
+      "decided_at": "2026-10-18T06:33:15+00:00",
+      "safety": "safe",
       "id": "s-915a62b70b3a"
     },
     {
@@ -2347,7 +2351,8 @@
       "rule_id": "type.date_serial",
       "status": "approved",
       "decided_by": "demo-reviewer",
-      "decided_at": "2026-10-18T05:52:56+00:00",
+      "decided_at": "2026-10-18T06:33:15+00:00",
+      "safety": "safe",
       "id": "s-eea6356ac391"
     },
     {
@@ -2364,7 +2369,8 @@
       "rule_id": "allowed.noncanonical",
       "status": "approved",
       "decided_by": "demo-reviewer",
-      "decided_at": "2026-10-18T05:52:56+00:00",
+      "decided_at": "2026-10-18T06:33:15+00:00",
+      "safety": "safe",
       "id": "s-c8ed62ac6afc"
     },
     {
@@ -2381,7 +2387,8 @@
       "rule_id": "allowed",
       "status": "approved",
       "decided_by": "demo-reviewer",
-      "decided_at": "2026-10-18T05:52:56+00:00",
+      "decided_at": "2026-10-18T06:33:15+00:00",
+      "safety": "review",
       "id": "s-0a91f295343f"
     },
     {
@@ -2398,7 +2405,8 @@
       "rule_id": "type.stored_as_text",
       "status": "approved",
       "decided_by": "demo-reviewer",
-      "decided_at": "2026-10-18T05:52:56+00:00",
+      "decided_at": "2026-10-18T06:33:15+00:00",
+      "safety": "safe",
       "id": "s-0beb9ae4d8d7"
     },
     {
@@ -2415,7 +2423,8 @@
       "rule_id": "type.stored_as_text",
       "status": "approved",
       "decided_by": "demo-reviewer",
-      "decided_at": "2026-10-18T05:52:56+00:00",
+      "decided_at": "2026-10-18T06:33:15+00:00",
+      "safety": "safe",
       "id": "s-775202917615"
     },
     {
@@ -2432,7 +2441,8 @@
       "rule_id": "format.whitespace",
       "status": "approved",
       "decided_by": "demo-reviewer",
-      "decided_at": "2026-10-18T05:52:56+00:00",
+      "decided_at": "2026-10-18T06:33:15+00:00",
+      "safety": "safe",
       "id": "s-00786a6ea67b"
     },
     {
@@ -2450,6 +2460,7 @@
       "status": "pending",
       "decided_by": null,
       "decided_at": null,
+      "safety": "review",
       "id": "s-de102a28eb48"
     },
     {
@@ -2466,7 +2477,8 @@
       "rule_id": "allowed",
       "status": "approved",
       "decided_by": "demo-reviewer",
-      "decided_at": "2026-10-18T05:52:56+00:00",
+      "decided_at": "2026-10-18T06:33:15+00:00",
+      "safety": "review",
       "id": "s-f88ea446d618"
     },
     {
@@ -2483,7 +2495,8 @@
       "rule_id": "allowed.noncanonical",
       "status": "approved",
       "decided_by": "demo-reviewer",
-      "decided_at": "2026-10-18T05:52:56+00:00",
+      "decided_at": "2026-10-18T06:33:15+00:00",
+      "safety": "safe",
       "id": "s-dcfe22b80161"
     }
   ],
@@ -2491,124 +2504,173 @@
     {
       "suggestion_id": "s-915a62b70b3a",
       "issue_id": "e-6273fb03ffb0",
+      "sheet": "Orders",
+      "row": 235,
+      "column": "order_date",
       "cell_ref": "Orders!B235",
       "action": "set",
       "old": "15/03/2024",
       "new": "2024-03-15",
       "method": "text_to_date",
+      "safety": "safe",
       "rule_id": "type.date_as_text",
       "approved_by": "demo-reviewer",
-      "approved_at": "2026-10-18T05:52:56+00:00"
+      "approved_at": "2026-10-18T06:33:15+00:00",
+      "row_cleaned": 235
     },
     {
       "suggestion_id": "s-eea6356ac391",
       "issue_id": "e-d022b0ae0d65",
+      "sheet": "Orders",
+      "row": 269,
+      "column": "order_date",
       "cell_ref": "Orders!B269",
       "action": "set",
       "old": 45000,
       "new": "2023-03-15",
       "method": "serial_to_date",
+      "safety": "safe",
       "rule_id": "type.date_serial",
       "approved_by": "demo-reviewer",
-      "approved_at": "2026-10-18T05:52:56+00:00"
+      "approved_at": "2026-10-18T06:33:15+00:00",
+      "row_cleaned": 269
     },
     {
       "suggestion_id": "s-c8ed62ac6afc",
       "issue_id": "e-58e8f6e2dd30",
+      "sheet": "Orders",
+      "row": 17,
+      "column": "status",
       "cell_ref": "Orders!E17",
       "action": "set",
       "old": "delivered",
       "new": "Delivered",
       "method": "canonical_category",
+      "safety": "safe",
       "rule_id": "allowed.noncanonical",
       "approved_by": "demo-reviewer",
-      "approved_at": "2026-10-18T05:52:56+00:00"
+      "approved_at": "2026-10-18T06:33:15+00:00",
+      "row_cleaned": 17
     },
     {
       "suggestion_id": "s-0a91f295343f",
       "issue_id": "e-7fb12d84731b",
+      "sheet": "Orders",
+      "row": 75,
+      "column": "status",
       "cell_ref": "Orders!E75",
       "action": "set",
       "old": "Shiped",
       "new": "Shipped",
       "method": "fuzzy_category",
+      "safety": "review",
       "rule_id": "allowed",
       "approved_by": "demo-reviewer",
-      "approved_at": "2026-10-18T05:52:56+00:00"
+      "approved_at": "2026-10-18T06:33:15+00:00",
+      "row_cleaned": 75
     },
     {
       "suggestion_id": "s-0beb9ae4d8d7",
       "issue_id": "e-62689ddf4d00",
+      "sheet": "Orders",
+      "row": 100,
+      "column": "quantity",
       "cell_ref": "Orders!G100",
       "action": "set",
       "old": "12",
       "new": 12,
       "method": "text_to_number",
+      "safety": "safe",
       "rule_id": "type.stored_as_text",
       "approved_by": "demo-reviewer",
-      "approved_at": "2026-10-18T05:52:56+00:00"
+      "approved_at": "2026-10-18T06:33:15+00:00",
+      "row_cleaned": 100
     },
     {
       "suggestion_id": "s-775202917615",
       "issue_id": "e-1f06c2c21af4",
+      "sheet": "Orders",
+      "row": 166,
+      "column": "unit_price",
       "cell_ref": "Orders!H166",
       "action": "set",
       "old": "1,200.50",
       "new": 1200.5,
       "method": "text_to_number",
+      "safety": "safe",
       "rule_id": "type.stored_as_text",
       "approved_by": "demo-reviewer",
-      "approved_at": "2026-10-18T05:52:56+00:00"
+      "approved_at": "2026-10-18T06:33:15+00:00",
+      "row_cleaned": 166
     },
     {
       "suggestion_id": "s-00786a6ea67b",
       "issue_id": "e-45eed4518f39",
+      "sheet": "Orders",
+      "row": 52,
+      "column": "status",
       "cell_ref": "Orders!E52",
       "action": "set",
       "old": "Pending ",
       "new": "Pending",
       "method": "trim_whitespace",
+      "safety": "safe",
       "rule_id": "format.whitespace",
       "approved_by": "demo-reviewer",
-      "approved_at": "2026-10-18T05:52:56+00:00"
+      "approved_at": "2026-10-18T06:33:15+00:00",
+      "row_cleaned": 52
     },
     {
       "suggestion_id": "s-f88ea446d618",
       "issue_id": "e-79c3092efb20",
+      "sheet": "Customers",
+      "row": 6,
+      "column": "region",
       "cell_ref": "Customers!C6",
       "action": "set",
       "old": "Nort",
       "new": "North",
       "method": "fuzzy_category",
+      "safety": "review",
       "rule_id": "allowed",
       "approved_by": "demo-reviewer",
-      "approved_at": "2026-10-18T05:52:56+00:00"
+      "approved_at": "2026-10-18T06:33:15+00:00",
+      "row_cleaned": 6
     },
     {
       "suggestion_id": "s-dcfe22b80161",
       "issue_id": "e-9f6fc15209ec",
+      "sheet": "Customers",
+      "row": 11,
+      "column": "region",
       "cell_ref": "Customers!C11",
       "action": "set",
       "old": "south",
       "new": "South",
       "method": "canonical_category",
+      "safety": "safe",
       "rule_id": "allowed.noncanonical",
       "approved_by": "demo-reviewer",
-      "approved_at": "2026-10-18T05:52:56+00:00"
+      "approved_at": "2026-10-18T06:33:15+00:00",
+      "row_cleaned": 11
     }
   ],
   "skipped_changes": [
     {
       "suggestion_id": "s-7774b41ecf04",
       "issue_id": "e-3709bca544c2",
+      "sheet": "Orders",
+      "row": 302,
+      "column": null,
       "cell_ref": "Orders!A302",
       "action": "delete_row",
-      "old": "Row repeats row 129 (ignoring order_id; case and spacing ignored).",
+      "old": "Row is an exact copy of row 129.",
       "new": null,
       "method": "remove_duplicate_row",
+      "safety": "review",
       "rule_id": "row.duplicate",
       "approved_by": "demo-reviewer",
-      "approved_at": "2026-10-18T05:52:56+00:00",
+      "approved_at": "2026-10-18T06:33:15+00:00",
       "reason": "workbook contains formulas; deleting rows could break references, so the row was kept and marked"
     }
   ],
@@ -2685,7 +2747,9 @@
       "corrected_cell_ref": "Orders!A38",
       "original_cell_ref": "Orders!A38",
       "introduced_by_fix": false,
-      "original_issue_id": "e-2609ddfa0d66"
+      "original_issue_id": "e-2609ddfa0d66",
+      "row_original": 38,
+      "row_cleaned": 38
     },
     {
       "kind": "error",
@@ -2707,7 +2771,9 @@
       "corrected_cell_ref": "Orders!A156",
       "original_cell_ref": "Orders!A156",
       "introduced_by_fix": false,
-      "original_issue_id": "e-53486d12be2e"
+      "original_issue_id": "e-53486d12be2e",
+      "row_original": 156,
+      "row_cleaned": 156
     },
     {
       "kind": "error",
@@ -2729,7 +2795,9 @@
       "corrected_cell_ref": "Orders!B20",
       "original_cell_ref": "Orders!B20",
       "introduced_by_fix": false,
-      "original_issue_id": "e-3cb21eb9bb4f"
+      "original_issue_id": "e-3cb21eb9bb4f",
+      "row_original": 20,
+      "row_cleaned": 20
     },
     {
       "kind": "error",
@@ -2751,7 +2819,9 @@
       "corrected_cell_ref": "Orders!B62",
       "original_cell_ref": "Orders!B62",
       "introduced_by_fix": false,
-      "original_issue_id": "e-e84ae131f8a7"
+      "original_issue_id": "e-e84ae131f8a7",
+      "row_original": 62,
+      "row_cleaned": 62
     },
     {
       "kind": "error",
@@ -2773,7 +2843,9 @@
       "corrected_cell_ref": "Orders!B260",
       "original_cell_ref": "Orders!B260",
       "introduced_by_fix": false,
-      "original_issue_id": "e-fc6672253035"
+      "original_issue_id": "e-fc6672253035",
+      "row_original": 260,
+      "row_cleaned": 260
     },
     {
       "kind": "error",
@@ -2795,7 +2867,9 @@
       "corrected_cell_ref": "Orders!D291",
       "original_cell_ref": "Orders!D291",
       "introduced_by_fix": false,
-      "original_issue_id": "e-a03447eea152"
+      "original_issue_id": "e-a03447eea152",
+      "row_original": 291,
+      "row_cleaned": 291
     },
     {
       "kind": "error",
@@ -2817,7 +2891,9 @@
       "corrected_cell_ref": "Orders!E131",
       "original_cell_ref": "Orders!E131",
       "introduced_by_fix": false,
-      "original_issue_id": "e-42dadf89059a"
+      "original_issue_id": "e-42dadf89059a",
+      "row_original": 131,
+      "row_cleaned": 131
     },
     {
       "kind": "error",
@@ -2839,7 +2915,9 @@
       "corrected_cell_ref": "Orders!G121",
       "original_cell_ref": "Orders!G121",
       "introduced_by_fix": false,
-      "original_issue_id": "e-e4aec2a3b1b4"
+      "original_issue_id": "e-e4aec2a3b1b4",
+      "row_original": 121,
+      "row_cleaned": 121
     },
     {
       "kind": "error",
@@ -2861,7 +2939,9 @@
       "corrected_cell_ref": "Orders!G59",
       "original_cell_ref": "Orders!G59",
       "introduced_by_fix": false,
-      "original_issue_id": "e-be3ba427b2b5"
+      "original_issue_id": "e-be3ba427b2b5",
+      "row_original": 59,
+      "row_cleaned": 59
     },
     {
       "kind": "error",
@@ -2883,7 +2963,9 @@
       "corrected_cell_ref": "Orders!G92",
       "original_cell_ref": "Orders!G92",
       "introduced_by_fix": false,
-      "original_issue_id": "e-4a244fbcce78"
+      "original_issue_id": "e-4a244fbcce78",
+      "row_original": 92,
+      "row_cleaned": 92
     },
     {
       "kind": "error",
@@ -2905,7 +2987,9 @@
       "corrected_cell_ref": "Orders!K16",
       "original_cell_ref": "Orders!K16",
       "introduced_by_fix": false,
-      "original_issue_id": "e-d6a7488e0624"
+      "original_issue_id": "e-d6a7488e0624",
+      "row_original": 16,
+      "row_cleaned": 16
     },
     {
       "kind": "error",
@@ -2927,14 +3011,16 @@
       "corrected_cell_ref": "Orders!A302",
       "original_cell_ref": "Orders!A302",
       "introduced_by_fix": false,
-      "original_issue_id": "e-b3c880f0ecdc"
+      "original_issue_id": "e-b3c880f0ecdc",
+      "row_original": 302,
+      "row_cleaned": 302
     },
     {
       "kind": "error",
       "sheet": "Orders",
       "rule_id": "row.duplicate",
       "severity": "error",
-      "message": "Row repeats row 129 (ignoring order_id; case and spacing ignored).",
+      "message": "Row is an exact copy of row 129.",
       "xl_row": 302,
       "column": null,
       "cell_ref": "Orders!A302",
@@ -2968,7 +3054,9 @@
       "corrected_cell_ref": "Orders!A302",
       "original_cell_ref": "Orders!A302",
       "introduced_by_fix": false,
-      "original_issue_id": "e-3709bca544c2"
+      "original_issue_id": "e-3709bca544c2",
+      "row_original": 302,
+      "row_cleaned": 302
     },
     {
       "kind": "error",
@@ -2990,7 +3078,9 @@
       "corrected_cell_ref": "Orders!C278",
       "original_cell_ref": "Orders!C278",
       "introduced_by_fix": false,
-      "original_issue_id": "e-827f24cd542c"
+      "original_issue_id": "e-827f24cd542c",
+      "row_original": 278,
+      "row_cleaned": 278
     },
     {
       "kind": "error",
@@ -3012,7 +3102,9 @@
       "corrected_cell_ref": "Orders!J135",
       "original_cell_ref": "Orders!J135",
       "introduced_by_fix": false,
-      "original_issue_id": "e-24e27a444197"
+      "original_issue_id": "e-24e27a444197",
+      "row_original": 135,
+      "row_cleaned": 135
     },
     {
       "kind": "error",
@@ -3034,7 +3126,9 @@
       "corrected_cell_ref": "Orders!C75",
       "original_cell_ref": "Orders!C75",
       "introduced_by_fix": true,
-      "original_issue_id": null
+      "original_issue_id": null,
+      "row_original": 75,
+      "row_cleaned": 75
     },
     {
       "kind": "error",
@@ -3056,7 +3150,9 @@
       "corrected_cell_ref": "Orders!C282",
       "original_cell_ref": "Orders!C282",
       "introduced_by_fix": false,
-      "original_issue_id": "e-6f1d3ce0912c"
+      "original_issue_id": "e-6f1d3ce0912c",
+      "row_original": 282,
+      "row_cleaned": 282
     },
     {
       "kind": "error",
@@ -3078,17 +3174,353 @@
       "corrected_cell_ref": "Orders!D22",
       "original_cell_ref": "Orders!D22",
       "introduced_by_fix": false,
-      "original_issue_id": "e-c046faa8459f"
+      "original_issue_id": "e-c046faa8459f",
+      "row_original": 22,
+      "row_cleaned": 22
     }
   ],
   "output": {
-    "filename": "demo_orders_corrected.xlsx",
-    "sha256": "d1eaa17344ad8f7eecc5922cb1ff96fc89778a6642c71f6a162aedd10f7ec0b0"
+    "filename": "demo_orders_cleaned.xlsx",
+    "sha256": "982f3cb742072588b9fd325541ebf2778e5cd56a62ea984c343ef16c0e5aaeff"
   },
   "not_verified": [
     {
       "sheet": "Orders",
       "column": "channel"
+    }
+  ],
+  "config": {
+    "mode": "manual_review",
+    "targets": {},
+    "exact_duplicates": {
+      "Orders": "review",
+      "Customers": "review"
+    },
+    "rules_sha256": "1f44a51bf7cf6b2a3620a24fbfb93621b64c16548dd9146108ec2277281fc85d"
+  },
+  "dataset": {
+    "rows_before": {
+      "Orders": 301,
+      "Customers": 40
+    },
+    "rows_after": {
+      "Orders": 301,
+      "Customers": 40
+    },
+    "files": {
+      "Orders": {
+        "csv": "demo_orders_Orders_cleaned.csv"
+      },
+      "Customers": {
+        "csv": "demo_orders_Customers_cleaned.csv"
+      }
+    },
+    "sha256": {
+      "Orders": {
+        "csv": "7824b70cfc59c5c62265811b60f5002cdd2687341cac373356256790e11a1acf"
+      },
+      "Customers": {
+        "csv": "3fbb2a8131047cff4e3f924ab65222b19694b3a6da2c5c36f32335a6277ec21b"
+      }
+    },
+    "kept_as_text": [
+      {
+        "sheet": "Orders",
+        "column": "order_date",
+        "intended_dtype": "datetime64[ns]",
+        "unparseable_values": 1
+      },
+      {
+        "sheet": "Orders",
+        "column": "quantity",
+        "intended_dtype": "Int64",
+        "unparseable_values": 1
+      }
+    ],
+    "config_file": "demo_orders_prepare_config.yaml"
+  },
+  "columns": [
+    {
+      "sheet": "Orders",
+      "columns": [
+        {
+          "name": "order_id",
+          "role": "identifier",
+          "dtype": "string",
+          "inferred_type": "text",
+          "missing": 1,
+          "missing_rate": 0.0033,
+          "distinct": 299
+        },
+        {
+          "name": "order_date",
+          "role": "datetime",
+          "dtype": "datetime64[ns]",
+          "inferred_type": "date",
+          "missing": 0,
+          "missing_rate": 0.0,
+          "distinct": 229
+        },
+        {
+          "name": "ship_date",
+          "role": "datetime",
+          "dtype": "datetime64[ns]",
+          "inferred_type": "date",
+          "missing": 82,
+          "missing_rate": 0.2724,
+          "distinct": 173
+        },
+        {
+          "name": "customer_id",
+          "role": "text",
+          "dtype": "string",
+          "inferred_type": "text",
+          "missing": 1,
+          "missing_rate": 0.0033,
+          "distinct": 41
+        },
+        {
+          "name": "status",
+          "role": "categorical",
+          "dtype": "category",
+          "inferred_type": "category",
+          "missing": 0,
+          "missing_rate": 0.0,
+          "distinct": 5
+        },
+        {
+          "name": "channel",
+          "role": "categorical",
+          "dtype": "category",
+          "inferred_type": "category",
+          "missing": 0,
+          "missing_rate": 0.0,
+          "distinct": 4
+        },
+        {
+          "name": "quantity",
+          "role": "numeric",
+          "dtype": "Int64",
+          "inferred_type": "int",
+          "missing": 0,
+          "missing_rate": 0.0,
+          "distinct": 53
+        },
+        {
+          "name": "unit_price",
+          "role": "numeric",
+          "dtype": "Float64",
+          "inferred_type": "float",
+          "missing": 0,
+          "missing_rate": 0.0,
+          "distinct": 300
+        },
+        {
+          "name": "shipping_cost",
+          "role": "numeric",
+          "dtype": "Float64",
+          "inferred_type": "float",
+          "missing": 0,
+          "missing_rate": 0.0,
+          "distinct": 298
+        },
+        {
+          "name": "total",
+          "role": "numeric",
+          "dtype": "Float64",
+          "inferred_type": "float",
+          "missing": 0,
+          "missing_rate": 0.0,
+          "distinct": 300
+        },
+        {
+          "name": "email",
+          "role": "pii",
+          "dtype": "string",
+          "inferred_type": "text",
+          "missing": 0,
+          "missing_rate": 0.0,
+          "distinct": 300
+        }
+      ],
+      "features": {
+        "numeric": [
+          "quantity",
+          "unit_price",
+          "shipping_cost",
+          "total"
+        ],
+        "categorical": [
+          "status",
+          "channel"
+        ],
+        "datetime": [
+          "order_date",
+          "ship_date"
+        ],
+        "boolean": [],
+        "text": [
+          "customer_id"
+        ]
+      },
+      "excluded": {
+        "identifier": [
+          "order_id"
+        ],
+        "pii": [
+          "email"
+        ],
+        "empty": [],
+        "target": null
+      },
+      "high_missing": []
+    },
+    {
+      "sheet": "Customers",
+      "columns": [
+        {
+          "name": "customer_id",
+          "role": "identifier",
+          "dtype": "string",
+          "inferred_type": "text",
+          "missing": 0,
+          "missing_rate": 0.0,
+          "distinct": 40
+        },
+        {
+          "name": "name",
+          "role": "identifier",
+          "dtype": "string",
+          "inferred_type": "text",
+          "missing": 0,
+          "missing_rate": 0.0,
+          "distinct": 40
+        },
+        {
+          "name": "region",
+          "role": "categorical",
+          "dtype": "category",
+          "inferred_type": "category",
+          "missing": 0,
+          "missing_rate": 0.0,
+          "distinct": 4
+        },
+        {
+          "name": "credit_limit",
+          "role": "numeric",
+          "dtype": "Int64",
+          "inferred_type": "int",
+          "missing": 0,
+          "missing_rate": 0.0,
+          "distinct": 3
+        }
+      ],
+      "features": {
+        "numeric": [
+          "credit_limit"
+        ],
+        "categorical": [
+          "region"
+        ],
+        "datetime": [],
+        "boolean": [],
+        "text": []
+      },
+      "excluded": {
+        "identifier": [
+          "customer_id",
+          "name"
+        ],
+        "pii": [],
+        "empty": [],
+        "target": null
+      },
+      "high_missing": []
+    }
+  ],
+  "ml": {
+    "sheets": [
+      {
+        "sheet": "Orders",
+        "target": null
+      },
+      {
+        "sheet": "Customers",
+        "target": null
+      }
+    ]
+  },
+  "removed_rows": [],
+  "review_required": [
+    {
+      "type": "suggestion",
+      "id": "s-de102a28eb48",
+      "sheet": "Orders",
+      "row": 135,
+      "column": "total",
+      "cell_ref": "Orders!J135",
+      "action": "set",
+      "old": 19848.4,
+      "new": 19748.4,
+      "method": "rule_fix",
+      "safety": "review",
+      "confidence": 0.8,
+      "rule_id": "total_matches"
+    },
+    {
+      "type": "anomaly",
+      "id": "a-fe837092cb91",
+      "sheet": "Orders",
+      "row": 56,
+      "column": "unit_price",
+      "cell_ref": "Orders!H56",
+      "value": 9800,
+      "detector": "robust_z",
+      "message": "9,800 is far from the typical value 525.02 (robust z = +26.5, threshold 3.5)."
+    },
+    {
+      "type": "anomaly",
+      "id": "a-d99e020aedb6",
+      "sheet": "Orders",
+      "row": 106,
+      "column": "shipping_cost",
+      "cell_ref": "Orders!I106",
+      "value": 950,
+      "detector": "robust_z",
+      "message": "950 is far from the typical value 95.22 (robust z = +13.9, threshold 3.5)."
+    },
+    {
+      "type": "anomaly",
+      "id": "a-95367718c5b9",
+      "sheet": "Orders",
+      "row": 274,
+      "column": "channel",
+      "cell_ref": "Orders!F274",
+      "value": "Fax",
+      "detector": "rare_category",
+      "message": "'Fax' appears only 1 time(s) in 301 rows (0.33%); possible typo or one-off category."
+    },
+    {
+      "type": "anomaly",
+      "id": "a-9c35d34de715",
+      "sheet": "Orders",
+      "row": 140,
+      "column": "shipping_cost",
+      "cell_ref": "Orders!I140",
+      "value": 165,
+      "detector": "isolation_forest",
+      "message": "Unusual combination of values (quantity=2, unit_price=136.33, shipping_cost=165); isolation score z = -9.6. Largest single deviation: shipping_cost (z +1.1)."
+    },
+    {
+      "type": "anomaly",
+      "id": "a-e7743f6bdbca",
+      "sheet": "Orders",
+      "row": 244,
+      "column": "shipping_cost",
+      "cell_ref": "Orders!I244",
+      "value": 22,
+      "detector": "isolation_forest",
+      "message": "Unusual combination of values (quantity=49, unit_price=483.23, shipping_cost=22); isolation score z = -8.6. Largest single deviation: shipping_cost (z -1.2)."
     }
   ]
 }

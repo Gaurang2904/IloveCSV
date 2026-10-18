@@ -47,9 +47,22 @@ from .values import (
 CHANGED_FILL = PatternFill("solid", fgColor="FFF2CC")
 KEPT_DUPLICATE_FILL = PatternFill("solid", fgColor="F8CBAD")
 
+# Safe Auto-Clean applies these: lossless or pure formatting, with exactly one possible reading.
+# Everything else (fuzzy matches, inferred or ambiguous dates, formula fixes, row deletions) is
+# "review": a person decides. apply_alias is safe because the user declared the mapping.
+SAFE_METHODS = frozenset({
+    "trim_whitespace", "canonical_category", "canonical_spelling", "lowercase_email", "normalize_phone",
+    "phone_to_text", "text_to_number", "text_to_bool", "text_to_date", "serial_to_date",
+    "null_token_to_empty", "apply_alias",
+})
+# On the target column, a fix that maps one label onto another needs a person even when declared:
+# merging classes changes what the model learns.
+TARGET_REVIEW_METHODS = frozenset({"apply_alias"})
+
 # When several suggestions target the same cell, the first in this list wins.
 _PRIORITY = [
     "rule_fix",
+    "null_token_to_empty",
     "apply_alias",
     "fuzzy_category",
     "canonical_category",
@@ -97,7 +110,9 @@ def suggest_corrections(
                                   rule_id=issue.rule_id))
 
         rid = issue.rule_id
-        if rid == "format.whitespace" and isinstance(raw, str):
+        if rid == "format.null_token" and isinstance(raw, str):
+            sug("null_token_to_empty", None, 0.99)
+        elif rid == "format.whitespace" and isinstance(raw, str):
             sug("trim_whitespace", collapse_ws(raw), 0.99)
         elif rid == "format.email_case" and isinstance(raw, str):
             sug("lowercase_email", raw.strip().lower(), 0.95)
@@ -191,7 +206,23 @@ def suggest_corrections(
                     if v.is_integer():
                         v = int(v)
                 sug("rule_fix", v, 0.8, column=trule.fix.column)
-    return _one_per_cell(out)
+    chosen = _one_per_cell(out)
+    issues_by_id = {i.id: i for i in issues}
+    for s in chosen:
+        s.safety = classify(s, by_sheet.get(s.sheet, SheetRules()), issues_by_id.get(s.issue_id))
+    return chosen
+
+
+def classify(s: Suggestion, srules: SheetRules, issue: Issue | None) -> str:
+    """'safe' (Safe Auto-Clean applies it) or 'review' (a person decides)."""
+    if s.action == "delete_row":
+        exact = bool(issue and (issue.context or {}).get("exact"))
+        return "safe" if exact and srules.duplicates.exact == "remove" else "review"
+    if s.method not in SAFE_METHODS:
+        return "review"
+    if srules.target and s.column == srules.target and s.method in TARGET_REVIEW_METHODS:
+        return "review"
+    return "safe"
 
 
 _NUMERIC_DMY = re.compile(r"^\s*(\d{1,2})[-/.](\d{1,2})[-/.]\d{4}\s*$")
@@ -277,8 +308,9 @@ def apply_corrections(
 
 
 def _record(s: Suggestion) -> dict[str, Any]:
-    return {"suggestion_id": s.id, "issue_id": s.issue_id, "cell_ref": s.cell_ref, "action": s.action,
-            "old": s.old, "new": s.new, "method": s.method, "rule_id": s.rule_id,
+    return {"suggestion_id": s.id, "issue_id": s.issue_id, "sheet": s.sheet, "row": s.xl_row,
+            "column": s.column, "cell_ref": s.cell_ref, "action": s.action, "old": s.old, "new": s.new,
+            "method": s.method, "safety": s.safety, "rule_id": s.rule_id,
             "approved_by": s.decided_by, "approved_at": s.decided_at}
 
 

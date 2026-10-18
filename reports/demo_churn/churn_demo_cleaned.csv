@@ -1,0 +1,404 @@
+customer_id,signup_date,plan,contract,monthly_charges,tenure_months,support_calls,email,cancellation_date,churn
+CU0001,2022-01-24,Standard,Two year,586.39,60,7,user1@example.net,,No
+CU0002,2021-10-18,Premium,Month-to-month,982.63,24,1,user2@example.net,,No
+CU0003,2021-11-19,Premium,One year,1003.93,51,7,user3@example.net,,No
+CU0004,2021-03-03,Premium,Month-to-month,1010.12,5,3,user4@example.net,,No
+CU0005,2022-08-26,Standard,Month-to-month,598.99,26,,user5@example.net,2024-10-14,Yes
+CU0006,2021-06-20,Premium,Month-to-month,1007.31,36,6,user6@example.net,,No
+CU0007,2024-02-28,Standard,One year,609.65,66,4,user7@example.net,2029-07-31,Yes
+CU0008,2021-02-04,Standard,Month-to-month,612.89,38,6,user8@example.net,2024-03-20,Yes
+CU0009,2023-03-25,Basic,Month-to-month,295.79,7,7,user9@example.net,2023-10-21,Yes
+CU0010,2022-11-13,Premium,One year,979.61,35,5,user10@example.net,2025-09-28,Yes
+CU0011,2021-07-26,Standard,,579.44,16,2,user11@example.net,,No
+CU0012,2023-11-09,Standard,One year,586.63,23,8,user12@example.net,2025-09-29,Yes
+CU0013,2023-05-12,Premium,One year,1018.6,54,6,user13@example.net,2027-10-18,Yes
+CU0014,2023-03-19,Basic,Month-to-month,318.83,39,0,user14@example.net,2026-06-01,Yes
+CU0015,2022-03-13,Premium,One year,996.66,13,0,user15@example.net,,No
+CU0016,2021-06-02,Basic,One year,282.6,43,4,user16@example.net,,No
+CU0017,2023-07-18,Premium,One year,,2,9,user17@example.net,,No
+CU0018,2021-11-12,Premium,Month-to-month,991.43,18,6,user18@example.net,2023-05-06,Yes
+CU0019,2024-02-09,Basic,Two year,286.86,32,3,user19@example.net,,No
+CU0020,2021-08-12,Standard,Two year,580.55,11,6,user20@example.net,2022-07-08,Yes
+CU0021,2023-10-03,Standard,Month-to-month,590.74,51,4,user21@example.net,,No
+CU0022,2024-02-20,Basic,Two year,305.14,9,2,user22@example.net,,No
+CU0023,2022-02-22,,One year,1008.96,36,3,user23@example.net,,No
+CU0024,2021-12-27,Basic,Month-to-month,290.28,58,3,user24@example.net,2026-10-02,Yes
+CU0025,2023-07-12,Premium,One year,1018.22,17,1,user25@example.net,,No
+CU0026,2021-03-13,Premium,One year,1015.94,67,9,user26@example.net,,No
+CU0027,2021-06-03,Standard,Two year,598.29,40,0,user27@example.net,2024-09-15,Yes
+CU0028,2024-01-24,Premium,Month-to-month,993.71,18,1,user28@example.net,2025-07-17,Yes
+CU0029,2023-08-28,Basic,Two year,315.03,17,5,user29@example.net,,No
+CU0030,2023-02-23,Standard,Two year,594.17,4,7,user30@example.net,,No
+CU0031,2022-06-11,Basic,One year,314.19,11,1,user31@example.net,,No
+CU0032,2024-01-14,Premium,Month-to-month,982.35,59,7,user32@example.net,,No
+CU0033,2021-08-20,Premium,Month-to-month,998.89,12,7,user33@example.net,2022-08-15,Yes
+CU0034,2023-01-24,Premium,One year,991.04,63,4,user34@example.net,,No
+CU0035,2022-12-03,Premium,One year,1005.4,67,2,user35@example.net,,No
+CU0036,2022-05-29,Standard,Month-to-month,586.94,31,5,user36@example.net,2024-12-14,Yes
+CU0037,2024-04-09,Standard,Two year,615.83,26,3,user37@example.net,,No
+CU0038,2021-03-25,Basic,Month-to-month,307.45,64,5,user38@example.net,,No
+CU0039,2022-03-15,Standard,Two year,612.24,15,7,user39@example.net,,No
+CU0040,2023-07-16,Standard,One year,591.81,64,5,user40@example.net,,No
+CU0041,2022-09-25,Basic,Month-to-month,304.97,6,4,user41@example.net,,No
+CU0042,2021-02-20,Premium,Month-to-month,1009.77,18,6,user42@example.net,2022-08-14,Yes
+CU0043,2021-08-25,Standard,Month-to-month,596.86,19,0,user43@example.net,,No
+CU0044,2022-02-13,Premium,One year,1011.95,48,1,user44@example.net,,No
+CU0045,2021-03-16,Standard,Month-to-month,586.16,2,7,user45@example.net,2021-05-15,Yes
+CU0046,2021-11-23,Standard,One year,594.74,70,8,user46@example.net,,No
+CU0047,2023-03-06,Premium,Two year,984.2,12,6,user47@example.net,,
+CU0048,2023-10-27,Standard,Month-to-month,610.87,1,6,user48@example.net,,No
+CU0049,2021-09-10,Standard,Month-to-month,587.53,27,1,user49@example.net,,No
+CU0050,2022-10-19,Standard,Two year,589.48,40,8,user50@example.net,,No
+CU0051,2023-06-22,Premium,Two year,992.68,45,8,user51@example.net,2027-03-03,Yes
+CU0052,2021-05-12,Standard,One year,596.16,63,0,user52@example.net,,No
+CU0053,2023-11-24,Basic,Month-to-month,315.02,43,2,user53@example.net,,
+CU0054,2021-06-26,Premium,Two year,1009.31,57,7,user54@example.net,,No
+CU0055,2023-12-07,Standard,One year,599.57,38,8,user55@example.net,,No
+CU0056,2021-10-17,Premium,Month-to-month,1017.74,49,9,user56@example.net,2025-10-26,Yes
+CU0057,2021-08-23,Premium,Month-to-month,999.13,64,3,user57@example.net,,No
+CU0058,2023-04-01,Premium,Month-to-month,1000.76,69,0,user58@example.net,,No
+CU0059,2024-01-09,Premium,Month-to-month,1997.36,12,2,user59@example.net,2025-01-03,Yes
+CU0060,2023-06-08,Standard,Month-to-month,615.04,61,7,user60@example.net,2028-06-11,Yes
+CU0061,2021-03-02,Standard,One year,1616.01,14,3,user61@example.net,,No
+CU0062,2022-04-11,Basic,One year,279.47,3,0,user62@example.net,,No
+CU0063,2021-08-03,Standard,Month-to-month,598.99,46,3,user63@example.net,,No
+CU0064,2022-02-09,Premium,Month-to-month,1007.05,66,9,user64@example.net,2027-07-13,Yes
+CU0065,2024-01-08,Standard,Month-to-month,587.17,53,8,user65@example.net,,No
+CU0066,2024-01-17,Premium,One year,1003.47,28,8,user66@example.net,2026-05-06,Yes
+CU0067,2022-10-08,Basic,Month-to-month,314.63,45,2,user67@example.net,,No
+CU0068,2022-05-06,Basic,Month-to-month,284.3,25,1,user68@example.net,2024-05-25,Yes
+CU0069,2023-05-14,Basic,Month-to-month,300.73,13,6,user69@example.net,,No
+CU0070,2024-03-13,Premium,Month-to-month,1006.3,52,0,user70@example.net,2028-06-20,Yes
+CU0071,2022-01-23,Standard,Month-to-month,611.11,65,5,user71@example.net,,No
+CU0072,2024-03-10,Standard,Month-to-month,598.25,5,8,user72@example.net,,No
+CU0073,2022-08-03,Basic,Month-to-month,316.08,27,2,user73@example.net,,No
+CU0074,2021-07-18,Basic,One year,292.07,18,7,user74@example.net,2023-01-09,Yes
+CU0075,2023-02-04,Standard,Month-to-month,579.53,46,6,user75@example.net,2026-11-15,Yes
+CU0076,2023-01-07,Premium,Month-to-month,1008.57,26,2,user76@example.net,,No
+CU0077,2021-02-01,Standard,Two year,591.95,22,1,user77@example.net,,No
+CU0078,2023-10-30,Basic,Two year,302.38,52,9,user78@example.net,,No
+CU0079,2021-11-24,Standard,Two year,611.59,34,4,user79@example.net,,No
+CU0080,2023-06-04,Standard,Month-to-month,609.61,43,8,user80@example.net,,No
+CU0081,2022-09-10,Standard,Month-to-month,597.75,24,1,user81@example.net,,No
+CU0082,2022-09-05,Basic,Two year,292.51,7,3,user82@example.net,,No
+CU0083,2023-11-21,Premium,Month-to-month,1019,24,8,user83@example.net,2025-11-10,Yes
+CU0084,2021-02-16,Premium,Month-to-month,983.59,16,6,user84@example.net,,No
+CU0085,2021-04-14,Basic,One year,309.45,33,7,user85@example.net,,No
+CU0086,2022-11-30,Premium,Month-to-month,1001,13,4,user86@example.net,2023-12-25,Yes
+CU0087,2021-07-24,Premium,Month-to-month,1004.52,67,9,user87@example.net,,No
+CU0088,2021-11-24,Premium,Month-to-month,994.44,6,6,user88@example.net,,No
+CU0089,2023-05-30,Basic,Two year,316.81,70,9,user89@example.net,,No
+CU0090,2023-12-23,Standard,Month-to-month,590.43,52,9,user90@example.net,2028-03-31,Yes
+CU0091,2022-05-17,Premium,Month-to-month,1002.43,37,4,user91@example.net,2025-05-31,Yes
+CU0092,2023-03-26,Premium,Month-to-month,981.01,50,0,user92@example.net,,No
+CU0093,2023-09-06,Premium,Two year,989.04,10,3,user93@example.net,,No
+CU0094,2022-05-18,Basic,Month-to-month,303.14,13,7,user94@example.net,2023-06-12,Yes
+CU0095,2021-04-17,Basic,Month-to-month,293.27,54,7,user95@example.net,2025-09-23,Yes
+CU0096,2023-07-22,Basic,Month-to-month,303.04,57,2,user96@example.net,,No
+CU0097,2023-12-24,Premium,One year,1011.61,54,5,user97@example.net,,No
+CU0098,2023-10-28,Basic,Two year,314.71,17,3,user98@example.net,,No
+CU0099,2024-03-02,Premium,One year,1006.96,46,4,user99@example.net,,No
+CU0100,2023-10-26,Basic,One year,318.19,31,3,user100@example.net,,No
+CU0101,2022-06-16,Basic,Two year,296.01,6,0,user101@example.net,2022-12-13,Yes
+CU0102,2021-06-27,Premium,Month-to-month,1015.52,29,8,user102@example.net,2023-11-14,Yes
+CU0103,2022-03-08,Basic,One year,292.53,48,7,user103@example.net,,No
+CU0104,2022-03-13,Standard,One year,596.77,10,1,user104@example.net,,No
+CU0105,2022-10-29,Premium,Month-to-month,990.64,20,5,user105@example.net,2024-06-20,Yes
+CU0106,2024-04-04,Premium,Two year,982.88,24,6,user106@example.net,,No
+CU0107,2023-09-20,Standard,Month-to-month,611.61,11,6,user107@example.net,,No
+CU0108,2021-06-17,Standard,Month-to-month,606.8,2,1,user108@example.net,2021-08-16,Yes
+CU0109,2022-03-25,Standard,One year,593.31,42,4,user109@example.net,,No
+CU0110,2024-03-11,Premium,Month-to-month,1002.79,16,5,user110@example.net,,No
+CU0111,2022-09-17,Premium,Two year,997.33,57,8,user111@example.net,,No
+CU0112,2023-01-19,Basic,Month-to-month,279.96,67,3,user112@example.net,2028-07-21,Yes
+CU0113,2023-01-25,Premium,Month-to-month,1010.88,50,3,user113@example.net,,No
+CU0114,2023-07-20,Premium,Month-to-month,1014.24,23,2,user114@example.net,2025-06-09,Yes
+CU0115,2021-11-21,Standard,Two year,601.7,29,8,user115@example.net,2024-04-09,Yes
+CU0116,2022-09-18,Basic,One year,310.52,55,1,user116@example.net,,No
+CU0117,2021-06-23,Basic,Month-to-month,280.04,36,1,user117@example.net,,No
+CU0118,2023-09-29,Premium,Month-to-month,1009.61,55,3,user118@example.net,,No
+CU0119,2022-11-13,Premium,Month-to-month,1005.9,59,6,user119@example.net,2027-09-18,Yes
+CU0120,2023-04-21,Standard,Month-to-month,609.28,10,9,user120@example.net,,No
+CU0121,2023-08-10,Premium,Month-to-month,1017.31,1,6,user121@example.net,,No
+CU0122,2023-05-14,Premium,Month-to-month,1015.94,47,0,user122@example.net,,No
+CU0123,2022-10-20,Basic,Month-to-month,287.17,21,6,user123@example.net,,No
+CU0124,2021-08-24,Standard,One year,591.14,36,0,user124@example.net,,No
+CU0125,2021-02-05,Basic,One year,302.36,23,0,user125@example.net,,No
+CU0126,2022-04-28,Basic,Month-to-month,303,26,2,user126@example.net,,No
+CU0127,2022-07-30,Standard,One year,595.1,29,7,user127@example.net,2024-12-16,Yes
+CU0128,2023-09-20,Standard,One year,614.5,71,7,user128@example.net,,No
+CU0129,2023-03-30,Standard,One year,580.99,12,7,user129@example.net,,No
+CU0130,2022-07-17,Basic,Two year,310.51,50,8,user130@example.net,,No
+CU0131,2023-01-31,Basic,One year,297,31,0,user131@example.net,,No
+CU0132,2022-10-22,Basic,One year,284.79,21,6,user132@example.net,2024-07-13,Yes
+CU0133,2021-11-05,Premium,Month-to-month,1001.88,35,8,user133@example.net,,No
+CU0134,2022-07-07,Basic,Month-to-month,303.59,20,2,user134@example.net,2024-02-27,Yes
+CU0135,2024-01-18,Premium,Month-to-month,1013.29,62,7,user135@example.net,2029-02-20,Yes
+CU0136,2021-07-06,Standard,Month-to-month,610.26,25,6,user136@example.net,2023-07-26,Yes
+CU0137,2021-11-19,Standard,Month-to-month,616.86,70,6,user137@example.net,,No
+CU0138,2023-08-15,Standard,Month-to-month,605.69,52,1,user138@example.net,,No
+CU0139,2023-08-04,Basic,Month-to-month,308.87,18,1,user139@example.net,,No
+CU0140,2023-09-01,Basic,One year,288.5,2,6,user140@example.net,,No
+CU0141,2021-11-08,Premium,Month-to-month,990.62,2,3,user141@example.net,,No
+CU0142,2024-02-12,Standard,Two year,605.67,39,5,user142@example.net,,No
+CU0143,2022-07-15,Standard,Month-to-month,601.51,49,1,user143@example.net,,No
+CU0144,2021-10-16,Premium,One year,1003.87,58,6,user144@example.net,2026-07-22,Yes
+CU0145,2021-03-16,Basic,One year,312.48,23,2,user145@example.net,,No
+CU0146,2021-09-12,Premium,One year,996.35,13,3,user146@example.net,2022-10-07,Yes
+CU0147,2022-02-25,Basic,Month-to-month,309.67,55,8,user147@example.net,2026-09-02,Yes
+CU0148,2023-04-01,Premium,Month-to-month,1003.52,43,6,user148@example.net,,No
+CU0149,2022-06-18,Standard,Two year,592.24,32,9,user149@example.net,,No
+CU0150,2022-02-24,Standard,Month-to-month,599.37,57,1,user150@example.net,,No
+CU0151,2022-09-04,Standard,Two year,600.93,21,4,user151@example.net,,No
+CU0152,2022-02-10,Standard,One year,618.47,66,2,user152@example.net,,No
+CU0153,2022-02-10,Premium,Two year,1010.06,26,9,user153@example.net,,No
+CU0154,2023-01-10,Basic,Month-to-month,289.65,54,5,user154@example.net,2027-06-18,Yes
+CU0155,2024-01-18,Basic,Month-to-month,300.85,18,3,user155@example.net,,No
+CU0156,2022-11-17,Basic,One year,303.06,34,2,user156@example.net,,No
+CU0157,2023-01-15,Basic,Two year,288.63,1,4,user157@example.net,,No
+CU0158,2021-06-06,Premium,Month-to-month,997.17,22,2,user158@example.net,,No
+CU0159,2023-02-21,Standard,Month-to-month,603.61,18,4,user159@example.net,,No
+CU0160,2023-08-17,Premium,Two year,980.32,3,2,user160@example.net,,No
+CU0161,2021-09-27,Premium,Month-to-month,989.55,52,2,user161@example.net,,No
+CU0162,2021-10-24,Premium,Two year,995.13,7,0,user162@example.net,,No
+CU0163,2024-03-02,Standard,One year,609.32,61,5,user163@example.net,,No
+CU0164,2021-08-29,Standard,Month-to-month,601.64,60,6,user164@example.net,,No
+CU0165,2021-02-19,Premium,Month-to-month,991.83,67,6,user165@example.net,,No
+CU0166,2022-09-17,Basic,Month-to-month,314.3,56,6,user166@example.net,,No
+CU0167,2023-03-24,Basic,Month-to-month,317.9,58,3,user167@example.net,,No
+CU0168,2023-03-22,Standard,One year,616.61,68,3,user168@example.net,,No
+CU0169,2021-12-03,Basic,Two year,287.87,48,8,user169@example.net,,No
+CU0170,2021-09-24,Premium,Month-to-month,983.95,16,1,user170@example.net,2023-01-17,Yes
+CU0171,2022-09-05,Premium,One year,979.96,59,0,user171@example.net,,No
+CU0172,2023-01-01,Basic,Month-to-month,306.69,58,8,user172@example.net,2027-10-07,Yes
+CU0173,2022-09-23,Basic,Month-to-month,291.97,4,7,user173@example.net,,No
+CU0174,2021-05-01,Basic,Two year,286.82,61,3,user174@example.net,,No
+CU0175,2024-02-21,Standard,Two year,587.08,3,2,user175@example.net,,No
+CU0176,2022-10-03,Premium,Month-to-month,1017.45,7,1,user176@example.net,2023-05-01,Yes
+CU0177,2023-07-01,Standard,Two year,595.61,18,5,user177@example.net,,No
+CU0178,2022-02-07,Basic,Month-to-month,289.76,40,1,user178@example.net,,No
+CU0179,2023-12-10,Premium,Month-to-month,1014.38,38,4,user179@example.net,2027-01-23,Yes
+CU0180,2022-07-21,Premium,One year,984.3,39,2,user180@example.net,,No
+CU0181,2021-06-01,Premium,Month-to-month,1000.23,10,7,user181@example.net,,No
+CU0182,2024-03-10,Basic,Month-to-month,282.49,37,8,user182@example.net,2027-03-25,Yes
+CU0183,2024-01-28,Standard,Two year,580.15,25,3,user183@example.net,,No
+CU0184,2024-04-12,Basic,Two year,294.39,5,9,user184@example.net,,No
+CU0185,2023-01-07,Standard,Month-to-month,591.83,9,8,user185@example.net,,No
+CU0186,2023-12-03,Standard,One year,608.77,67,4,user186@example.net,,No
+CU0187,2022-04-27,Premium,Month-to-month,1005.74,22,1,user187@example.net,,No
+CU0188,2022-03-30,Premium,One year,1013.11,31,4,user188@example.net,,No
+CU0189,2021-04-18,Premium,Month-to-month,1001.91,5,3,user189@example.net,,No
+CU0190,2023-06-10,Basic,Month-to-month,299.15,3,9,user190@example.net,2023-09-08,Yes
+CU0191,2021-12-31,Premium,Month-to-month,1001.76,4,1,user191@example.net,2022-04-30,Yes
+CU0192,2022-09-29,Premium,One year,996.01,31,9,user192@example.net,2025-04-16,Yes
+CU0193,2023-10-18,Premium,Month-to-month,982.54,68,4,user193@example.net,,No
+CU0194,2023-07-20,Premium,Month-to-month,981.45,33,3,user194@example.net,2026-04-05,Yes
+CU0195,2021-10-03,Standard,Month-to-month,584.78,28,0,user195@example.net,2024-01-21,Yes
+CU0196,2023-12-13,Standard,One year,584.66,6,0,user196@example.net,,No
+CU0197,2021-03-12,Standard,One year,606.19,61,6,user197@example.net,,No
+CU0198,2024-02-05,Premium,One year,1013.21,30,4,user198@example.net,,No
+CU0199,2022-03-24,Standard,Month-to-month,580.59,30,5,user199@example.net,2024-09-09,Yes
+CU0200,2021-12-30,Standard,One year,597.5,8,5,user200@example.net,,No
+CU0201,2021-04-11,Standard,Two year,587.62,28,6,user201@example.net,,No
+CU0202,2023-03-31,Standard,Month-to-month,587.58,71,2,user202@example.net,,No
+CU0203,2022-01-07,Standard,One year,613.51,61,7,user203@example.net,,No
+CU0204,2022-07-21,Basic,One year,293.51,54,1,user204@example.net,,No
+CU0205,2023-11-15,Standard,One year,594.72,67,2,user205@example.net,,No
+CU0206,2021-11-11,Premium,One year,1008.12,35,1,user206@example.net,,No
+CU0207,2022-10-22,Standard,Month-to-month,612.55,31,1,user207@example.net,2025-05-09,Yes
+CU0208,2023-11-30,Standard,Month-to-month,605.77,49,5,user208@example.net,2027-12-09,Yes
+CU0209,2021-11-05,Standard,Month-to-month,599.56,31,7,user209@example.net,2024-05-23,Yes
+CU0210,2024-01-20,Basic,Month-to-month,306.76,40,6,user210@example.net,2027-05-04,Yes
+CU0211,2023-02-12,Premium,One year,984.89,34,5,user211@example.net,,No
+CU0212,2023-03-03,Basic,Two year,299.67,69,7,user212@example.net,,No
+CU0213,2022-03-18,Standard,Month-to-month,584.61,38,5,user213@example.net,2025-05-01,Yes
+CU0214,2022-09-03,Basic,One year,305.42,62,9,user214@example.net,2027-10-07,Yes
+CU0215,2021-09-08,Basic,Two year,317.21,28,8,user215@example.net,,No
+CU0216,2021-09-03,Standard,Month-to-month,594.7,34,1,user216@example.net,,No
+CU0217,2022-07-28,Basic,Month-to-month,287.87,43,4,user217@example.net,,No
+CU0218,2022-05-07,Standard,Month-to-month,599.82,22,5,user218@example.net,,No
+CU0219,2022-06-11,Premium,Month-to-month,1007.05,55,2,user219@example.net,,No
+CU0220,2021-05-09,Premium,Month-to-month,1015.5,3,6,user220@example.net,2021-08-07,Yes
+CU0221,2022-10-29,Standard,Month-to-month,614.44,64,9,user221@example.net,2028-01-31,Yes
+CU0222,2024-03-04,Basic,Month-to-month,290.89,45,5,user222@example.net,,No
+CU0223,2023-01-13,Premium,Two year,980.24,61,6,user223@example.net,,No
+CU0224,2023-04-22,Premium,Two year,1003.51,10,0,user224@example.net,,No
+CU0225,2023-02-28,Basic,Month-to-month,280.53,60,7,user225@example.net,2028-02-02,Yes
+CU0226,2023-08-27,Basic,One year,318.08,35,4,user226@example.net,,No
+CU0227,2022-03-27,Basic,One year,288.38,35,3,user227@example.net,,No
+CU0228,2023-10-08,Basic,Two year,312.96,51,0,user228@example.net,,No
+CU0229,2021-08-01,Premium,Month-to-month,1014.45,72,5,user229@example.net,2027-07-01,Yes
+CU0230,2022-01-29,Standard,Two year,611.98,27,6,user230@example.net,,No
+CU0231,2023-04-30,Basic,Month-to-month,290.43,63,9,user231@example.net,2028-07-02,Yes
+CU0232,2023-01-12,Premium,One year,992,64,3,user232@example.net,,No
+CU0233,2021-07-29,Basic,Two year,314.42,17,1,user233@example.net,,No
+CU0234,2023-09-12,Standard,Month-to-month,580.61,58,8,user234@example.net,,No
+CU0235,2023-03-25,Premium,Two year,999.3,62,0,user235@example.net,,No
+CU0236,2022-11-01,Premium,Month-to-month,986.34,33,5,user236@example.net,,No
+CU0237,2021-09-15,Basic,Two year,303.92,17,9,user237@example.net,,No
+CU0238,2022-08-21,Standard,Two year,588.24,17,3,user238@example.net,,No
+CU0239,2021-10-01,Basic,Two year,289.72,61,9,user239@example.net,,No
+CU0240,2021-10-12,Standard,Month-to-month,580.95,51,6,user240@example.net,,No
+CU0241,2024-01-08,Premium,Two year,1018.75,6,3,user241@example.net,,No
+CU0242,2021-12-17,Basic,Month-to-month,293.94,4,8,user242@example.net,,No
+CU0243,2023-04-16,Standard,Month-to-month,609.61,37,3,user243@example.net,,No
+CU0244,2021-10-28,Premium,Month-to-month,996.69,28,8,user244@example.net,2024-02-15,Yes
+CU0245,2021-11-08,Basic,One year,291.95,33,7,user245@example.net,,No
+CU0246,2022-07-16,Basic,Month-to-month,291.89,19,4,user246@example.net,,No
+CU0247,2021-04-15,Basic,Month-to-month,285.06,47,8,user247@example.net,2025-02-23,Yes
+CU0248,2022-11-20,Basic,Two year,298.34,40,1,user248@example.net,2026-03-04,Yes
+CU0249,2022-12-21,Basic,Two year,311.28,53,7,user249@example.net,2027-04-29,Yes
+CU0250,2022-06-01,Standard,One year,590.08,28,8,user250@example.net,,No
+CU0251,2021-04-07,Standard,Two year,586.03,57,9,user251@example.net,,No
+CU0252,2022-07-10,Basic,Two year,293.36,69,1,user252@example.net,,No
+CU0253,2022-03-07,Premium,Month-to-month,981.55,66,7,user253@example.net,2027-08-08,Yes
+CU0254,2023-10-11,Standard,Month-to-month,594.97,68,4,user254@example.net,,No
+CU0255,2023-04-17,Premium,Two year,989.02,13,7,user255@example.net,,No
+CU0256,2023-01-27,Premium,Month-to-month,999.25,19,3,user256@example.net,2024-08-19,Yes
+CU0257,2022-07-26,Standard,Two year,581.67,47,7,user257@example.net,,No
+CU0258,2022-01-04,Premium,Month-to-month,987.45,13,4,user258@example.net,2023-01-29,Yes
+CU0259,2021-08-05,Premium,Month-to-month,985.22,39,3,user259@example.net,2024-10-18,Yes
+CU0260,2023-10-27,Standard,Month-to-month,581.09,56,0,user260@example.net,2028-06-02,Yes
+CU0261,2021-12-24,Basic,Month-to-month,291.84,69,3,user261@example.net,2027-08-25,Yes
+CU0262,2022-03-26,Premium,Month-to-month,998.97,42,6,user262@example.net,,No
+CU0263,2022-10-22,Premium,Two year,1014.26,35,1,user263@example.net,,No
+CU0264,2023-02-14,Standard,One year,615.44,2,2,user264@example.net,,No
+CU0265,2023-05-19,Basic,Month-to-month,299.19,45,7,user265@example.net,,No
+CU0266,2023-08-15,Premium,Two year,995.77,16,7,user266@example.net,,No
+CU0267,2021-03-29,Standard,One year,599.61,49,9,user267@example.net,,No
+CU0268,2021-04-05,Basic,One year,302.78,58,7,user268@example.net,,No
+CU0269,2022-10-03,Standard,Month-to-month,586.53,60,5,user269@example.net,,No
+CU0270,2021-09-17,Standard,Two year,609.11,52,0,user270@example.net,,No
+CU0271,2021-08-02,Standard,Month-to-month,599.46,24,2,user271@example.net,,No
+CU0272,2022-12-16,Standard,Month-to-month,597.16,5,5,user272@example.net,2023-05-15,Yes
+CU0273,2022-05-04,Premium,Month-to-month,981.94,55,3,user273@example.net,,No
+CU0274,2023-10-15,Premium,Month-to-month,1013.2,63,3,user274@example.net,2028-12-17,Yes
+CU0275,2022-01-01,Premium,Two year,983.01,9,2,user275@example.net,,No
+CU0276,2022-01-08,Basic,Two year,303.58,29,4,user276@example.net,2024-05-27,Yes
+CU0277,2022-02-28,Basic,Two year,300.29,60,7,user277@example.net,2027-02-02,Yes
+CU0278,2023-06-02,Standard,Two year,594.13,26,8,user278@example.net,,No
+CU0279,2022-03-06,Standard,One year,586.23,36,9,user279@example.net,2025-02-18,Yes
+CU0280,2021-08-26,Basic,Month-to-month,289.34,60,0,user280@example.net,2026-07-31,Yes
+CU0281,2021-05-22,Standard,One year,606.67,46,4,user281@example.net,,No
+CU0282,2021-05-27,Premium,One year,1004.25,40,6,user282@example.net,,No
+CU0283,2023-11-04,Standard,Month-to-month,583.94,53,4,user283@example.net,,No
+CU0284,2021-08-29,Basic,Month-to-month,290.39,54,3,user284@example.net,,No
+CU0285,2023-09-05,Standard,Two year,594.51,11,7,user285@example.net,2024-07-31,Yes
+CU0286,2023-01-22,Premium,Month-to-month,995.76,29,7,user286@example.net,,No
+CU0287,2021-01-26,Standard,One year,605.88,35,4,user287@example.net,,No
+CU0288,2022-05-31,Basic,Month-to-month,294.52,48,2,user288@example.net,,No
+CU0289,2023-07-18,Standard,Month-to-month,614.86,14,8,user289@example.net,,No
+CU0290,2022-12-06,Basic,One year,318.6,3,5,user290@example.net,2023-03-06,Yes
+CU0291,2021-12-16,Basic,One year,297.59,20,7,user291@example.net,2023-08-08,Yes
+CU0292,2023-03-21,Standard,Month-to-month,596.33,8,3,user292@example.net,,No
+CU0293,2023-08-05,Basic,One year,305.25,15,0,user293@example.net,,No
+CU0294,2023-01-28,Premium,Two year,1012.21,67,9,user294@example.net,2028-07-30,Yes
+CU0295,2022-06-03,Premium,Month-to-month,1005.53,11,0,user295@example.net,2023-04-29,Yes
+CU0296,2021-02-02,Premium,Month-to-month,993.84,16,6,user296@example.net,2022-05-28,Yes
+CU0297,2024-01-03,Standard,Two year,601.44,4,1,user297@example.net,,No
+CU0298,2024-03-01,Basic,One year,283.98,13,4,user298@example.net,,No
+CU0299,2022-08-26,Premium,Month-to-month,993.11,12,8,user299@example.net,2023-08-21,Yes
+CU0300,2022-03-22,Basic,Month-to-month,302.55,53,7,user300@example.net,2026-07-29,Yes
+CU0301,2021-08-02,Basic,One year,311.39,59,2,user301@example.net,,No
+CU0302,2021-09-01,Premium,Month-to-month,995.54,68,2,user302@example.net,,No
+CU0303,2023-12-24,Basic,Month-to-month,303.74,15,6,user303@example.net,2025-03-18,Yes
+CU0304,2021-04-05,Standard,Month-to-month,594.59,39,8,user304@example.net,,No
+CU0305,2023-05-09,Standard,Month-to-month,592.15,34,8,user305@example.net,2026-02-22,Yes
+CU0306,2023-10-23,Standard,Month-to-month,616.08,72,2,user306@example.net,,No
+CU0307,2022-06-13,Basic,Month-to-month,287.8,39,4,user307@example.net,,No
+CU0308,2023-06-01,Basic,Month-to-month,292.35,62,6,user308@example.net,2028-07-04,Yes
+CU0309,2023-02-22,Basic,Month-to-month,300.9,68,0,user309@example.net,2028-09-23,Yes
+CU0310,2023-01-07,Standard,Two year,598.36,13,5,user310@example.net,2024-02-01,Yes
+CU0311,2023-02-04,Basic,One year,295.26,68,7,user311@example.net,,No
+CU0312,2023-01-26,Basic,Month-to-month,312.6,46,3,user312@example.net,,No
+CU0313,2021-08-30,Basic,One year,299.65,8,5,user313@example.net,2022-04-27,Yes
+CU0314,2022-07-08,Standard,Month-to-month,611.31,12,3,user314@example.net,2023-07-03,Yes
+CU0315,2024-03-17,Standard,One year,606.2,48,6,user315@example.net,2028-02-25,Yes
+CU0316,2022-10-12,Basic,Month-to-month,284.97,29,4,user316@example.net,2025-02-28,Yes
+CU0317,2023-10-02,Basic,One year,280.92,37,0,user317@example.net,,No
+CU0318,2021-02-15,Premium,Month-to-month,1003.68,18,5,user318@example.net,,No
+CU0319,2023-09-09,Premium,One year,995.73,70,0,user319@example.net,,No
+CU0320,2023-06-22,Premium,One year,1006.41,10,2,user320@example.net,,No
+CU0321,2023-07-01,Basic,Month-to-month,291.8,58,6,user321@example.net,,No
+CU0322,2024-01-28,Premium,One year,1007.48,15,5,user322@example.net,,No
+CU0323,2022-03-09,Premium,Month-to-month,982.88,40,8,user323@example.net,2025-06-21,Yes
+CU0324,2023-08-26,Standard,One year,595.3,16,2,user324@example.net,,No
+CU0325,2023-03-06,Standard,Two year,599.46,26,7,user325@example.net,,No
+CU0326,2021-01-31,Standard,Month-to-month,592.85,22,9,user326@example.net,2022-11-22,Yes
+CU0327,2023-03-07,Basic,One year,297.11,49,9,user327@example.net,,No
+CU0328,2023-03-23,Premium,Two year,992.12,46,9,user328@example.net,2027-01-01,Yes
+CU0329,2024-03-23,Premium,Month-to-month,980.8,34,5,user329@example.net,,No
+CU0330,2022-03-13,Basic,Two year,296.31,33,6,user330@example.net,,No
+CU0331,2023-07-23,Premium,Month-to-month,994.47,24,6,user331@example.net,,No
+CU0332,2021-11-04,Basic,Month-to-month,280.4,14,4,user332@example.net,,No
+CU0333,2023-09-30,Premium,Month-to-month,985.06,21,8,user333@example.net,2025-06-21,Yes
+CU0334,2022-03-24,Standard,Two year,618.44,13,3,user334@example.net,,No
+CU0335,2022-01-25,Premium,One year,1002.3,45,1,user335@example.net,,No
+CU0336,2022-08-19,Standard,One year,603.33,47,1,user336@example.net,,No
+CU0337,2021-12-20,Premium,Two year,1000.49,15,3,user337@example.net,,No
+CU0338,2022-06-22,Standard,One year,598.39,37,4,user338@example.net,,No
+CU0339,2023-03-10,Standard,Month-to-month,585.4,36,8,user339@example.net,2026-02-22,Yes
+CU0340,2021-11-30,Premium,Two year,1000.38,12,8,user340@example.net,,No
+CU0341,2023-01-13,Premium,One year,1005.07,34,4,user341@example.net,2025-10-29,Yes
+CU0342,2022-03-19,Premium,Month-to-month,1016.75,58,5,user342@example.net,2026-12-23,Yes
+CU0343,2024-02-01,Premium,Month-to-month,983.41,45,3,user343@example.net,2027-10-13,Yes
+CU0344,2024-03-04,Premium,One year,1017.44,39,0,user344@example.net,,No
+CU0345,2021-05-06,Basic,Two year,316.97,40,5,user345@example.net,,No
+CU0346,2023-12-04,Premium,Month-to-month,1000.69,4,6,user346@example.net,,No
+CU0347,2022-12-27,Standard,One year,603.5,24,1,user347@example.net,,No
+CU0348,2022-01-31,Basic,Two year,282.15,14,6,user348@example.net,2023-03-27,Yes
+CU0349,2022-09-07,Standard,Month-to-month,589.24,72,1,user349@example.net,2028-08-06,Yes
+CU0350,2021-11-13,Basic,One year,313.35,20,8,user350@example.net,,No
+CU0351,2023-11-30,Basic,One year,285.29,41,2,user351@example.net,,No
+CU0352,2021-02-19,Basic,Month-to-month,295.57,39,4,user352@example.net,,No
+CU0353,2021-06-20,Basic,Two year,279.03,67,9,user353@example.net,,No
+CU0354,2023-04-15,Basic,Two year,293.02,28,6,user354@example.net,,No
+CU0355,2024-04-14,Basic,Month-to-month,293.79,2,3,user355@example.net,2024-06-13,Yes
+CU0356,2023-04-29,Premium,Month-to-month,986.03,46,7,user356@example.net,,No
+CU0357,2022-11-13,Basic,Month-to-month,286.39,58,7,user357@example.net,2027-08-19,Yes
+CU0358,2022-06-07,Premium,One year,1001.94,34,9,user358@example.net,,No
+CU0359,2022-11-06,Basic,Month-to-month,308.57,30,1,user359@example.net,,No
+CU0360,2023-10-29,Basic,One year,288.78,32,8,user360@example.net,2026-06-15,Yes
+CU0361,2023-01-01,Basic,Month-to-month,281.8,72,2,user361@example.net,,No
+CU0362,2022-04-22,Basic,Two year,292.53,50,2,user362@example.net,,No
+CU0363,2021-05-20,Basic,Month-to-month,298.03,37,8,user363@example.net,,No
+CU0364,2023-05-21,Basic,Month-to-month,315.58,5,6,user364@example.net,,No
+CU0365,2022-10-15,Basic,Month-to-month,292.68,21,7,user365@example.net,,No
+CU0366,2021-10-05,Basic,Month-to-month,307.07,41,0,user366@example.net,2025-02-16,Yes
+CU0367,2021-09-04,Basic,Two year,315.95,59,5,user367@example.net,,No
+CU0368,2021-04-11,Basic,Two year,283.93,10,2,user368@example.net,,No
+CU0369,2024-01-12,Standard,Month-to-month,611.64,16,4,user369@example.net,,No
+CU0370,2021-06-16,Standard,One year,605.14,68,4,user370@example.net,,No
+CU0371,2022-11-08,Basic,Month-to-month,304.53,40,8,user371@example.net,2026-02-20,Yes
+CU0372,2023-09-28,Basic,Month-to-month,297.6,59,5,user372@example.net,,No
+CU0373,2024-04-11,Basic,Month-to-month,295.02,61,0,user373@example.net,,No
+CU0374,2022-03-10,Basic,Month-to-month,317.45,6,2,user374@example.net,,No
+CU0375,2023-08-11,Basic,Month-to-month,279.99,64,9,user375@example.net,,No
+CU0376,2024-02-25,Standard,Month-to-month,593.77,39,0,user376@example.net,,No
+CU0377,2024-04-01,Standard,Month-to-month,602.24,41,2,user377@example.net,,No
+CU0378,2023-10-04,Standard,Month-to-month,588.33,59,4,user378@example.net,,No
+CU0379,2022-08-15,Premium,Two year,1009.61,21,7,user379@example.net,,No
+CU0380,2022-11-27,Premium,Month-to-month,990.36,72,9,user380@example.net,2028-10-26,Yes
+CU0381,2021-08-18,Basic,One year,298.89,1,5,user381@example.net,,No
+CU0382,2023-10-17,Premium,One year,1001.97,1,7,user382@example.net,,No
+CU0383,2023-09-14,Premium,One year,981.47,8,1,user383@example.net,,No
+CU0384,2021-06-23,Basic,Two year,290.21,36,8,user384@example.net,,No
+CU0385,2023-10-30,Basic,Month-to-month,283.09,52,0,user385@example.net,,No
+CU0386,2021-11-07,Standard,One year,590.62,10,7,user386@example.net,,No
+CU0387,2023-07-03,Premium,One year,1011.14,44,3,user387@example.net,,No
+CU0388,2021-12-27,Premium,Two year,983.71,32,4,user388@example.net,,No
+CU0389,2021-02-16,Standard,Month-to-month,617.25,32,0,user389@example.net,,No
+CU0390,2021-11-24,Premium,Month-to-month,983.38,52,1,user390@example.net,,No
+CU0391,2022-06-20,Standard,Two year,618.4,40,4,user391@example.net,,No
+CU0392,2023-03-19,Premium,One year,1010.41,8,6,user392@example.net,,No
+CU0393,2022-12-25,Basic,One year,280.56,64,7,user393@example.net,,No
+CU0394,2021-08-30,Basic,Month-to-month,306.78,30,3,user394@example.net,,No
+CU0395,2021-02-25,Premium,Month-to-month,1004.91,60,4,user395@example.net,,No
+CU0396,2021-04-22,Premium,One year,1015.46,14,5,user396@example.net,,No
+CU0397,2022-11-14,Standard,One year,583.37,39,7,user397@example.net,,No
+CU0398,2024-01-02,Basic,One year,281.01,63,1,user398@example.net,,No
+CU0399,2023-01-16,Premium,One year,988.65,37,3,user399@example.net,,No
+CU0400,2022-08-29,Standard,Month-to-month,600.08,44,0,user400@example.net,,No
+CU0401,2022-05-06,Basic,Month-to-month,284.3,25,1,user68@example.net,2024-05-25,No
+CU0073,2022-08-03,Basic,Month-to-month,316.08,27,2,user73@example.net,,No
+CU0402,2021-11-24,Standard,Two year,611.59,34,4,user79@example.net,,No

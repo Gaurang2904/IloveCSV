@@ -226,6 +226,108 @@ def _write(path: str | Path, orders: list[dict], customers: list[dict], with_for
     wb.save(path)
 
 
+CHURN_COLUMNS = ["customer_id", "signup_date", "plan", "contract", "monthly_charges", "tenure_months",
+                 "support_calls", "email", "cancellation_date", "churn"]
+
+
+def build_churn_rows(n: int = 400, seed: int = 11, inject: bool = True) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Customer churn table with planted problems. Returns (rows, truth).
+
+    `truth` records the planted problems by customer_id so tests do not depend on row order.
+    cancellation_date is a deliberate leakage column: it exists only for churned customers.
+    """
+    rng = random.Random(seed)
+    plans = [("Basic", 299.0), ("Standard", 599.0), ("Premium", 999.0)]
+    contracts = ["Month-to-month", "One year", "Two year"]
+    rows = []
+    for i in range(1, n + 1):
+        plan, price = rng.choice(plans)
+        contract = rng.choices(contracts, weights=[50, 30, 20])[0]
+        tenure = rng.randint(1, 72)
+        calls = rng.randint(0, 9)
+        p_churn = 0.08 + 0.25 * (contract == "Month-to-month") + 0.03 * calls - 0.002 * tenure
+        churned = rng.random() < max(0.03, min(0.85, p_churn))
+        signup = date(2021, 1, 1) + timedelta(days=rng.randint(0, 1200))
+        rows.append({
+            "customer_id": f"CU{i:04d}",
+            "signup_date": signup,
+            "plan": plan,
+            "contract": contract,
+            "monthly_charges": round(price + rng.uniform(-20, 20), 2),
+            "tenure_months": tenure,
+            "support_calls": calls,
+            "email": f"user{i}@example.net",
+            "cancellation_date": signup + timedelta(days=30 * tenure) if churned else None,
+            "churn": "Yes" if churned else "No",
+        })
+    truth: dict[str, Any] = {"null_tokens": [], "label_case": [], "missing_label": [], "conflict": [],
+                             "exact_duplicate": None, "near_duplicate": None, "numbers_as_text": []}
+    if not inject:
+        return rows, truth
+    by_id = {r["customer_id"]: r for r in rows}
+    # Placeholder text standing in for missing values.
+    for cid, col, token in [("CU0005", "support_calls", "N/A"), ("CU0011", "contract", "-"),
+                            ("CU0017", "monthly_charges", "null"), ("CU0023", "plan", "n/a")]:
+        by_id[cid][col] = token
+        truth["null_tokens"].append((cid, col))
+    # Label written with different case/spacing: same class, must be normalised (safe).
+    for cid, style in [("CU0031", str.lower), ("CU0037", lambda s: s.upper() + " "), ("CU0041", str.upper)]:
+        by_id[cid]["churn"] = style(by_id[cid]["churn"])
+        truth["label_case"].append(cid)
+    # No label at all: unusable for supervised training (flagged, never dropped).
+    for cid in ("CU0047", "CU0053"):
+        by_id[cid]["churn"] = None
+        by_id[cid]["cancellation_date"] = None
+        truth["missing_label"].append(cid)
+    # Numbers stored as text with a currency symbol and a thousands separator.
+    for cid in ("CU0059", "CU0061"):
+        by_id[cid]["monthly_charges"] = f"₹{by_id[cid]['monthly_charges'] + 1000:,.2f}"
+        truth["numbers_as_text"].append(cid)
+    # Label conflict: a churned customer copied under a new id, labelled "No" (but still holding a
+    # cancellation date): identical features, contradictory labels.
+    src_row = next(r for r in rows[66:] if r["churn"] == "Yes")
+    conflict = dict(src_row, customer_id=f"CU{n + 1:04d}", churn="No")
+    truth["conflict"] = [src_row["customer_id"], conflict["customer_id"]]
+    # Exact duplicate (every column, id included) and a near duplicate (only the id differs).
+    exact = dict(by_id["CU0073"])
+    near = dict(by_id["CU0079"], customer_id=f"CU{n + 2:04d}")
+    rows += [conflict, exact, near]
+    truth["exact_duplicate"] = "CU0073"
+    truth["near_duplicate"] = (near["customer_id"], "CU0079")
+    return rows, truth
+
+
+def build_churn_workbook(path: str | Path, n: int = 400, seed: int = 11, inject: bool = True,
+                         as_csv: bool = False) -> dict[str, Any]:
+    rows, truth = build_churn_rows(n, seed, inject)
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
+    if as_csv:
+        import csv
+
+        with open(path, "w", newline="", encoding="utf-8") as f:
+            w = csv.writer(f)
+            w.writerow(CHURN_COLUMNS)
+            for r in rows:
+                w.writerow(["" if r[c] is None else (r[c].isoformat() if isinstance(r[c], date) else r[c])
+                            for c in CHURN_COLUMNS])
+        return truth
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Customers"
+    ws.append(CHURN_COLUMNS)
+    for r in rows:
+        ws.append([r[c] for c in CHURN_COLUMNS])
+    for row in ws.iter_rows(min_row=2):
+        for c in row:
+            if isinstance(c.value, date):
+                c.number_format = "yyyy-mm-dd"
+    notes = wb.create_sheet("Readme")
+    notes.append(["About this file"])
+    notes.append(["Synthetic churn data generated by IloveCSV for demos and tests; no real customers."])
+    wb.save(path)
+    return truth
+
+
 def build_edge_workbook(path: str | Path) -> None:
     """Title row, merged header, blank row, leading-zero ids, serial date, formulas, empty sheet."""
     wb = Workbook()

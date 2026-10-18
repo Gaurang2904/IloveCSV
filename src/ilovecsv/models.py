@@ -104,6 +104,9 @@ class Suggestion:
     status: str = PENDING
     decided_by: str | None = None
     decided_at: str | None = None
+    # "safe": lossless or pure formatting, applied by Safe Auto-Clean.
+    # "review": ambiguous, inferred or destructive; a person decides.
+    safety: str = "review"
     id: str = ""
     # The typed new value used when writing the workbook (e.g. a real date).
     new_raw: Any = field(default=None, repr=False, compare=False)

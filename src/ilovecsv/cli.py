@@ -1,5 +1,7 @@
 """Command-line interface.
 
+    ilovecsv prepare  data.xlsx --target Churn --out prepared/     # one click: clean + report
+    ilovecsv prepare  new_batch.csv --config prepared/data_prepare_config.yaml
     ilovecsv profile  data.xlsx
     ilovecsv suggest-rules data.xlsx > rules.yaml
     ilovecsv check    data.xlsx --rules rules.yaml --out reports/ [--approve-min 0.9]
@@ -13,7 +15,7 @@ import json
 import sys
 from pathlib import Path
 
-from .pipeline import decide, export, run_checks
+from .pipeline import decide, export, prepare, run_checks
 from .profiling import profile_workbook
 from .reader import ReadError, read_workbook
 from .report import write_reports
@@ -22,8 +24,19 @@ from .rules.suggest import suggest_rules
 
 
 def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(prog="ilovecsv", description="Spreadsheet quality and validation engine")
+    p = argparse.ArgumentParser(prog="ilovecsv",
+                                description="Automated dataset quality and preparation for machine learning")
     sub = p.add_subparsers(dest="cmd", required=True)
+
+    pr = sub.add_parser("prepare", help="one click: validate, apply Safe Auto-Clean, export dataset + report")
+    pr.add_argument("file")
+    pr.add_argument("--out", default="prepared", help="output directory (default: prepared/)")
+    pr.add_argument("--target", default=None, help="label column for supervised learning")
+    pr.add_argument("--config", default=None, help="reuse a saved *_prepare_config.yaml")
+    pr.add_argument("--remove-exact-duplicates", action="store_true",
+                    help="let Safe Auto-Clean delete rows identical in every column (default: review)")
+    pr.add_argument("--format", action="append", choices=["csv", "parquet"], default=None,
+                    help="dataset format; repeat for several (default: csv)")
 
     pp = sub.add_parser("profile", help="print column profiles as JSON")
     pp.add_argument("file")
@@ -47,6 +60,8 @@ def main(argv: list[str] | None = None) -> int:
 
     args = p.parse_args(argv)
     try:
+        if args.cmd == "prepare":
+            return _prepare(args)
         if args.cmd == "profile":
             profiles = profile_workbook(read_workbook(args.file))
             print(json.dumps([s.to_dict() for s in profiles.values()], indent=2, default=str))
@@ -74,6 +89,47 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  - {where}: {err['msg']}", file=sys.stderr)
         return 2
     return 0
+
+
+def _prepare(args) -> int:
+    try:
+        res = prepare(args.file, args.out, target=args.target, config=args.config,
+                      remove_exact_duplicates=True if args.remove_exact_duplicates else None,
+                      formats=tuple(args.format or ["csv"]))
+    except ValueError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
+    run, ex = res.run, res.exported
+    a, s = ex.after, run.summary()
+    review = sum(1 for x in run.suggestions if x.status == "pending") + sum(1 for x in run.anomalies
+                                                                             if x.status == "open")
+    rows = ", ".join(f"{k} {len(run.wb.sheets[k].df)} -> {len(ex.after_run.wb.sheets[k].df)}" for k in ex.datasets)
+    print(f"{run.wb.filename}: rows {rows}")
+    print(f"  Safe Auto-Clean applied {len(ex.apply.applied)} fix(es); {review} item(s) need review")
+    print(f"  errors {s['errors']} -> {a['errors']} unresolved, warnings {s['warnings']} -> {a['warnings']} unresolved")
+    print(f"  quality: {a['quality_calculation']}")
+    for sheet in run.rules.sheets:
+        if sheet.target:
+            print(f"  target: {sheet.target}")
+    report = json.loads(res.report.read_text(encoding="utf-8"))
+    for entry in report["ml"]["sheets"]:
+        for leak in entry.get("leakage_suspects", []):
+            print(f"  ! possible leakage: {leak['column']} ({leak['detail']})")
+        if entry.get("missing_target_rows"):
+            print(f"  ! {len(entry['missing_target_rows'])} row(s) without a label")
+        if entry.get("label_conflicts"):
+            print(f"  ! {len(entry['label_conflicts'])} group(s) of identical rows with different labels")
+    for k in ex.kept_as_text:
+        print(f"  ! {k['sheet']}.{k['column']} kept as text ({k['unparseable_values']} unparseable value(s))")
+    print(f"  {'NOT FULLY CLEAN' if a['errors'] or a['warnings'] else 'clean'}; files in {ex.out_dir}:")
+    for files in ex.datasets.values():
+        for fmt, name in files.items():
+            print(f"    dataset ({fmt}): {name}")
+    for kind, path in ex.reports.items():
+        print(f"    report ({kind}): {path.name}")
+    if ex.config_path:
+        print(f"    config: {ex.config_path.name}  (reuse with --config on new batches)")
+    return 1 if a["errors"] else 0
 
 
 def _check(args) -> int:

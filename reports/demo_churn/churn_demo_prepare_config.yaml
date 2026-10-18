@@ -1,0 +1,22 @@
+# IloveCSV prepare config: rules + policy. Re-use with `ilovecsv prepare --config` to clean new
+# batches (e.g. later scoring data) exactly the same way.
+version: 1
+sheet: Customers
+columns:
+  customer_id: {required: true, type: text, min_length: 6, max_length: 6}
+  signup_date: {type: date}
+  plan:
+    type: text
+    allowed: [Basic, Premium, Standard]
+  contract:
+    type: text
+    allowed: [Month-to-month, One year, Two year]
+  monthly_charges: {type: float, min: 0, max: 3800}
+  tenure_months: {type: int, min: 0, max: 150}
+  support_calls: {type: int, min: 0, max: 18}
+  email: {format: email}
+  cancellation_date: {type: date}
+  churn:
+    type: text
+    allowed: ['No', 'Yes']
+target: churn

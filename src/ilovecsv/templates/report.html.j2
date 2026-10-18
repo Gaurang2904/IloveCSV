@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Data Quality Report: {{ a.input.filename }}</title>
+<title>Dataset Preparation Report: {{ a.input.filename }}</title>
 <style>
 :root {
   color-scheme: light;
@@ -79,7 +79,7 @@ pre { white-space: pre-wrap; background: var(--surface-0); padding: 12px; border
 <body>
 <main>
   {% set s = a.summary %}{% set af = a.after %}
-  <h1>Data Quality Report</h1>
+  <h1>Dataset Preparation Report</h1>
   <p class="sub">{{ a.input.filename }} · rows checked: {% for name, n in s.rows_by_sheet.items() %}{{ name }} {{ n }}{% if not loop.last %}, {% endif %}{% endfor %} · run {{ a.run.id }}</p>
 
   {% for w in a.input.warnings %}<p class="warn">{{ w }}</p>{% endfor %}
@@ -142,6 +142,51 @@ pre { white-space: pre-wrap; background: var(--surface-0); padding: 12px; border
     </table>
   </div>
   {% endif %}
+
+  <h2>Dataset for ML</h2>
+  <p class="sub">What the cleaned dataset holds and how to feed it to a model. IloveCSV does not impute, scale, encode, drop columns or delete outliers: fit those steps on your training split only.</p>
+  {% for sch in a.columns %}
+  {% set mls = (a.ml.sheets | selectattr("sheet", "equalto", sch.sheet) | list) %}{% set ml = mls[0] if mls else {} %}
+  <div class="card scroll" style="margin-top:12px">
+    <strong>{{ sch.sheet }}</strong>
+    {% if a.dataset and a.dataset.files.get(sch.sheet) %}<span class="sub"> · {{ a.dataset.rows_before[sch.sheet] }} → {{ a.dataset.rows_after[sch.sheet] }} rows · files:
+      {% for fmt, f in a.dataset.files[sch.sheet].items() %}<span class="mono">{{ f }}</span>{% if not loop.last %}, {% endif %}{% endfor %}</span>{% endif %}
+    <table style="margin-top:8px">
+      <thead><tr><th>Role</th><th>Columns</th></tr></thead>
+      <tbody>
+      {% for role, cols in sch.features.items() %}{% if cols %}<tr><td>{{ role }} feature</td><td class="mono">{{ cols | join(", ") }}</td></tr>{% endif %}{% endfor %}
+      {% if sch.excluded.target %}<tr><td>target</td><td class="mono">{{ sch.excluded.target }}</td></tr>{% endif %}
+      {% for kind in ["identifier", "pii", "empty"] %}{% if sch.excluded[kind] %}<tr><td>excluded ({{ kind }})</td><td class="mono">{{ sch.excluded[kind] | join(", ") }}</td></tr>{% endif %}{% endfor %}
+      {% if sch.high_missing %}<tr><td>over 50% missing</td><td class="mono">{{ sch.high_missing | join(", ") }} <span class="why">(kept: missingness can be a signal; decide in your pipeline)</span></td></tr>{% endif %}
+      </tbody>
+    </table>
+    {% if ml.get("target") and ml.get("target_summary") %}{% set ts = ml.target_summary %}
+    <p style="margin:12px 0 4px"><strong>Target <span class="mono">{{ ml.target }}</span></strong> · {{ ts.kind }} · {{ ts.missing }} missing label(s){% if ts.imbalance_ratio %} · imbalance {{ ts.imbalance_ratio }}:1{% endif %}</p>
+    {% if ts.classes %}<div class="bars">{% for c in ts.classes[:12] %}
+      <div class="name mono">{{ c.label }}</div><div class="track" title="{{ c.label }}: {{ c.count }} rows"><div class="fill" style="width: {{ '%.1f' % (c.share * 100) }}%"></div></div><div class="n">{{ c.count }}</div>
+    {% endfor %}</div>{% endif %}
+    {% if ml.label_conflicts %}<p class="warn">{{ ml.label_conflicts | length }} group(s) of rows have identical features but different labels (rows {% for g in ml.label_conflicts[:5] %}{{ g | join(" / ") }}{% if not loop.last %}; {% endif %}{% endfor %}).</p>{% endif %}
+    {% for s in ml.leakage_suspects %}<p class="warn"><strong>Possible leakage:</strong> <span class="mono">{{ s.column }}</span>: {{ s.detail }}. Check it is known at prediction time before using it as a feature.</p>{% endfor %}
+    {% endif %}
+  </div>
+  {% endfor %}
+  {% if a.dataset and a.dataset.kept_as_text %}<p class="warn">Kept as text because some values could not be parsed:
+    {% for k in a.dataset.kept_as_text %}<span class="mono">{{ k.sheet }}.{{ k.column }}</span> ({{ k.unparseable_values }} value(s), intended {{ k.intended_dtype }}){% if not loop.last %}, {% endif %}{% endfor %}.</p>{% endif %}
+
+  <h2>Review required ({{ a.review_required | length }})</h2>
+  <div class="card scroll">
+    <p class="why" style="margin-top:0">Not applied automatically: ambiguous, inferred or destructive changes, and anomalies. Approve or reject them in the review screen, then export again.</p>
+    <table>
+      <thead><tr><th>Cell</th><th>Type</th><th>Change / value</th><th>Method / detector</th></tr></thead>
+      <tbody>
+      {% for r in a.review_required[:300] %}
+      <tr><td class="mono">{{ r.cell_ref or "" }}</td><td>{{ r.type }}{% if r.action == "delete_row" %} (remove row){% endif %}</td>
+        <td class="mono">{% if r.action == "delete_row" %}{{ r.old }}{% elif r.type == "suggestion" %}{{ r.old if r.old is not none else "" }} → {{ r.new if r.new is not none else "(empty)" }}{% else %}{{ r.value if r.value is not none else "" }}{% endif %}</td>
+        <td class="mono">{{ r.method or r.detector }}</td></tr>
+      {% else %}<tr><td colspan="4" class="empty">Nothing waiting for review.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
 
   <h2>Issues by rule</h2>
   <div class="card">

@@ -30,6 +30,7 @@ MEDIA = {
     "json": "application/json",
     "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     "csv": "text/csv",
+    "parquet": "application/vnd.apache.parquet",
 }
 
 
@@ -40,9 +41,11 @@ def run_out(r: Run) -> dict:
              "decisions": f"{base}/decisions", "export": f"{base}/export", "report": f"{base}/report?format=html"}
     if r.status == "exported":
         links["corrected"] = f"{base}/corrected"
-    return {"id": r.id, "workbook_id": r.workbook_id, "status": r.status, "created_at": r.created_at,
-            "exported_at": r.exported_at, "rules_sha256": r.rules_sha256, "summary": r.summary,
-            "after": r.after, "links": links}
+        links["dataset"] = f"{base}/dataset?format=csv"
+        links["config"] = f"{base}/config"
+    return {"id": r.id, "workbook_id": r.workbook_id, "status": r.status, "mode": r.mode or "manual_review",
+            "created_at": r.created_at, "exported_at": r.exported_at, "rules_sha256": r.rules_sha256,
+            "summary": r.summary, "after": r.after, "links": links}
 
 
 @router.get("/{run_id}", summary="Run status and summary")
@@ -179,6 +182,10 @@ def decide(run_id: str, body: DecisionIn, user: User = Depends(current_user), db
         raise Problem(422, "conflicting-decision", f"Ids both approved and rejected: {sorted(both)[:10]}")
     targets: dict[str, str] = {i: "approved" for i in body.approve}
     targets.update({i: "rejected" for i in body.reject})
+    if body.approve_safe:
+        for r in rows.values():
+            if r.status == "pending" and r.safety == "safe" and r.id not in targets:
+                targets[r.id] = "approved"
     if body.approve_min_confidence is not None:
         for r in rows.values():
             if (r.status == "pending" and r.id not in targets and r.confidence >= body.approve_min_confidence
@@ -248,7 +255,8 @@ def duplicates(run_id: str, user: User = Depends(current_user), db: Session = De
 def do_export(run_id: str, request: Request, body: ExportIn | None = None,
               user: User = Depends(current_user), db: Session = Depends(get_db)):
     run = get_run(db, user, run_id)
-    exported = export_run(db, run, request.app.state.settings, annotate=(body or ExportIn()).annotate)
+    body = body or ExportIn()
+    exported = export_run(db, run, request.app.state.settings, annotate=body.annotate, formats=list(body.formats))
     audit(db, user, "run.exported", run_id=run_id, detail={
         "applied": len(exported.apply.applied), "skipped": len(exported.apply.skipped),
         "output_sha256": exported.apply.sha256,
@@ -294,6 +302,33 @@ def corrected(run_id: str, user: User = Depends(current_user), db: Session = Dep
     audit(db, user, "corrected.downloaded", run_id=run_id)
     db.commit()
     return FileResponse(path, media_type=MEDIA["csv" if path.suffix == ".csv" else "xlsx"], filename=path.name)
+
+
+@router.get("/{run_id}/dataset", summary="Download the cleaned dataset (CSV or Parquet)")
+def dataset(run_id: str, format: Literal["csv", "parquet"] = "csv", sheet: str | None = None,
+            user: User = Depends(current_user), db: Session = Depends(get_db)):
+    run = get_run(db, user, run_id)
+    files = (run.reports or {}).get("datasets") or {}
+    if not files:
+        raise Problem(409, "not-exported", "Export or prepare the run first.")
+    name = sheet or next(iter(files))
+    if name not in files:
+        raise Problem(404, "not-found", f"No dataset for sheet '{name}'. Available: {sorted(files)}.")
+    if format not in files[name]:
+        raise Problem(404, "not-found", f"No {format} file was written. Export with formats=['{format}'].")
+    path = Path(files[name][format])
+    audit(db, user, "dataset.downloaded", run_id=run_id, detail={"sheet": name, "format": format})
+    db.commit()
+    return FileResponse(path, media_type=MEDIA.get(format, "application/octet-stream"), filename=path.name)
+
+
+@router.get("/{run_id}/config", summary="Download the prepare config (rules + policy) to reuse on new batches")
+def config(run_id: str, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    run = get_run(db, user, run_id)
+    path = (run.reports or {}).get("config")
+    if not path:
+        raise Problem(409, "not-exported", "Export or prepare the run first.")
+    return FileResponse(Path(path), media_type="application/yaml", filename=Path(path).name)
 
 
 @router.get("/{run_id}/audit-log", summary="Every action recorded for this run")

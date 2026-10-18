@@ -19,10 +19,13 @@ ROOT = Path(__file__).resolve().parents[1]
 DEMO_XLSX = ROOT / "examples" / "demo_orders.xlsx"
 DEMO_RULES = ROOT / "examples" / "rules_orders.yaml"
 STEPS = ["1 · Upload", "2 · Profile", "3 · Rules", "4 · Issues", "5 · Review fixes", "6 · Export"]
+ONE_CLICK = "★ One-click prepare"
+PAGES = [ONE_CLICK, *STEPS]  # the numbered steps are the advanced review flow
+DEMO_CHURN = ROOT / "examples" / "churn_demo.xlsx"
 
 st.set_page_config(page_title="IloveCSV", page_icon="🧹", layout="wide")
 ss = st.session_state
-ss.setdefault("nav", STEPS[0])
+ss.setdefault("nav", ONE_CLICK)
 if "nav_target" in ss:  # set by go(); applied before the radio widget is created
     ss.nav = ss.pop("nav_target")
 ss.setdefault("rules_yaml", "")
@@ -71,11 +74,12 @@ def go(step: str) -> None:
 # ----------------------------------------------------------------------------- sidebar
 with st.sidebar:
     st.title("🧹 IloveCSV")
-    st.caption("Spreadsheet quality and validation engine")
+    st.caption("Dataset quality and preparation for ML")
     ss.api_url = st.text_input("API URL", os.environ.get("ILOVECSV_API_URL", "http://127.0.0.1:8010"))
     ss.api_key = st.text_input("API key", os.environ.get("ILOVECSV_API_KEY", ""), type="password",
                                help="Create one with: python scripts/create_api_key.py yourname")
-    st.radio("Steps", STEPS, key="nav", label_visibility="collapsed")
+    st.radio("Steps", PAGES, key="nav", label_visibility="collapsed",
+             help="One-click prepare does everything; the numbered steps are the advanced review flow.")
     ss.step = ss.nav
     if ss.get("workbook"):
         st.divider()
@@ -118,8 +122,130 @@ def need(key: str, message: str) -> None:
         st.stop()
 
 
+# ----------------------------------------------------------------------------- one-click prepare
+def _upload(name: str, content: bytes) -> None:
+    r = call("POST", "/v1/workbooks", files={"file": (name, content)})
+    if r:
+        ss.workbook, ss.run, ss.prepared = r.json(), None, None
+        ss.rules_yaml = ""
+
+
+if ss.step == ONE_CLICK:
+    st.header("One-click dataset preparation")
+    st.write("Upload a CSV or Excel file. IloveCSV applies only **safe** fixes (formatting, placeholders, "
+             "unambiguous conversions), flags everything else for review, re-validates, and exports a cleaned "
+             "dataset with a machine-readable report.")
+    st.caption("It never imputes, scales, encodes, drops columns or deletes outliers: fit those steps in your ML "
+               "pipeline, on the training split only, to avoid data leakage.")
+    f = st.file_uploader("Dataset", type=["csv", "xlsx"], key="oc_file")
+    if f is not None and ss.get("oc_uploaded") != (f.name, f.size):
+        _upload(f.name, f.getvalue())
+        ss.oc_uploaded = (f.name, f.size)
+    if DEMO_CHURN.exists() and st.button("Use the demo churn dataset (synthetic, with planted problems)"):
+        _upload(DEMO_CHURN.name, DEMO_CHURN.read_bytes())
+        ss.oc_uploaded = None
+    if ss.get("workbook"):
+        w = ss.workbook
+        st.caption(f"**{w['filename']}** · " + " · ".join(f"{s['name']}: {s['rows']} rows" for s in w["sheets"]))
+        columns = list(dict.fromkeys(c for s in w["sheets"] for c in s["columns"]))
+        guess = next((c for c in columns if str(c).strip().lower() in ("churn", "target", "label", "y", "class")), None)
+        c1, c2, c3 = st.columns([2, 2, 1])
+        target = c1.selectbox("Target column (optional)", ["(none)", *columns],
+                              index=(columns.index(guess) + 1) if guess else 0,
+                              help="Enables label checks (missing labels, conflicting labels, leakage suspects) "
+                                   "and protects the labels from anything but case/spacing fixes.")
+        remove_exact = c2.checkbox("Remove exact duplicate rows automatically", value=False,
+                                   help="Rows identical in every column, ids included. Off: they wait for review. "
+                                        "Near-duplicates are always review-only.")
+        parquet = c3.checkbox("Also Parquet", value=False, help="Typed columns for pandas/scikit-learn.")
+        if st.button("Prepare dataset", type="primary"):
+            body = {"target": None if target == "(none)" else target, "remove_exact_duplicates": remove_exact,
+                    "formats": ["csv", "parquet"] if parquet else ["csv"]}
+            with st.spinner("Profiling, validating, applying safe fixes, re-validating, exporting…"):
+                r = call("POST", f"/v1/workbooks/{w['id']}/prepare", json=body)
+            if r:
+                ss.prepared = r.json()
+                ss.run = {"id": ss.prepared["id"], "summary": ss.prepared["summary"]}
+    p = ss.get("prepared")
+    if p and ss.get("workbook") and p["workbook_id"] == ss.workbook["id"]:
+        rid, after, before = p["id"], p["after"], p["summary"]
+        rep = call("GET", f"/v1/runs/{rid}/report", params={"format": "json"})
+        report = rep.json() if rep else {}
+        if after["errors"] or after["warnings"]:
+            st.error(f"**Not fully clean:** {after['errors']} error(s) and {after['warnings']} warning(s) remain. "
+                     f"{p['review_required']} item(s) need review.")
+        else:
+            st.success("**Clean:** the prepared dataset passes every rule.")
+        ds = report.get("dataset") or {}
+        m = st.columns(5)
+        m[0].metric("Rows", " · ".join(f"{ds['rows_before'][s]}→{ds['rows_after'][s]}" for s in ds.get("files", {})))
+        m[1].metric("Safe fixes applied", p["safe_fixes_applied"])
+        m[2].metric("Needs review", p["review_required"])
+        m[3].metric("Unresolved errors", after["errors"])
+        m[4].metric("Quality score", f"{after['quality_score']}%", f"{after['quality_score'] - before['quality_score']:+.2f}")
+        st.caption(f"Score: `{after['quality_calculation']}`")
+
+        st.subheader("Dataset for ML")
+        mls = {e["sheet"]: e for e in report.get("ml", {}).get("sheets", [])}
+        for sch in report.get("columns", []):
+            roles = [{"role": f"{r} feature", "columns": ", ".join(c)} for r, c in sch["features"].items() if c]
+            if sch["excluded"]["target"]:
+                roles.append({"role": "target", "columns": sch["excluded"]["target"]})
+            roles += [{"role": f"excluded ({k})", "columns": ", ".join(sch["excluded"][k])}
+                      for k in ("identifier", "pii", "empty") if sch["excluded"][k]]
+            st.markdown(f"**{sch['sheet']}**")
+            st.dataframe(pd.DataFrame(roles), hide_index=True, width="stretch")
+            ml = mls.get(sch["sheet"], {})
+            ts = ml.get("target_summary") or {}
+            if ts.get("classes"):
+                st.caption(f"Target **{ml['target']}**: {ts['missing']} missing label(s)"
+                           + (f", imbalance {ts['imbalance_ratio']}:1" if ts.get("imbalance_ratio") else ""))
+                st.bar_chart(pd.DataFrame(ts["classes"]).set_index("label")["count"], horizontal=True)
+            for leak in ml.get("leakage_suspects", []):
+                st.warning(f"Possible leakage: **{leak['column']}**: {leak['detail']}. "
+                           "Check it is known at prediction time before using it as a feature.")
+            if ml.get("missing_target_rows"):
+                st.info(f"{len(ml['missing_target_rows'])} row(s) have no label (rows "
+                        f"{', '.join(map(str, ml['missing_target_rows'][:10]))}). They are kept and flagged.")
+            if ml.get("label_conflicts"):
+                st.info(f"{len(ml['label_conflicts'])} group(s) of rows have identical features but different labels.")
+            if sch["high_missing"]:
+                st.caption(f"Over 50% missing (kept; decide in your pipeline): {', '.join(sch['high_missing'])}")
+        for k in ds.get("kept_as_text", []):
+            st.caption(f"{k['sheet']}.{k['column']} kept as text: {k['unparseable_values']} value(s) could not be "
+                       f"parsed as {k['intended_dtype']} (see unresolved issues).")
+
+        st.subheader("Downloads")
+        stem = Path(ss.workbook["filename"]).stem
+        dl = st.columns(4)
+        i = 0
+        for sheet, files in ds.get("files", {}).items():
+            for fmt, name in files.items():
+                d = call("GET", f"/v1/runs/{rid}/dataset", params={"format": fmt, "sheet": sheet})
+                if d:
+                    dl[i % 4].download_button(f"Dataset ({name})", d.content, name, key=f"dl-{sheet}-{fmt}")
+                    i += 1
+        for fmt in ("json", "xlsx", "html"):
+            d = call("GET", f"/v1/runs/{rid}/report", params={"format": fmt})
+            if d:
+                dl[i % 4].download_button(f"Cleaning report (.{fmt})", d.content, f"{stem}_cleaning_report.{fmt}",
+                                          key=f"dl-rep-{fmt}")
+                i += 1
+        if ss.workbook["file_type"] == "xlsx":
+            d = call("GET", f"/v1/runs/{rid}/corrected")
+            if d:
+                dl[i % 4].download_button("Annotated workbook (.xlsx)", d.content, f"{stem}_cleaned.xlsx",
+                                          key="dl-annotated")
+                i += 1
+        d = call("GET", f"/v1/runs/{rid}/config")
+        if d:
+            dl[i % 4].download_button("Prepare config (.yaml)", d.content, f"{stem}_prepare_config.yaml",
+                                      key="dl-config")
+        if p["review_required"] and st.button(f"Review the {p['review_required']} item(s) →"):
+            go(STEPS[4])
+
 # ----------------------------------------------------------------------------- 1 upload
-if ss.step == STEPS[0]:
+elif ss.step == STEPS[0]:
     st.header("Upload a workbook")
     st.write("Upload an `.xlsx` or `.csv` file. Macro-enabled and legacy `.xls` files are rejected.")
     f = st.file_uploader("Workbook", type=["xlsx", "csv"])
@@ -395,13 +521,13 @@ elif ss.step == STEPS[4]:
         df["confidence"] = df["confidence"].astype(float)
         df["decision"] = df["status"].map({"pending": "pending", "approved": "approve", "rejected": "reject"})
         edited = st.data_editor(
-            df[["id", "cell_ref", "old", "new", "method", "confidence", "rule_id", "decision"]],
+            df[["id", "cell_ref", "old", "new", "method", "safety", "confidence", "rule_id", "decision"]],
             column_config={
                 "decision": st.column_config.SelectboxColumn("Decision", options=["pending", "approve", "reject"]),
                 "confidence": st.column_config.ProgressColumn("Confidence", min_value=0, max_value=1, format="%.2f"),
                 "old": st.column_config.TextColumn("Old"), "new": st.column_config.TextColumn("New"),
             },
-            disabled=["id", "cell_ref", "old", "new", "method", "confidence", "rule_id"],
+            disabled=["id", "cell_ref", "old", "new", "method", "safety", "confidence", "rule_id"],
             hide_index=True, width="stretch",
         )
         unsaved = int((edited["decision"] != df["decision"]).sum())
@@ -419,14 +545,22 @@ elif ss.step == STEPS[4]:
         if c1.button("Save decisions", type="primary"):
             save_decisions()
         with c2:
-            thr = st.slider("Bulk approve pending fixes with confidence ≥", 0.5, 1.0, 0.9, 0.01)
-            with_rows = st.checkbox("Also remove duplicate rows (review the pairs above first)", value=False)
-            if st.button("Bulk approve"):
-                r = call("POST", f"/v1/runs/{rid}/decisions",
-                         json={"approve_min_confidence": thr, "include_row_deletions": with_rows})
+            n_safe = int(((df["safety"] == "safe") & (df["status"] == "pending")).sum())
+            if st.button(f"Approve all safe fixes ({n_safe})", disabled=n_safe == 0,
+                         help="Lossless formatting and unambiguous conversions only (Safe Auto-Clean)."):
+                r = call("POST", f"/v1/runs/{rid}/decisions", json={"approve_safe": True})
                 if r:
-                    st.success(f"Approved {r.json()['changed']} suggestions.")
+                    st.success(f"Approved {r.json()['changed']} safe fixes.")
                     st.rerun()
+            with st.expander("Advanced: approve by confidence"):
+                thr = st.slider("Bulk approve pending fixes with confidence ≥", 0.5, 1.0, 0.9, 0.01)
+                with_rows = st.checkbox("Also remove duplicate rows (review the pairs above first)", value=False)
+                if st.button("Bulk approve"):
+                    r = call("POST", f"/v1/runs/{rid}/decisions",
+                             json={"approve_min_confidence": thr, "include_row_deletions": with_rows})
+                    if r:
+                        st.success(f"Approved {r.json()['changed']} suggestions.")
+                        st.rerun()
     if st.button("Next: export →"):
         if items and unsaved:
             save_decisions()
