@@ -54,6 +54,15 @@ def call(method: str, path: str, **kw):
     return r
 
 
+def as_text(df: pd.DataFrame) -> pd.DataFrame:
+    """Cells mix numbers, text and dates; Arrow (used by st.dataframe) needs one type per column."""
+    df = df.copy()
+    for c in df.columns:
+        if df[c].dtype == object:
+            df[c] = df[c].map(lambda v: "" if v is None or (isinstance(v, float) and v != v) else str(v))
+    return df
+
+
 def go(step: str) -> None:
     ss.nav_target = step
     st.rerun()
@@ -160,7 +169,7 @@ elif ss.step == STEPS[1]:
                 "extra spaces": c["n_whitespace"], "numbers as text": c["n_numeric_text"],
                 "dates as text": c["n_date_text"], "id-like": c["is_identifier"],
             } for c in sheet["columns"]])
-            st.dataframe(table, hide_index=True, width="stretch")
+            st.dataframe(as_text(table), hide_index=True, width="stretch")
             names = [c["name"] for c in sheet["columns"]]
             pick = st.selectbox("Inspect a column", names, key=f"col-{sheet['name']}")
             col = next(c for c in sheet["columns"] if c["name"] == pick)
@@ -209,8 +218,8 @@ elif ss.step == STEPS[2]:
         new_rule: tuple[str, object] | None = None
         if kind == "Column rule":
             col = st.selectbox("Column", sheets[sheet])
-            rtype = st.selectbox("Constraint", ["required", "type", "range", "allowed values", "regex",
-                                                "unique", "not in the future"])
+            rtype = st.selectbox("Constraint", ["required", "type", "range", "allowed values", "known aliases",
+                                                "format (email / phone)", "regex", "unique", "not in the future"])
             spec: dict = {}
             if rtype == "required":
                 spec["required"] = True
@@ -225,6 +234,16 @@ elif ss.step == STEPS[2]:
             elif rtype == "allowed values":
                 vals = st.text_input("Allowed values, comma separated")
                 spec["allowed"] = [v.strip() for v in vals.split(",") if v.strip()]
+            elif rtype == "known aliases":
+                st.caption("Spellings that should become a canonical value. Typos that never appear correctly "
+                           "elsewhere in the data cannot be found statistically, so list them here.")
+                pairs = st.text_input("variant = canonical, comma separated", "Bangalore = Bengaluru, Hydrabad = Hyderabad")
+                spec["aliases"] = {k.strip(): v.strip() for k, _, v in
+                                   (p.partition("=") for p in pairs.split(",")) if k.strip() and v.strip()}
+            elif rtype == "format (email / phone)":
+                spec["format"] = st.selectbox("Format", ["email", "phone"])
+                if spec["format"] == "phone":
+                    spec["phone_digits"] = int(st.number_input("Digits in a local number", 4, 15, 10))
             elif rtype == "regex":
                 spec["regex"] = st.text_input("Regular expression (full match)", "^[A-Z]{3}-\\d{5}$")
             elif rtype == "unique":
@@ -301,7 +320,7 @@ elif ss.step == STEPS[3]:
         if df.empty:
             st.success("No errors or warnings for this filter.")
         else:
-            st.dataframe(df[["cell_ref", "rule_id", "severity", "value", "message"]], hide_index=True,
+            st.dataframe(as_text(df[["cell_ref", "rule_id", "severity", "value", "message"]]), hide_index=True,
                          width="stretch")
             pick = st.selectbox("Inspect an issue", df["id"], format_func=lambda i: f"{i} · " +
                                 df.set_index("id").loc[i, "cell_ref"])
@@ -310,7 +329,7 @@ elif ss.step == STEPS[3]:
                 st.info(d["why"])
                 if d["row"]:
                     st.caption("Full row")
-                    st.dataframe(pd.DataFrame([d["row"]]), hide_index=True)
+                    st.dataframe(as_text(pd.DataFrame([d["row"]])), hide_index=True)
     with t_anom:
         st.caption("Statistically unusual values that break no rule. Confirm the real problems and dismiss the rest. "
                    "Anomalies are never auto-corrected.")
@@ -342,7 +361,8 @@ elif ss.step == STEPS[4]:
     if not items:
         st.info("No automatic corrections are available for this run.")
     else:
-        df = pd.DataFrame(items)
+        df = as_text(pd.DataFrame(items))
+        df["confidence"] = df["confidence"].astype(float)
         df["decision"] = df["status"].map({"pending": "pending", "approved": "approve", "rejected": "reject"})
         edited = st.data_editor(
             df[["id", "cell_ref", "old", "new", "method", "confidence", "rule_id", "decision"]],
@@ -354,13 +374,20 @@ elif ss.step == STEPS[4]:
             disabled=["id", "cell_ref", "old", "new", "method", "confidence", "rule_id"],
             hide_index=True, width="stretch",
         )
-        c1, c2 = st.columns(2)
-        if c1.button("Save decisions", type="primary"):
+        unsaved = int((edited["decision"] != df["decision"]).sum())
+        if unsaved:
+            st.warning(f"{unsaved} decision(s) not saved yet. Click **Save decisions** (or Next, which saves them).")
+
+        def save_decisions() -> None:
             approve = edited.loc[edited["decision"] == "approve", "id"].tolist()
             reject = edited.loc[edited["decision"] == "reject", "id"].tolist()
             r = call("POST", f"/v1/runs/{rid}/decisions", json={"approve": approve, "reject": reject})
             if r:
                 st.success(f"Saved: {r.json()['suggestions_by_status']}")
+
+        c1, c2 = st.columns(2)
+        if c1.button("Save decisions", type="primary"):
+            save_decisions()
         with c2:
             thr = st.slider("Bulk approve pending fixes with confidence ≥", 0.5, 1.0, 0.9, 0.01)
             if st.button("Bulk approve"):
@@ -369,6 +396,8 @@ elif ss.step == STEPS[4]:
                     st.success(f"Approved {r.json()['changed']} suggestions.")
                     st.rerun()
     if st.button("Next: export →"):
+        if items and unsaved:
+            save_decisions()
         go(STEPS[5])
 
 # ----------------------------------------------------------------------------- 6 export
@@ -376,8 +405,20 @@ elif ss.step == STEPS[5]:
     need("run", "Run a validation in step 3 first.")
     rid = ss.run["id"]
     st.header("Export the corrected workbook and audit report")
+    counts = call("GET", f"/v1/runs/{rid}").json()["summary"]["suggestions_by_status"]
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Approved fixes", counts["approved"])
+    c2.metric("Pending (will NOT be applied)", counts["pending"])
+    c3.metric("Rejected", counts["rejected"])
+    if counts["approved"] == 0:
+        st.warning(f"No fixes are approved, so the corrected workbook will be an unchanged copy of the original "
+                   f"({counts['pending']} suggestions are still pending). Approve fixes in step 5 first. "
+                   "In the table, set Decision to approve, then click **Save decisions**.")
+        if st.button("← Go to Review fixes"):
+            go(STEPS[4])
     annotate = st.checkbox("Highlight changed cells and add a comment with the old value", value=True)
-    if st.button("Export", type="primary"):
+    label = "Export" if counts["approved"] else "Export anyway (unchanged copy + report)"
+    if st.button(label, type="primary"):
         with st.spinner("Applying approved fixes and re-validating…"):
             r = call("POST", f"/v1/runs/{rid}/export", json={"annotate": annotate})
         if r:
@@ -392,7 +433,7 @@ elif ss.step == STEPS[5]:
         m[2].metric("Warnings", after["warnings"], after["warnings"] - before["warnings"], delta_color="inverse")
         if ss.get("export") and ss.export.get("skipped"):
             st.warning("Some approved fixes were not applied:")
-            st.dataframe(pd.DataFrame(ss.export["skipped"])[["cell_ref", "method", "reason"]], hide_index=True)
+            st.dataframe(as_text(pd.DataFrame(ss.export["skipped"])[["cell_ref", "method", "reason"]]), hide_index=True)
         stem = Path(ss.workbook["filename"]).stem
         d = st.columns(4)
         corrected = call("GET", f"/v1/runs/{rid}/corrected")
@@ -404,5 +445,5 @@ elif ss.step == STEPS[5]:
             if rep:
                 d[i].download_button(f"Audit report (.{fmt})", rep.content, f"{stem}_audit.{fmt}")
         with st.expander("Audit log"):
-            st.dataframe(pd.DataFrame(call("GET", f"/v1/runs/{rid}/audit-log").json()["items"]),
+            st.dataframe(as_text(pd.DataFrame(call("GET", f"/v1/runs/{rid}/audit-log").json()["items"])),
                          hide_index=True, width="stretch")

@@ -13,7 +13,9 @@ from .models import jsonable
 from .reader import SheetData, WorkbookData
 from .values import (
     DEFAULT_NULLS,
+    is_email,
     is_serial_candidate,
+    looks_like_phone,
     parse_number_text,
     shape_pattern,
     to_date,
@@ -53,6 +55,10 @@ class ColumnProfile:
     # A value far more frequent than any typical value in a high-cardinality column,
     # e.g. a placeholder date such as 2020-01-01 00:00:00 used for unknown dates.
     dominant_value: dict[str, Any] | None = None
+    semantic: str | None = None  # "email" | "phone" when the values look like contact details
+    phone_digits: int | None = None  # most common digit count of local phone numbers
+    sequential_id: bool = False  # surrogate row counter such as C001, C002, ... (ignored for duplicates)
+    categories: list[dict[str, Any]] | None = None  # every distinct value of a category column
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -190,7 +196,13 @@ def profile_column(name: str, letter: str, values: list[Any], nulls=DEFAULT_NULL
             inside = nums[(nums >= lo) & (nums <= hi)]
             counts_h, edges = np.histogram(inside, bins=min(10, max(1, len(np.unique(inside)))))
             q = np.quantile(nums, [0.05, 0.25, 0.5, 0.75, 0.95])
+            # "Bulk" range: values within robust z <= 3.5, so outliers do not define what is normal.
+            med = float(np.median(nums))
+            mad = float(np.median(np.abs(nums - med)))
+            bulk = nums[np.abs(0.6745 * (nums - med) / mad) <= 3.5] if mad > 0 else nums
             prof.numeric = {
+                "bulk_min": float(bulk.min()),
+                "bulk_max": float(bulk.max()),
                 "min": float(nums.min()),
                 "max": float(nums.max()),
                 "mean": float(nums.mean()),
@@ -231,6 +243,13 @@ def profile_column(name: str, letter: str, values: list[Any], nulls=DEFAULT_NULL
         ]
         prof.case_variants = case_variant_groups(raw_strings)
 
+    if inferred == "category":  # at most 20 distinct values by definition: keep them all
+        prof.categories = [{"value": v, "count": c} for v, c in counts.most_common()]
+    prof.semantic = None if inferred == "date" else detect_semantic(name, non_null_texts)
+    prof.sequential_id = inferred in ("text", "int") and is_sequential_id(non_null_texts)
+    if prof.semantic == "phone":
+        local = [sum(ch.isdigit() for ch in t) for t in non_null_texts if not t.startswith(("+", "00"))]
+        prof.phone_digits = Counter(local).most_common(1)[0][0] if local else None
     prof.is_identifier = _looks_like_identifier(name, prof)
     if inferred in ("date", "int", "float"):  # where placeholders like 1900-01-01 or 9999 hide
         prof.dominant_value = _dominant_value(counts, len(non_null_texts))
@@ -276,6 +295,46 @@ def _looks_like_identifier(name: str, prof: ColumnProfile) -> bool:
     if prof.inferred_type == "text" and unique_ratio == 1.0 and non_null >= 20 and same_length:
         return True  # hashes, codes: every value distinct and (almost) all the same length
     return prof.inferred_type == "text" and unique_ratio > 0.98 and len(prof.patterns) <= 2
+
+
+def id_like_name(name: str) -> bool:
+    n = name.strip()
+    return bool(_ID_NAME.search(n) or _CAMEL_ID.search(n))
+
+
+_PREFIXED_NUMBER = re.compile(r"^(\D*?)(\d+)$")
+
+
+def is_sequential_id(texts: list[str]) -> bool:
+    """A surrogate row counter: one prefix + a number, numbers mostly consecutive (C001, C002, ...)."""
+    if len(texts) < 5:
+        return False
+    parts = [m.groups() for t in texts if (m := _PREFIXED_NUMBER.match(t))]
+    if len(parts) < 0.95 * len(texts):
+        return False
+    prefix, count = Counter(p for p, _ in parts).most_common(1)[0]
+    if count < 0.95 * len(parts):
+        return False
+    nums = sorted({int(n) for p, n in parts if p == prefix})
+    if len(nums) < 5:
+        return False
+    steps = [b - a for a, b in zip(nums, nums[1:], strict=False)]
+    return sum(1 for s in steps if s == 1) >= 0.9 * len(steps)
+
+
+def detect_semantic(name: str, texts: list[str]) -> str | None:
+    """Recognise email and phone columns from their values (and, more leniently, their name)."""
+    if not texts:
+        return None
+    lname = name.lower()
+    email_share = sum(1 for t in texts if is_email(t)) / len(texts)
+    if email_share >= 0.8 or ("mail" in lname and email_share >= 0.5):
+        return "email"
+    phone_share = sum(1 for t in texts if looks_like_phone(t)) / len(texts)
+    named = any(k in lname for k in ("phone", "mobile", "tel", "contact no", "cell"))
+    if (named and phone_share >= 0.6) or (phone_share >= 0.9 and any(not t.isdigit() for t in texts)):
+        return "phone"
+    return None
 
 
 def _dominant_value(counts: Counter, n: int) -> dict[str, Any] | None:

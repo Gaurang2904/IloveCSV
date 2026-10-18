@@ -148,11 +148,27 @@ def summarise(
     checked_sheets = [s.sheet or wb.first_sheet.name for s in rules.sheets]
     rows = sum(len(wb.sheets[s].df) for s in checked_sheets if s in wb.sheets)
     cells = sum(wb.sheets[s].df.size for s in checked_sheets if s in wb.sheets)
-    bad_cells = {i.cell_ref for i in errors if i.kind == ERROR and i.severity == "error" and i.cell_ref}
+    rows_by_sheet = {s: len(wb.sheets[s].df) for s in checked_sheets if s in wb.sheets}
+
+    # Quality score = 100 * (1 - (E + 0.5 * W) / C)
+    #   E = cells with at least one error (a duplicate row counts all of its cells; anomalies a
+    #       reviewer confirmed count as errors), W = cells with only warnings, C = cells checked.
+    error_cells: set[tuple[str, int, str]] = set()
+    warning_cells: set[tuple[str, int, str]] = set()
+    for i in errors + [a for a in anomalies if a.status == "confirmed_error"]:
+        if i.xl_row is None or i.sheet not in wb.sheets:
+            continue
+        cols = [i.column] if i.column else list(wb.sheets[i.sheet].df.columns)
+        target = error_cells if (i.severity == "error" or i.kind == ANOMALY) else warning_cells
+        target.update((i.sheet, i.xl_row, c) for c in cols)
+    warning_cells -= error_cells
+    penalty = len(error_cells) + 0.5 * len(warning_cells)
+
     by_rule = Counter(i.rule_id for i in errors)
     status = Counter(s.status for s in suggestions)
     return {
         "sheets_checked": checked_sheets,
+        "rows_by_sheet": rows_by_sheet,
         "rows": rows,
         "cells": cells,
         "errors": sum(1 for i in errors if i.kind == ERROR and i.severity == "error"),
@@ -160,9 +176,11 @@ def summarise(
         "anomalies": sum(1 for i in anomalies if i.kind == ANOMALY),
         "anomalies_open": sum(1 for i in anomalies if i.status == "open"),
         "anomalies_confirmed": sum(1 for i in anomalies if i.status == "confirmed_error"),
-        "cells_with_errors": len(bad_cells),
-        # Floored, so a sheet with any error never displays as 100%.
-        "quality_score": math.floor(10000 * (1 - len(bad_cells) / cells)) / 100 if cells else 100.0,
+        "cells_with_errors": len(error_cells),
+        "cells_with_warnings": len(warning_cells),
+        # Floored, so a sheet with any issue never displays as 100%.
+        "quality_score": max(0.0, math.floor(10000 * (1 - penalty / cells)) / 100) if cells else 100.0,
+        "quality_formula": "100 x (1 - (cells with errors + 0.5 x cells with only warnings) / cells checked)",
         "by_rule": dict(by_rule.most_common()),
         "suggestions": len(suggestions),
         "suggestions_by_status": {k: status.get(k, 0) for k in (PENDING, APPROVED, REJECTED)},

@@ -51,8 +51,21 @@ class ColumnRule(_Strict):
     unique: bool = False
     min_length: int | None = Field(default=None, ge=0)
     max_length: int | None = Field(default=None, ge=0)
+    format: Literal["email", "phone"] | None = None
+    phone_digits: int = Field(default=10, ge=4, le=15)
+    # Known spellings that mean an allowed/canonical value, e.g. {Bangalore: Bengaluru, Hydrabad: Hyderabad}.
+    # Matching ignores case and spacing. Typos with no correct spelling elsewhere in the data cannot be
+    # detected statistically; a reference list like this is how they get fixed.
+    aliases: dict[str, str] | None = None
     severity: Severity = "error"
     message: str | None = None
+
+    @field_validator("aliases", mode="before")
+    @classmethod
+    def _aliases_as_strings(cls, v: Any) -> Any:
+        if isinstance(v, dict):
+            return {str(k): str(val) for k, val in v.items()}
+        return v
 
     @field_validator("allowed", mode="before")
     @classmethod
@@ -149,6 +162,11 @@ class TableRule(_Strict):
 class Checks(_Strict):
     whitespace: bool = True
     duplicates: bool = True
+    # Columns left out when comparing rows for duplicates. Default (None): the key columns and
+    # id-like columns, so two records that differ only in their generated id still count.
+    duplicate_ignore: list[str] | None = None
+    # Flag values that are spelled with different capitalisation elsewhere in the same column.
+    case_variants: bool = True
 
 
 class AnomalyConfig(_Strict):

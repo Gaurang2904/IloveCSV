@@ -16,6 +16,7 @@ from __future__ import annotations
 import csv
 import difflib
 import io
+from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from pathlib import Path
@@ -29,15 +30,17 @@ from openpyxl.utils.cell import column_index_from_string, coordinate_from_string
 from .models import APPROVED, ERROR, Issue, Suggestion, jsonable
 from .profiling import SheetProfile, collapse_ws
 from .reader import WorkbookData, sha256_file
-from .rules.engine import TypedColumns
+from .rules.engine import TypedColumns, best_spelling
 from .rules.expr import ExprError, compile_expr
 from .rules.schema import RuleSet, SheetRules
 from .values import (
     excel_serial_to_date,
     normalise_nulls,
+    normalize_phone,
     parse_date_text,
     to_bool,
     to_number,
+    to_text,
 )
 
 CHANGED_FILL = PatternFill("solid", fgColor="FFF2CC")
@@ -46,8 +49,12 @@ KEPT_DUPLICATE_FILL = PatternFill("solid", fgColor="F8CBAD")
 # When several suggestions target the same cell, the first in this list wins.
 _PRIORITY = [
     "rule_fix",
+    "apply_alias",
     "fuzzy_category",
     "canonical_category",
+    "canonical_spelling",
+    "lowercase_email",
+    "normalize_phone",
     "text_to_date",
     "text_to_date_ambiguous",
     "serial_to_date",
@@ -63,6 +70,7 @@ def suggest_corrections(
     nulls = normalise_nulls(rules.null_values)
     by_sheet: dict[str, SheetRules] = {(s.sheet or wb.first_sheet.name): s for s in rules.sheets}
     typed: dict[str, TypedColumns] = {}
+    spellings: dict[tuple[str, str | None], dict[str, str]] = {}
     out: list[Suggestion] = []
 
     for issue in issues:
@@ -87,6 +95,28 @@ def suggest_corrections(
         rid = issue.rule_id
         if rid == "format.whitespace" and isinstance(raw, str):
             sug("trim_whitespace", collapse_ws(raw), 0.99)
+        elif rid == "format.email_case" and isinstance(raw, str):
+            sug("lowercase_email", raw.strip().lower(), 0.95)
+        elif rid == "format.phone_style" and col_rule:
+            norm = normalize_phone(to_text(raw, nulls) or "", col_rule.phone_digits)
+            if norm is not None:
+                sug("normalize_phone", norm, 0.95)
+        elif rid == "allowed.alias" and col_rule and col_rule.aliases:
+            folded = {collapse_ws(k).casefold(): v for k, v in col_rule.aliases.items()}
+            canonical = folded.get(collapse_ws(str(raw)).casefold())
+            if canonical is not None:
+                sug("apply_alias", canonical, 0.95)
+        elif rid == "format.case_variant" and isinstance(raw, str):
+            key = (issue.sheet, issue.column)
+            if key not in spellings:
+                groups: dict[str, Counter] = defaultdict(Counter)
+                for v in sheet.df[issue.column]:
+                    if isinstance(v, str) and v.strip():
+                        groups[collapse_ws(v).casefold()][collapse_ws(v)] += 1
+                spellings[key] = {k: best_spelling(c) for k, c in groups.items()}
+            canon = spellings[key].get(collapse_ws(raw).casefold())
+            if canon is not None:
+                sug("canonical_spelling", canon, 0.9)
         elif rid == "allowed.noncanonical" and col_rule and col_rule.allowed:
             folded = {collapse_ws(a).casefold(): a for a in col_rule.allowed}
             canonical = folded.get(collapse_ws(str(raw)).casefold())

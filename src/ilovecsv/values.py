@@ -114,6 +114,39 @@ def _try_formats(t: str, fmts: tuple[str, ...]) -> date | None:
     return None
 
 
+_EMAIL = re.compile(r"^[A-Za-z0-9._%+'-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$")
+_PHONE_CHARS = re.compile(r"^\+?[\d\s\-().]{7,20}$")
+
+
+def is_email(s: str) -> bool:
+    return bool(_EMAIL.match(s.strip()))
+
+
+def looks_like_phone(s: str) -> bool:
+    t = s.strip()
+    digits = sum(ch.isdigit() for ch in t)
+    return bool(_PHONE_CHARS.match(t)) and 7 <= digits <= 15
+
+
+def normalize_phone(s: str, digits: int = 10) -> str | None:
+    """Digits-only national number, dropping separators and a leading country code or 0.
+
+    Returns None when the value cannot be read as a phone number of `digits` digits.
+    """
+    t = s.strip()
+    if not _PHONE_CHARS.match(t):
+        return None
+    d = re.sub(r"\D", "", t)
+    if len(d) == digits:
+        return d
+    has_country_code = t.startswith("+") or t.startswith("00")
+    if has_country_code and digits < len(d) <= digits + 4:
+        return d[-digits:]  # +91 98765 43210, 0091-9876543210
+    if t.startswith("0") and len(d) == digits + 1:
+        return d[1:]  # national trunk prefix: 09876543210
+    return None
+
+
 def excel_serial_to_date(n: float) -> date:
     return (_EXCEL_EPOCH + timedelta(days=float(n))).date()
 

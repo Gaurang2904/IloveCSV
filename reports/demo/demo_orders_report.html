@@ -76,18 +76,19 @@ pre { white-space: pre-wrap; background: var(--surface-0); padding: 12px; border
 <main>
   
   <h1>Data Quality Report</h1>
-  <p class="sub">demo_orders.xlsx · sheets checked: Orders, Customers · 341 rows · run a65149554b28</p>
+  <p class="sub">demo_orders.xlsx · rows checked: Orders 301, Customers 40 · run 730e008c1085</p>
 
   
+  <p class="warn">1 suggested fix(es) were still pending and were not applied.</p>
   
 
   <section class="tiles" aria-label="Summary">
-    <div class="card tile"><div class="label">Quality score</div><div class="value">99.48%</div>
-      <div class="delta">after fixes: 99.51%</div></div>
-    <div class="card tile"><div class="label">Errors</div><div class="value">18</div>
-      <div class="delta">remaining: 17</div></div>
-    <div class="card tile"><div class="label">Warnings</div><div class="value">8</div>
-      <div class="delta">remaining: 1</div></div>
+    <div class="card tile" title="100 x (1 - (cells with errors + 0.5 x cells with only warnings) / cells checked)"><div class="label">Quality score</div><div class="value">99.09%</div>
+      <div class="delta">after fixes: 99.22%</div></div>
+    <div class="card tile"><div class="label">Errors</div><div class="value">19</div>
+      <div class="delta">remaining: 18</div></div>
+    <div class="card tile"><div class="label">Warnings</div><div class="value">7</div>
+      <div class="delta">remaining: 0</div></div>
     <div class="card tile"><div class="label">Anomalies</div><div class="value">5</div>
       <div class="delta">0 confirmed · 5 open</div></div>
     <div class="card tile"><div class="label">Changes applied</div><div class="value">9</div>
@@ -147,7 +148,7 @@ pre { white-space: pre-wrap; background: var(--surface-0); padding: 12px; border
       <div class="track" title="format.whitespace: 1 issues"><div class="fill" style="width: 33.3%"></div></div>
       <div class="n">1</div>
       
-      <div class="name"><span class="chip warning">warning</span> <span class="mono">row.duplicate</span></div>
+      <div class="name"><span class="chip error">error</span> <span class="mono">row.duplicate</span></div>
       <div class="track" title="row.duplicate: 1 issues"><div class="fill" style="width: 33.3%"></div></div>
       <div class="n">1</div>
       
@@ -484,9 +485,9 @@ pre { white-space: pre-wrap; background: var(--surface-0); padding: 12px; border
         <td>Extra spaces in &#39;Pending &#39;.<div class="why">Leading, trailing or repeated spaces make equal values look different to filters and lookups.</div></td></tr>
       
       <tr><td class="mono">Orders!A302</td><td class="mono">row.duplicate</td>
-        <td><span class="chip warning">warning</span></td>
+        <td><span class="chip error">error</span></td>
         <td class="mono"></td>
-        <td>Row repeats row 129 exactly.<div class="why">The whole row repeats an earlier row; totals that include both will double-count.</div></td></tr>
+        <td>Row repeats row 129 (ignoring order_id; case and spacing ignored).<div class="why">The whole row repeats an earlier row; totals that include both will double-count.</div></td></tr>
       
       <tr><td class="mono">Orders!C278</td><td class="mono">ship_after_order</td>
         <td><span class="chip error">error</span></td>
@@ -562,39 +563,39 @@ pre { white-space: pre-wrap; background: var(--surface-0); padding: 12px; border
       
       <tr><td class="mono">Orders!B235</td><td>set</td><td class="mono">15/03/2024</td>
         <td class="mono">2024-03-15</td><td class="mono">text_to_date</td><td class="mono">type.date_as_text</td>
-        <td>demo-reviewer <span class="why">2026-10-18T04:22:36+00:00</span></td></tr>
+        <td>demo-reviewer <span class="why">2026-10-18T05:12:18+00:00</span></td></tr>
       
       <tr><td class="mono">Orders!B269</td><td>set</td><td class="mono">45000</td>
         <td class="mono">2023-03-15</td><td class="mono">serial_to_date</td><td class="mono">type.date_serial</td>
-        <td>demo-reviewer <span class="why">2026-10-18T04:22:36+00:00</span></td></tr>
+        <td>demo-reviewer <span class="why">2026-10-18T05:12:18+00:00</span></td></tr>
       
       <tr><td class="mono">Orders!E17</td><td>set</td><td class="mono">delivered</td>
         <td class="mono">Delivered</td><td class="mono">canonical_category</td><td class="mono">allowed.noncanonical</td>
-        <td>demo-reviewer <span class="why">2026-10-18T04:22:36+00:00</span></td></tr>
+        <td>demo-reviewer <span class="why">2026-10-18T05:12:18+00:00</span></td></tr>
       
       <tr><td class="mono">Orders!E75</td><td>set</td><td class="mono">Shiped</td>
         <td class="mono">Shipped</td><td class="mono">fuzzy_category</td><td class="mono">allowed</td>
-        <td>demo-reviewer <span class="why">2026-10-18T04:22:36+00:00</span></td></tr>
+        <td>demo-reviewer <span class="why">2026-10-18T05:12:18+00:00</span></td></tr>
       
       <tr><td class="mono">Orders!G100</td><td>set</td><td class="mono">12</td>
         <td class="mono">12</td><td class="mono">text_to_number</td><td class="mono">type.stored_as_text</td>
-        <td>demo-reviewer <span class="why">2026-10-18T04:22:36+00:00</span></td></tr>
+        <td>demo-reviewer <span class="why">2026-10-18T05:12:18+00:00</span></td></tr>
       
       <tr><td class="mono">Orders!H166</td><td>set</td><td class="mono">1,200.50</td>
         <td class="mono">1200.5</td><td class="mono">text_to_number</td><td class="mono">type.stored_as_text</td>
-        <td>demo-reviewer <span class="why">2026-10-18T04:22:36+00:00</span></td></tr>
+        <td>demo-reviewer <span class="why">2026-10-18T05:12:18+00:00</span></td></tr>
       
       <tr><td class="mono">Orders!E52</td><td>set</td><td class="mono">Pending </td>
         <td class="mono">Pending</td><td class="mono">trim_whitespace</td><td class="mono">format.whitespace</td>
-        <td>demo-reviewer <span class="why">2026-10-18T04:22:36+00:00</span></td></tr>
+        <td>demo-reviewer <span class="why">2026-10-18T05:12:18+00:00</span></td></tr>
       
       <tr><td class="mono">Customers!C6</td><td>set</td><td class="mono">Nort</td>
         <td class="mono">North</td><td class="mono">fuzzy_category</td><td class="mono">allowed</td>
-        <td>demo-reviewer <span class="why">2026-10-18T04:22:36+00:00</span></td></tr>
+        <td>demo-reviewer <span class="why">2026-10-18T05:12:18+00:00</span></td></tr>
       
       <tr><td class="mono">Customers!C11</td><td>set</td><td class="mono">south</td>
         <td class="mono">South</td><td class="mono">canonical_category</td><td class="mono">allowed.noncanonical</td>
-        <td>demo-reviewer <span class="why">2026-10-18T04:22:36+00:00</span></td></tr>
+        <td>demo-reviewer <span class="why">2026-10-18T05:12:18+00:00</span></td></tr>
       
       </tbody>
     </table>
@@ -610,12 +611,12 @@ pre { white-space: pre-wrap; background: var(--surface-0); padding: 12px; border
   <div class="card">
     <dl class="prov">
       <dt>Tool</dt><dd>IloveCSV 0.1.0</dd>
-      <dt>Validated</dt><dd>2026-10-18T04:22:36+00:00</dd>
-      <dt>Exported</dt><dd>2026-10-18T04:22:36+00:00</dd>
-      <dt>Input SHA-256</dt><dd class="mono">9def0ed7ac687a655ebf5087e970e13744f54d0b5f5b6e58e9b5ee5b37d614d0</dd>
+      <dt>Validated</dt><dd>2026-10-18T05:12:18+00:00</dd>
+      <dt>Exported</dt><dd>2026-10-18T05:12:19+00:00</dd>
+      <dt>Input SHA-256</dt><dd class="mono">8315871dd19de1c860e0b676491c19f094b9fb139b906772c4769da3e8224269</dd>
       <dt>Rules SHA-256</dt><dd class="mono">1f44a51bf7cf6b2a3620a24fbfb93621b64c16548dd9146108ec2277281fc85d</dd>
       <dt>Output</dt><dd>demo_orders_corrected.xlsx</dd>
-      <dt>Output SHA-256</dt><dd class="mono">3d93520c4f5dd7c48be8cf3877f9a4d4596504cfab79375410757f4c5fdbc649</dd>
+      <dt>Output SHA-256</dt><dd class="mono">6ec37fe28dd861adc08bfc03c9bbb635ae2fabd17a71994e1e8b65bcde29cdfb</dd>
     </dl>
     <details style="margin-top:12px"><summary>Rule file used</summary><pre class="mono">version: 1
 dayfirst: true

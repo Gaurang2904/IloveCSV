@@ -204,6 +204,10 @@ def do_export(run_id: str, request: Request, body: ExportIn | None = None,
     out = run_out(run)
     out["applied"] = exported.apply.applied
     out["skipped"] = exported.apply.skipped
+    pending = run.summary["suggestions_by_status"]["pending"]
+    if not exported.apply.applied:
+        out["notice"] = (f"No changes were applied: the corrected file is an unchanged copy. "
+                         f"{pending} suggestion(s) are still pending; approve them via /decisions first.")
     return out
 
 

@@ -76,15 +76,17 @@ pre { white-space: pre-wrap; background: var(--surface-0); padding: 12px; border
 <main>
   {% set s = a.summary %}{% set af = a.after %}
   <h1>Data Quality Report</h1>
-  <p class="sub">{{ a.input.filename }} · sheets checked: {{ s.sheets_checked | join(", ") }} · {{ s.rows }} rows · run {{ a.run.id }}</p>
+  <p class="sub">{{ a.input.filename }} · rows checked: {% for name, n in s.rows_by_sheet.items() %}{{ name }} {{ n }}{% if not loop.last %}, {% endif %}{% endfor %} · run {{ a.run.id }}</p>
 
   {% for w in a.input.warnings %}<p class="warn">{{ w }}</p>{% endfor %}
+  {% if a.output and not a.changes %}<p class="warn"><strong>No changes were applied.</strong> The corrected file is an unchanged copy of the input: {{ s.suggestions_by_status.pending }} suggested fix(es) were still pending and {{ s.suggestions_by_status.rejected }} were rejected. Only approved fixes are written.</p>
+  {% elif a.output and s.suggestions_by_status.pending %}<p class="warn">{{ s.suggestions_by_status.pending }} suggested fix(es) were still pending and were not applied.</p>{% endif %}
   {% if s.rule_errors %}<div class="warn"><strong>Rules that could not be evaluated:</strong>
     <ul>{% for e in s.rule_errors %}<li><span class="mono">{{ e.rule_id }}</span> on {{ e.sheet }}: {{ e.error }}</li>{% endfor %}</ul></div>{% endif %}
 
   <section class="tiles" aria-label="Summary">
-    <div class="card tile"><div class="label">Quality score</div><div class="value">{{ s.quality_score }}%</div>
-      <div class="delta">{% if af %}after fixes: {{ af.quality_score }}%{% else %}cells without errors{% endif %}</div></div>
+    <div class="card tile" title="{{ s.quality_formula }}"><div class="label">Quality score</div><div class="value">{{ s.quality_score }}%</div>
+      <div class="delta">{% if af %}after fixes: {{ af.quality_score }}%{% else %}errors count 1, warnings 0.5{% endif %}</div></div>
     <div class="card tile"><div class="label">Errors</div><div class="value">{{ s.errors }}</div>
       <div class="delta">{% if af %}remaining: {{ af.errors }}{% else %}rule violations{% endif %}</div></div>
     <div class="card tile"><div class="label">Warnings</div><div class="value">{{ s.warnings }}</div>

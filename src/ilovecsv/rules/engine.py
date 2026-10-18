@@ -7,6 +7,7 @@ was broken. Statistical suspicion lives in ``anomalies.py`` and is kept separate
 from __future__ import annotations
 
 import re
+from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from datetime import date
 from typing import Any
@@ -14,12 +15,20 @@ from typing import Any
 import pandas as pd
 
 from ..models import ERROR, Issue
-from ..profiling import SheetProfile, collapse_ws, has_whitespace_problem, profile_workbook
+from ..profiling import (
+    SheetProfile,
+    collapse_ws,
+    has_whitespace_problem,
+    id_like_name,
+    profile_workbook,
+)
 from ..reader import SheetData, WorkbookData
 from ..values import (
+    is_email,
     is_null,
     is_serial_candidate,
     normalise_nulls,
+    normalize_phone,
     parse_date_text,
     to_bool,
     to_date,
@@ -153,6 +162,8 @@ class SheetValidator:
             self._whitespace()
         if self.srules.checks.duplicates:
             self._duplicate_rows()
+        if self.srules.checks.case_variants:
+            self._case_variants()
         for trule in self.srules.rules:
             try:
                 self._table_rule(trule)
@@ -197,12 +208,43 @@ class SheetValidator:
                 if d is not None and d > today:
                     self.emit("not_future", sev, msg or f"{d.isoformat()} is in the future.", xl_row, col, v)
 
+        aliases = {collapse_ws(k).casefold(): canon for k, canon in (rule.aliases or {}).items()}
+        aliased: set[int] = set()
+        if aliases:
+            for xl_row, v in present:
+                canon = aliases.get(collapse_ws(to_text(v, self.nulls)).casefold())
+                if canon is not None:
+                    aliased.add(xl_row)
+                    self.emit("allowed.alias", "warning",
+                              f"'{to_text(v, self.nulls)}' is a known variant of '{canon}'.", xl_row, col, v)
+
+        if rule.format == "email":
+            for xl_row, v in present:
+                t = to_text(v, self.nulls)
+                if not is_email(t):
+                    self.emit("format.email", sev, msg or f"'{t}' is not a valid email address.", xl_row, col, v)
+                elif t != t.lower():
+                    self.emit("format.email_case", "warning",
+                              f"Email '{t}' has capital letters; addresses are compared in lowercase.",
+                              xl_row, col, v)
+        elif rule.format == "phone":
+            for xl_row, v in present:
+                t = to_text(v, self.nulls)
+                norm = normalize_phone(t, rule.phone_digits)
+                if norm is None:
+                    n = sum(ch.isdigit() for ch in t)
+                    self.emit("format.phone", sev, msg or f"'{t}' is not a {rule.phone_digits}-digit phone number "
+                              f"({n} digits).", xl_row, col, v)
+                elif norm != t:
+                    self.emit("format.phone_style", "warning",
+                              f"Phone written as '{t}'; the standard form is {norm}.", xl_row, col, v)
+
         if rule.allowed is not None:
             allowed = set(rule.allowed)
             folded = {collapse_ws(a).casefold(): a for a in rule.allowed}
             for xl_row, v in present:
                 t = to_text(v, self.nulls)
-                if t in allowed:
+                if t in allowed or xl_row in aliased:
                     continue
                 canonical = folded.get(collapse_ws(t).casefold())
                 if canonical is not None:
@@ -295,17 +337,58 @@ class SheetValidator:
                     self.emit("format.whitespace", "warning",
                               f"Extra spaces in '{v}'.", int(xl_row), col, v)
 
+    def duplicate_ignored_columns(self) -> list[str]:
+        cfg = self.srules.checks.duplicate_ignore
+        if cfg is not None:
+            return [c for c in cfg if c in self.sheet.df.columns]
+        # Surrogate ids only: sequential counters such as C001, C002 or 1, 2, 3 that number the rows.
+        # Natural keys (a SHA-256, an email, a name) are part of what makes two records the same.
+        # A table has one surrogate key, so ignore at most one counter (preferring one named like an id).
+        counters = [c for c, p in self.profile.columns.items() if p.sequential_id]
+        counters.sort(key=lambda c: not id_like_name(str(c)))
+        ignored = counters[:1]
+        # Keep at least two columns to compare, or every short row would look like a duplicate.
+        return ignored if len(self.sheet.df.columns) - len(ignored) >= 2 else []
+
     def _duplicate_rows(self) -> None:
-        first: dict[tuple, int] = {}
+        """Rows that repeat an earlier row in every column except ids, ignoring case and spacing."""
         df = self.sheet.df
-        for xl_row, row in zip(df.index, df.itertuples(index=False), strict=True):
-            key = tuple(to_text(v, self.nulls) for v in row)
+        ignored = self.duplicate_ignored_columns()
+        cols = [c for c in df.columns if c not in ignored]
+        note = f" (ignoring {', '.join(ignored)}; case and spacing ignored)" if ignored else " (case and spacing ignored)"
+        first: dict[tuple, int] = {}
+        for xl_row, row in zip(df.index, df[cols].itertuples(index=False), strict=True):
+            key = tuple(None if (t := to_text(v, self.nulls)) is None else collapse_ws(t).casefold() for v in row)
             if all(k is None for k in key):
                 continue
             if key in first:
-                self.emit("row.duplicate", "warning", f"Row repeats row {first[key]} exactly.", int(xl_row))
+                self.emit("row.duplicate", "error", f"Row repeats row {first[key]}{note}.", int(xl_row))
             else:
                 first[key] = int(xl_row)
+
+    def _case_variants(self) -> None:
+        """Same value written with different capitalisation in one column (mumbai / MUMBAI / Mumbai)."""
+        for col in self.sheet.df.columns:
+            rule = self.srules.columns.get(col)
+            prof = self.profile.columns.get(col)
+            if prof is None or prof.is_identifier or prof.inferred_type not in ("text", "category", "mixed"):
+                continue
+            if rule is not None and (rule.allowed is not None or rule.format == "email" or rule.case_insensitive):
+                continue  # handled by allowed.noncanonical / format.email_case
+            spellings: dict[str, Counter] = defaultdict(Counter)
+            cells: list[tuple[int, Any, str]] = []
+            for xl_row, v in self.sheet.df[col].items():
+                if not isinstance(v, str) or is_null(v, self.nulls):
+                    continue
+                spelled = collapse_ws(v)
+                spellings[spelled.casefold()][spelled] += 1
+                cells.append((int(xl_row), v, spelled))
+            canonical = {k: best_spelling(c) for k, c in spellings.items() if len(c) > 1}
+            for xl_row, v, spelled in cells:
+                canon = canonical.get(spelled.casefold())
+                if canon is not None and spelled != canon:
+                    self.emit("format.case_variant", "warning",
+                              f"'{spelled}' is written '{canon}' elsewhere in '{col}'.", xl_row, col, v)
 
     def _unique_together(self, rule_id: str, cols: list[str], severity: str, message: str | None) -> None:
         missing = [c for c in cols if c not in self.sheet.df.columns]
@@ -385,6 +468,14 @@ class SheetValidator:
                 self.emit(trule.id, trule.severity,
                           trule.message or f"'{t}' was not found in {spec.sheet}.{spec.key}.",
                           int(xl_row), spec.column, v)
+
+
+def best_spelling(counter: Counter) -> str:
+    """Most common spelling; ties go to Title Case, then to mixed case over ALL CAPS / lowercase."""
+    def score(item: tuple[str, int]) -> tuple:
+        s, n = item
+        return (n, s.istitle(), not (s.isupper() or s.islower()))
+    return max(counter.items(), key=score)[0]
 
 
 def _as_date(b: Any) -> date | None:

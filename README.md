@@ -14,10 +14,10 @@ Built with Python, pandas, openpyxl, scikit-learn, SQLAlchemy (SQLite), FastAPI 
 
 | Capability | How |
 |---|---|
-| **Rule-based validation** | A YAML rule file covers required fields, types, numeric and date ranges, not-in-future dates, allowed categories, regex, length, uniqueness and composite keys. It also supports **cross-column checks** (`ship_date >= order_date`), **conditional requirements** (`when status == 'Shipped'` require `ship_date`) and **lookups** against another sheet. |
-| **Data profiling** | Per column: inferred type and how much of the column fits it, missing rate (with configurable null tokens such as `N/A` and `-`), distinct count, top values, quantiles, histogram, date range, text shape patterns, extra spaces, case variants, numbers and dates stored as text, and Excel serial dates. Per sheet: exact duplicate rows and skipped blank rows. |
+| **Rule-based validation** | A YAML rule file covers required fields, types, numeric and date ranges, not-in-future dates, allowed categories, **known aliases** (`Bangalore → Bengaluru`), **email and phone formats**, regex, length, uniqueness and composite keys. It also supports **cross-column checks** (`ship_date >= order_date`), **conditional requirements** (`when status == 'Shipped'` require `ship_date`) and **lookups** against another sheet. Built-in checks flag **duplicate records** (ignoring a surrogate id such as `C001, C002…`), extra spaces, and values capitalised differently elsewhere in the column. |
+| **Data profiling** | Per column: inferred type and how much of the column fits it, missing rate (with configurable null tokens such as `N/A` and `-`), distinct count, top values, quantiles, histogram, date range, text shape patterns, extra spaces, case variants, numbers and dates stored as text, Excel serial dates, email and phone columns, surrogate ids, and **placeholder values** (e.g. one date used in 4% of rows). Per sheet: duplicate rows and skipped blank rows. Documentation sheets such as `Readme` are recognised. |
 | **Anomaly detection** | Robust z-score (median/MAD) per numeric column, an IQR fallback, rare categories, and a row-level **Isolation Forest** after PCA whitening, which catches combinations that are each normal on their own. Anomalies are **kept separate from errors**: they never get an automatic fix, and a reviewer confirms or dismisses each one. |
-| **Safe correction workflow** | The tool suggests fixes only where the intended value is clear: trimming spaces, normalising category case, fuzzy-matching typos (with a margin over the runner-up), converting text numbers and dates (ambiguous `03/04/2024` gets low confidence), converting Excel serial dates, removing duplicate rows, or applying a fix expression declared in the rules. Missing values are **never imputed** and out-of-range numbers are never guessed. Only **approved** fixes are written. Formulas are never overwritten. |
+| **Safe correction workflow** | The tool suggests fixes only where the intended value is clear: trimming spaces, normalising category case and spelling, applying declared aliases, lowercasing emails, normalising phone numbers (`+91-98765 43210` → `9876543210`), fuzzy-matching typos (with a margin over the runner-up), converting text numbers and dates (ambiguous `03/04/2024` gets low confidence), converting Excel serial dates, removing duplicate rows, or applying a fix expression declared in the rules. Missing values are **never imputed** and out-of-range numbers are never guessed. Only **approved** fixes are written. Formulas are never overwritten. |
 | **Audit report** | HTML, Excel (Summary / Profile / Issues / Anomalies / Changes / Skipped) and JSON, all built from one data structure. The corrected file is **re-validated with the same rules**, so the report shows before and after counts, including any new problems a fix exposed. |
 | **API engineering** | FastAPI with API-key auth (keys stored as SHA-256 hashes), per-user isolation, a streaming body-size limit, extension and magic-byte checks, zip-bomb and macro rejection, RFC 9457 `application/problem+json` errors, and a SQL-backed audit log. |
 | **Testing** | Seeded synthetic workbooks with **known injected errors and a ground-truth manifest**. Tests check that each rule catches *exactly* the cells it should, with no misses and no extras, across several seeds. They also check that a clean workbook produces zero issues. |
@@ -54,7 +54,7 @@ python -m venv .venv && .venv\Scripts\activate        # Windows (source .venv/bi
 pip install -e ".[ui,dev]"
 
 python scripts/make_demo.py      # builds examples/demo_orders.xlsx + rules, writes reports/demo/
-pytest                           # 107 tests
+pytest                           # 112 tests
 ```
 
 ### CLI
@@ -116,6 +116,25 @@ sheets:
         lookup: {column: customer_id, sheet: Customers, key: customer_id}
 ```
 
+More column options:
+
+```yaml
+      Email: {required: true, format: email}             # invalid -> error, capitals -> fix to lowercase
+      Phone: {format: phone, phone_digits: 10}           # wrong digit count -> error, separators/+91 -> fix
+      City:  {aliases: {Bangalore: Bengaluru, Hydrabad: Hyderabad}}
+    checks: {duplicates: true, duplicate_ignore: [Customer ID], case_variants: true}
+```
+
+**Aliases exist for a reason.** A typo such as `Hydrabad` cannot be detected statistically when the correct spelling never appears in the file, and `bangalore` vs `Bengaluru` is a renaming, not a typo. Reference knowledge like this belongs in the rule file.
+
+**Suggested rules** (`/rules/suggested`, `ilovecsv suggest-rules`, or the UI button) are a draft that must not make the data's own errors legal:
+* numeric bounds come from the bulk of the values (robust z ≤ 3.5), widened by the bulk's width, not from the observed min/max;
+* a column is required when at most 20% of it is empty;
+* email and phone columns get format rules;
+* documentation sheets are skipped.
+
+**Quality score** = 100 × (1 − (cells with errors + 0.5 × cells with only warnings) / cells checked). A duplicate row counts all of its cells, and anomalies a reviewer confirmed count as errors. The score is floored, so it never shows 100% while an issue remains.
+
 A single-sheet layout (`sheet`, `columns` and `rules` at the top level) also works. Expressions support column names (use backticks for names with spaces), numbers, strings, `+ - * / %`, comparisons, `in [...]`, `and/or/not`, `is null`, and `abs round len lower upper strip is_null not_null today date days_between coalesce`. Date minus date gives days.
 
 ## API
@@ -149,13 +168,13 @@ Every error is `application/problem+json`:
 
 ## Results on the demo workbook
 
-The demo has 301 order rows and 40 customer rows. Problems were injected on purpose: 26 rule violations (18 errors and 8 warnings) across 17 rule types, and 5 anomalies.
+The demo has 301 order rows and 40 customer rows. Problems were injected on purpose: 26 rule violations (19 errors and 7 warnings) across 17 rule types, and 5 anomalies.
 
 | | Before | After approving fixes with confidence ≥ 0.85 |
 |---|---|---|
-| Errors | 18 | 17 |
-| Warnings (format problems) | 8 | 1 |
-| Quality score (cells without errors) | 99.48% | 99.51% |
+| Errors | 19 | 18 |
+| Warnings (format problems) | 7 | 0 |
+| Quality score | 99.09% | 99.22% |
 
 * **Rule detection:** every injected error is found, and nothing else fires. The tests check this per rule and on three other seeds.
 * **Anomalies:** all 5 are found, including 2 that are only unusual as *combinations* (normal quantity, normal shipping cost, wrong pairing). The clean version of the workbook produces 0 anomalies.
@@ -164,12 +183,43 @@ The demo has 301 order rows and 40 customer rows. Problems were injected on purp
   * The approved duplicate-row deletion was **kept and marked** instead of executed, because the workbook has formulas that row deletion could break.
   * Most remaining errors (missing ids, impossible quantities) need a human. The tool does not guess them.
 
+## Evaluation on a noisy customer workbook
+
+An external test workbook: 30 customer records plus a Readme sheet, with planted problems. Its first run exposed real gaps:
+* duplicates that differ only in their generated id were missed;
+* missing values were profiled but not reported as issues;
+* the suggested rules made bad ages legal (`min: -4`);
+* the Readme sheet was counted as data;
+* exporting with zero approved fixes silently produced a copy.
+
+All of these are fixed, and `tests/test_customer_workbook.py` locks them in. Current result with suggested rules, after approving fixes with confidence ≥ 0.9 (`python scripts/eval_sheetsense.py <file>`):
+
+| Planted problem | Result |
+|---|---|
+| 2 duplicate customers (different `Customer ID`) | `row.duplicate` errors; rows removed on approval (30 → 28) |
+| Missing email, 3 missing ages | `required` errors |
+| `arjun.patel.example.com` | `format.email` error |
+| Ages -4, 151 | `range` errors; age 0 is an anomaly for review |
+| Monthly spend 3999 | Anomaly for review (it could be a real "Gold" plan) |
+| `2025-06-31`, `2025-13-04` | `type` errors; valid text dates get a conversion fix |
+| mumbai / MUMBAI / PUNE, basic, ACTIVE | Normalised to the dominant spelling |
+| Extra spaces, uppercase emails, `+91-…` / `98765 43211` phones | Normalised |
+| `Hydrabad`, `bangalore` | Fixed **only with an alias list** in the rules (see above) |
+
+| | Before | After |
+|---|---|---|
+| Errors | 11 | 9 (missing values, impossible ages and dates, a broken email: all need a human) |
+| Warnings | 60 | 1 (an ambiguous date, `04-03-2025`, left for review) |
+| Quality score | 82.33% | 96.6% |
+| Rows checked | Customers 30 (Readme skipped) | Customers 28 |
+
 ## Results on real data
 
 I also ran it on the public [BODMAS](https://whyisyoung.github.io/BODMAS/) malware metadata CSV: 134,435 rows of `sha, timestamp, family`, 12 MB. The file itself is not in this repo.
 
 * Run time through the API: upload 0.8 s, profile + validation with suggested rules 9 s, export with re-validation 11 s.
 * The suggested rules made `sha` the key with a 64-character length rule. That flagged **7 rows whose id is `VirusShare_<md5>` (43 characters) instead of a SHA-256**.
+* The case-variant check found **`unknown` (2 rows) next to `Unknown`** in `family`, which would split one group in any count.
 * The profiler flagged a **dominant value in `timestamp`**: `2020-01-01 00:00:00+00:00` appears in 5,877 rows (4.4%), while a typical timestamp appears once. That pattern looks like a placeholder for unknown dates.
 * Real data exposed three problems the synthetic tests had missed, all now fixed:
   * Profiling took 66 s because `strptime` was tried in about 16 formats for every string. It now takes 2.8 s, using shape checks, `fromisoformat` and caching.
@@ -198,7 +248,7 @@ I also ran it on the public [BODMAS](https://whyisyoung.github.io/BODMAS/) malwa
 ```
 src/ilovecsv/        core engine, API (api/), report template (templates/)
 app/                 Streamlit UI
-tests/               107 tests: per-rule ground truth, anomalies, corrections, audit, API, CLI
+tests/               112 tests: per-rule ground truth, anomalies, corrections, audit, API, CLI
 scripts/             make_demo.py, create_api_key.py
 examples/            demo workbook + rule file (synthetic)
 reports/demo/        demo outputs: corrected workbook, HTML/Excel/JSON audit

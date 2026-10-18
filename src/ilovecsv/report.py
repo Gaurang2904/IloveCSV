@@ -92,7 +92,8 @@ def write_xlsx(audit: dict[str, Any], path: Path) -> None:
         ("Rules SHA-256", audit["rules"]["sha256"]),
         ("Output file", (audit.get("output") or {}).get("filename")),
         ("Output SHA-256", (audit.get("output") or {}).get("sha256")),
-        ("Rows checked", s["rows"]),
+        *[(f"Rows checked: {name}", n) for name, n in s["rows_by_sheet"].items()],
+        ("Quality score formula", s["quality_formula"]),
         ("Quality score (before)", s["quality_score"]),
         ("Quality score (after)", after.get("quality_score")),
         ("Errors (before)", s["errors"]),
@@ -102,6 +103,8 @@ def write_xlsx(audit: dict[str, Any], path: Path) -> None:
         ("Anomalies", s["anomalies"]),
         ("Changes applied", len(audit["changes"])),
         ("Changes skipped", len(audit["skipped_changes"])),
+        ("Suggestions still pending (not applied)", s["suggestions_by_status"]["pending"]),
+        ("Suggestions rejected", s["suggestions_by_status"]["rejected"]),
     ]
     profile_rows = []
     for sheet in audit["profiles"]:
