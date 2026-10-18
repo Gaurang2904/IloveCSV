@@ -47,6 +47,7 @@ class Inspection:
     unsupported: list[dict[str, Any]] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     row_limit: int = 0
+    excluded: list[dict[str, Any]] = field(default_factory=list)  # malformed records / damaged parts found
 
     @property
     def memory_estimate_mb(self) -> float:
@@ -95,7 +96,7 @@ def column_kinds(wb_sheet) -> list[dict[str, Any]]:
 def summarise(wb: WorkbookData, fmt: str, path: Path, options: SourceOptions) -> Inspection:
     insp = Inspection(filename=wb.filename, format=wb.source_format or fmt, size_bytes=Path(path).stat().st_size,
                       docs=wb.docs, unsupported=wb.unsupported, warnings=list(wb.warnings),
-                      row_limit=options.row_limit)
+                      row_limit=options.row_limit, excluded=list(wb.excluded_records))
     for name, sheet in wb.sheets.items():
         meta = wb.tables_meta.get(name, {})
         sample = [{str(k): jsonable(v) for k, v in row.items()}

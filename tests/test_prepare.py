@@ -122,7 +122,7 @@ def test_feature_schema(prepared):
     assert sch["features"]["categorical"] == ["plan", "contract"]
     assert sch["features"]["datetime"] == ["signup_date"]  # cancellation_date leaks, so it is not "ready"
     assert [r["column"] for r in sch["needs_review"]] == ["cancellation_date"]
-    assert sch["excluded"] == {"identifier": ["customer_id"], "pii": ["email"], "empty": [], "target": "churn"}
+    assert sch["excluded"] == {"identifier": ["customer_id"], "pii": ["email"], "empty": [], "constant": [], "target": "churn"}
 
 
 def test_load_prepared_and_parquet_dtypes(prepared):

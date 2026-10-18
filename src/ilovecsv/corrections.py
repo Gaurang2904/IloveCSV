@@ -38,7 +38,7 @@ from .values import (
     is_null,
     normalise_nulls,
     normalize_phone,
-    parse_date_text,
+    parse_datetime_text,
     to_bool,
     to_number,
     to_text,
@@ -153,7 +153,11 @@ def suggest_corrections(
                     new = int(num) if col_rule.type == "int" or num.is_integer() else num
                     sug("text_to_number", new, 0.95)
         elif rid == "type.date_as_text" and isinstance(raw, str):
-            d, ambiguous = parse_date_text(raw, rules.dayfirst)
+            # Keeps the time of day (2025-08-17 10:30 stays a date-time); a text whose time cannot be
+            # read exactly, or that carries a timezone a workbook cannot store, gets no fix: it stays flagged.
+            d, ambiguous = parse_datetime_text(raw, rules.dayfirst)
+            if isinstance(d, datetime) and d.tzinfo is not None:
+                d = None
             if d is not None:
                 if ambiguous:
                     key = (issue.sheet, issue.column)
@@ -162,7 +166,7 @@ def suggest_corrections(
                     order = date_orders[key]
                     if order is not None:
                         # Other dates in this column (e.g. 15/02/2025) prove which part is the day.
-                        d, _ = parse_date_text(raw, dayfirst=(order == "dayfirst"))
+                        d, _ = parse_datetime_text(raw, dayfirst=(order == "dayfirst"))
                         sug("text_to_date_inferred", d, 0.9)
                     else:
                         sug("text_to_date_ambiguous", d, 0.5)

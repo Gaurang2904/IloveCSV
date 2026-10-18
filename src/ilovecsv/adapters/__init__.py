@@ -6,9 +6,14 @@
 
 from __future__ import annotations
 
+import struct
+import zipfile
+import zlib
+from collections.abc import Callable
 from pathlib import Path, PurePosixPath
+from typing import TypeVar
 
-from ..reader import ReadError, WorkbookData
+from ..reader import DamagedFileError, ReadError, UnsupportedFormatError, WorkbookData, where
 from ..sources import SourceOptions
 from .archive import ZipAdapter
 from .base import Adapter, Inspection, TableInfo
@@ -64,14 +69,40 @@ def signature_problem(path: Path, filename: str) -> str | None:
     return None
 
 
+T = TypeVar("T")
+# What parsers raise on truncated / corrupted bytes. Anything else is a bug and is not relabelled.
+_DAMAGE = (zipfile.BadZipFile, zlib.error, EOFError, OSError, struct.error, UnicodeDecodeError, KeyError,
+           IndexError, ValueError)
+
+
+def _guard(fn: Callable[[], T], filename: str) -> T:
+    try:
+        return fn()
+    except ReadError:
+        raise
+    except _DAMAGE as e:
+        raise DamagedFileError(f"'{filename}' could not be read: it looks damaged or truncated "
+                               f"({type(e).__name__}: {e}). Nothing was imported.") from e
+    except Exception as e:  # e.g. pyarrow.ArrowInvalid on a truncated Parquet file
+        if type(e).__module__.split(".")[0] in ("pyarrow", "h5py", "scipy", "xlrd", "openpyxl"):
+            raise DamagedFileError(f"'{filename}' could not be read: it looks damaged or truncated "
+                                   f"({type(e).__name__}: {e}). Nothing was imported.") from e
+        raise
+
+
+def _unsupported(filename: str) -> UnsupportedFormatError:
+    ext = PurePosixPath(filename).suffix or "(no extension)"
+    return UnsupportedFormatError(f"Unsupported file type '{ext}': IloveCSV reads {', '.join(SUPPORTED_EXTENSIONS)}. "
+                                  "Nothing was imported.")
+
+
 def load_dataset(path: str | Path, filename: str | None = None, options: SourceOptions | None = None) -> WorkbookData:
     path = Path(path)
     filename = filename or path.name
     adapter = adapter_for(filename)
     if adapter is None:
-        raise ReadError(f"Unsupported file type '{PurePosixPath(filename).suffix}'. Supported: "
-                        f"{', '.join(SUPPORTED_EXTENSIONS)}")
-    return adapter.load(path, filename, options or SourceOptions())
+        raise _unsupported(filename)
+    return _guard(lambda: adapter.load(path, filename, options or SourceOptions()), filename)
 
 
 def inspect_file(path: str | Path, filename: str | None = None, options: SourceOptions | None = None,
@@ -82,8 +113,17 @@ def inspect_file(path: str | Path, filename: str | None = None, options: SourceO
     filename = filename or path.name
     adapter = adapter_for(filename)
     if adapter is None:
-        raise ReadError(f"Unsupported file type '{PurePosixPath(filename).suffix}'.")
-    insp = adapter.inspect(path, filename, options or SourceOptions())
+        raise _unsupported(filename)
+    # Inspection reports malformed records and damaged members instead of stopping on them.
+    opts = (options or SourceOptions()).model_copy(update={"bad_records": "skip"})
+    insp = _guard(lambda: adapter.inspect(path, filename, opts), filename)
+    if insp.excluded:
+        insp.warnings = [w for w in insp.warnings if "PARTIAL: " not in w]
+        insp.warnings.append(
+            f"{len(insp.excluded)} malformed record(s) or damaged part(s): "
+            + "; ".join(f"{where(p)}: {p['problem']}" for p in insp.excluded[:8])
+            + ". Prepare stops on them unless you choose to exclude them (bad_records: skip / --skip-bad-records); "
+              "excluded records are then listed in the report and the output is marked PARTIAL.")
     if sibling_docs:
         insp.docs += find_sibling_docs(path, [c["name"] for t in insp.tables for c in t.columns])
     return insp

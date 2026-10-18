@@ -11,12 +11,20 @@ from __future__ import annotations
 import shutil
 import tempfile
 import zipfile
+import zlib
 from pathlib import Path, PurePosixPath
 from typing import Any
 
 import pandas as pd
 
-from ..reader import ReadError, WorkbookData, sha256_file
+from ..reader import (
+    DamagedFileError,
+    MalformedRecordsError,
+    ReadError,
+    WorkbookData,
+    note_excluded,
+    sha256_file,
+)
 from ..sources import SourceOptions
 from .base import Adapter, Inspection, frames_workbook, safe_table_name, summarise
 from .docs import is_doc_file, read_doc
@@ -44,8 +52,9 @@ def list_members(path: Path) -> tuple[list[zipfile.ZipInfo], list[dict[str, Any]
     try:
         with zipfile.ZipFile(path) as z:
             infos = z.infolist()
-    except zipfile.BadZipFile as e:
-        raise ReadError("Not a valid ZIP archive.") from e
+    except (zipfile.BadZipFile, EOFError, OSError, ValueError) as e:
+        raise DamagedFileError(f"Not a readable ZIP archive: it is damaged or truncated ({e}). Nothing was "
+                               "imported.") from e
     if len(infos) > MAX_MEMBERS:
         raise ReadError(f"The archive has {len(infos):,} members (limit {MAX_MEMBERS:,}).")
     total = sum(i.file_size for i in infos)
@@ -98,18 +107,38 @@ class ZipAdapter(Adapter):
         per_member: list[tuple[str, WorkbookData]] = []
         try:
             with zipfile.ZipFile(path) as z:
+                damaged: list[dict[str, Any]] = []
                 for info in data:
                     target = tmp / f"m{len(per_member)}{PurePosixPath(info.filename).suffix.lower()}"
-                    with z.open(info) as src, open(target, "wb") as dst:
-                        shutil.copyfileobj(src, dst, length=1 << 20)
+                    try:  # the CRC is checked when the member has been read completely
+                        with z.open(info) as src, open(target, "wb") as dst:
+                            shutil.copyfileobj(src, dst, length=1 << 20)
+                    except (zipfile.BadZipFile, zlib.error, EOFError, OSError) as e:
+                        damaged.append({"member": info.filename, "line": None,
+                                        "problem": f"damaged member, not imported ({e})", "raw": ""})
+                        continue
                     member_opts = options.model_copy(update={"tables": None})
                     adapter = adapter_for(info.filename)
                     try:
                         mwb = adapter.load(target, PurePosixPath(info.filename).name, member_opts)
+                    except MalformedRecordsError as e:
+                        raise MalformedRecordsError(f"{info.filename}: {e}",
+                                                    [{**p, "member": info.filename} for p in e.problems]) from e
                     except ReadError as e:
-                        wb.unsupported.append({"path": info.filename, "reason": f"could not be read: {e}"})
+                        damaged.append({"member": info.filename, "line": None,
+                                        "problem": f"could not be read, not imported ({e})", "raw": ""})
                         continue
                     per_member.append((info.filename, mwb))
+                if damaged and options.bad_records != "skip":
+                    good = [i.filename for i in data if i.filename not in {d["member"] for d in damaged}]
+                    raise DamagedFileError(
+                        f"{len(damaged)} archive member(s) are damaged or unreadable: "
+                        + "; ".join(f"{d['member']}: {d['problem']}" for d in damaged[:5])
+                        + f". Intact members: {', '.join(good) or 'none'}. Nothing was imported. To import only "
+                          "the verified members, re-run with bad_records: skip (CLI --skip-bad-records); the "
+                          "damaged ones are then listed in the report and the output is marked PARTIAL.",
+                        problems=damaged)
+                note_excluded(wb, damaged, "damaged archive member(s)")
                 columns = [str(c) for _, m in per_member for s in m.sheets.values() for c in s.df.columns]
                 for info in doc_infos:
                     with z.open(info) as src:
@@ -117,6 +146,8 @@ class ZipAdapter(Adapter):
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
         self._merge(wb, per_member, options)
+        if wb.excluded_records:
+            wb.partial = {**(wb.partial or {"totals": {}}), "excluded_records": len(wb.excluded_records)}
         if options.tables:
             missing = [t for t in options.tables if t not in wb.sheets]
             if missing:
@@ -132,6 +163,7 @@ class ZipAdapter(Adapter):
         for member, mwb in per_member:
             stem = PurePosixPath(member).stem
             wb.warnings += [f"{member}: {w}" for w in mwb.warnings]
+            wb.excluded_records += [{**p, "member": member} for p in mwb.excluded_records]
             wb.unsupported += [{**u, "path": f"{member}:{u['path']}"} for u in mwb.unsupported]
             if mwb.partial:
                 wb.partial = wb.partial or {"rows": mwb.partial.get("rows"), "totals": {}}

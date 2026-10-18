@@ -104,7 +104,8 @@ def _sniff(path: Path, ext: str, settings: Settings) -> None:
             infos = z.infolist()
             names = {i.filename for i in infos}
     except zipfile.BadZipFile as e:
-        raise Problem(415, "content-mismatch", f"The {ext} file is corrupt.") from e
+        raise Problem(422, "damaged-file", f"The {ext} file is damaged or truncated: its zip structure cannot be "
+                      "read. Nothing was imported.") from e
     if len(infos) > settings.max_zip_entries:
         raise Problem(422, "unsafe-archive", "The workbook contains too many internal parts.")
     total = sum(i.file_size for i in infos)

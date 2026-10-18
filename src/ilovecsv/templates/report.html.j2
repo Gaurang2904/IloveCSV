@@ -82,6 +82,7 @@ pre { white-space: pre-wrap; background: var(--surface-0); padding: 12px; border
   <h1>Dataset Preparation Report</h1>
   <p class="sub">{{ a.input.filename }} · rows checked: {% for name, n in s.rows_by_sheet.items() %}{{ name }} {{ n }}{% if not loop.last %}, {% endif %}{% endfor %} · run {{ a.run.id }}</p>
 
+  {% if a.source and a.source.partial_reason %}<p class="warn"><strong>PARTIAL IMPORT:</strong> {{ a.source.partial_reason }}. Results describe the imported part only.</p>{% endif %}
   {% for w in a.input.warnings %}<p class="warn">{{ w }}</p>{% endfor %}
   {% if a.output and not a.changes %}<p class="warn"><strong>No changes were applied.</strong> The corrected file is an unchanged copy of the input: {{ s.suggestions_by_status.pending }} suggested fix(es) were still pending and {{ s.suggestions_by_status.rejected }} were rejected. Only approved fixes are written.</p>
   {% elif a.output and s.suggestions_by_status.pending %}<p class="warn">{{ s.suggestions_by_status.pending }} suggested fix(es) were still pending and were not applied.</p>{% endif %}
@@ -176,7 +177,7 @@ pre { white-space: pre-wrap; background: var(--surface-0); padding: 12px; border
       <tbody>
       {% for role, cols in sch.features.items() %}{% if cols %}<tr><td>{{ role }} feature</td><td class="mono">{{ cols | join(", ") }}</td></tr>{% endif %}{% endfor %}
       {% if sch.excluded.target %}<tr><td>target</td><td class="mono">{{ sch.excluded.target }}</td></tr>{% endif %}
-      {% for kind in ["identifier", "pii", "empty"] %}{% if sch.excluded[kind] %}<tr><td>excluded ({{ kind }})</td><td class="mono">{{ sch.excluded[kind] | join(", ") }}</td></tr>{% endif %}{% endfor %}
+      {% for kind in ["identifier", "pii", "empty", "constant"] %}{% if sch.excluded[kind] %}<tr><td>excluded ({{ kind }})</td><td class="mono">{{ sch.excluded[kind] | join(", ") }}</td></tr>{% endif %}{% endfor %}
       {% if sch.high_missing %}<tr><td>over 50% missing</td><td class="mono">{{ sch.high_missing | join(", ") }} <span class="why">(kept: missingness can be a signal; decide in your pipeline)</span></td></tr>{% endif %}
       </tbody>
     </table>

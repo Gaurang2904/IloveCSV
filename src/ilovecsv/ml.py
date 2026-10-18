@@ -36,12 +36,14 @@ def column_role(name: str, c: ColumnProfile, target: str | None) -> str:
         return "pii"
     if c.is_identifier or c.sequential_id:
         return "identifier"
+    if c.n_distinct == 1 and c.n_rows - c.n_missing >= 2:
+        return "constant"  # one value everywhere: no information for a model (the column is kept)
     return {"int": "numeric", "float": "numeric", "date": "datetime", "bool": "boolean",
             "category": "categorical"}.get(c.inferred_type, "text")
 
 
 def column_dtype(c: ColumnProfile, role: str) -> str:
-    if role in ("identifier", "pii", "text", "empty"):
+    if role in ("identifier", "pii", "text", "empty", "constant"):
         return "string"
     return _DTYPE.get(c.inferred_type, "string")
 
@@ -62,7 +64,7 @@ def sheet_schema(prof: SheetProfile, srules: SheetRules | None) -> dict[str, Any
         "columns": columns,
         "features": {r: groups.get(r, []) for r in FEATURE_ROLES},
         "excluded": {"identifier": groups.get("identifier", []), "pii": groups.get("pii", []),
-                     "empty": groups.get("empty", []), "target": target},
+                     "empty": groups.get("empty", []), "constant": groups.get("constant", []), "target": target},
         "high_missing": [col["name"] for col in columns if col["missing_rate"] > 0.5],
     }
 
@@ -190,7 +192,7 @@ def leakage_suspects(sheet: SheetData, prof: SheetProfile, target: str, nulls,
     out = []
     for col in df.columns:
         c = prof.columns.get(col)
-        if col == target or c is None or column_role(str(col), c, target) in ("identifier", "pii", "empty"):
+        if col == target or c is None or column_role(str(col), c, target) in ("identifier", "pii", "empty", "constant"):
             continue
         vals = [_norm(v, nulls) for v in df[col]]
         pairs = [(v, y) for v, y in zip(vals, labels, strict=True) if y is not None]

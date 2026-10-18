@@ -20,7 +20,7 @@
       "verification_passed": true,
       "review_items": 22,
       "representation_fixes": 0,
-      "seconds": 1.17,
+      "seconds": 1.18,
       "recall_by_kind": {
         "whitespace": "40/40",
         "case_variant": "40/40",
@@ -173,7 +173,7 @@
       "verification_passed": true,
       "review_items": 22,
       "representation_fixes": 0,
-      "seconds": 1.65,
+      "seconds": 1.13,
       "recall_by_kind": {
         "whitespace": "40/40",
         "case_variant": "40/40",
@@ -326,7 +326,7 @@
       "verification_passed": true,
       "review_items": 22,
       "representation_fixes": 2000,
-      "seconds": 4.5,
+      "seconds": 3.15,
       "recall_by_kind": {
         "whitespace": "40/40",
         "case_variant": "40/40",
@@ -479,7 +479,7 @@
       "verification_passed": true,
       "review_items": 22,
       "representation_fixes": 0,
-      "seconds": 1.55,
+      "seconds": 1.66,
       "recall_by_kind": {
         "whitespace": "40/40",
         "case_variant": "40/40",
@@ -632,7 +632,7 @@
       "verification_passed": true,
       "review_items": 22,
       "representation_fixes": 0,
-      "seconds": 1.17,
+      "seconds": 1.53,
       "recall_by_kind": {
         "whitespace": "40/40",
         "case_variant": "40/40",
@@ -785,7 +785,7 @@
       "verification_passed": true,
       "review_items": 21,
       "representation_fixes": 3980,
-      "seconds": 2.66,
+      "seconds": 3.15,
       "recall_by_kind": {
         "whitespace": "40/40",
         "case_variant": "40/40",
@@ -938,7 +938,7 @@
       "verification_passed": true,
       "review_items": 22,
       "representation_fixes": 0,
-      "seconds": 1.25,
+      "seconds": 1.36,
       "recall_by_kind": {
         "whitespace": "40/40",
         "case_variant": "40/40",
@@ -1091,7 +1091,7 @@
       "verification_passed": true,
       "review_items": 20,
       "representation_fixes": 0,
-      "seconds": 1.24,
+      "seconds": 1.42,
       "recall_by_kind": {
         "whitespace": "40/40",
         "case_variant": "40/40",

@@ -76,6 +76,9 @@ class SheetProfile:
     dropped_blank_rows: list[int]
     dropped_blank_cols: list[str]
     columns: dict[str, ColumnProfile]
+    # A time series: {"time": column, "group": column or None}. Set only when the timestamps rise in file
+    # order (within each group), so a random date column (signup_date) never makes a table a series.
+    time_series: dict[str, Any] | None = None
 
     @property
     def n_duplicate_rows(self) -> int:
@@ -122,7 +125,40 @@ def profile_sheet(
         dropped_blank_rows=list(sheet.dropped_blank_rows),
         dropped_blank_cols=list(sheet.dropped_blank_cols),
         columns=cols,
+        time_series=detect_time_series(df, cols, nulls),
     )
+
+
+_TIME_NAME = re.compile(r"time|date|timestamp|datetime|_at$|^ts$", re.IGNORECASE)
+_GROUP_NAME = re.compile(r"(^|[_\s-])(id|device|sensor|machine|unit|station|battery|cell|patient|subject|"
+                         r"asset|meter|node|group)($|[_\s-])", re.IGNORECASE)
+
+
+def detect_time_series(df: Any, cols: dict[str, ColumnProfile], nulls) -> dict[str, Any] | None:
+    from .values import to_timestamp
+
+    times = [c for c, p in cols.items() if p.inferred_type == "date" and p.type_share >= 0.8
+             and _TIME_NAME.search(str(c))]
+    if not times or len(df) < 4:
+        return None
+    groups = [c for c, p in cols.items() if c not in times and p.inferred_type in ("category", "text")
+              and 2 <= p.n_distinct <= max(2, len(df) // 3) and _GROUP_NAME.search(str(c))]
+    for t in times:
+        parsed = [to_timestamp(v, nulls) for v in df[t]]
+        for g in [*groups, None]:
+            keys = list(df[g]) if g else [None] * len(df)
+            last: dict[Any, Any] = {}
+            rising = pairs = 0
+            for k, v in zip(keys, parsed, strict=True):
+                if v is None:
+                    continue
+                if k in last:
+                    pairs += 1
+                    rising += v > last[k]
+                last[k] = v
+            if pairs >= 3 and rising / pairs >= 0.9:
+                return {"time": str(t), "group": str(g) if g else None}
+    return None
 
 
 def duplicate_rows(sheet: SheetData, nulls=DEFAULT_NULLS) -> list[int]:

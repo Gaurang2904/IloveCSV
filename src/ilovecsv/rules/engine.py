@@ -37,6 +37,7 @@ from ..values import (
     to_date,
     to_number,
     to_text,
+    to_timestamp,
     value_kind,
 )
 from .expr import CompiledExpr, ExprError, compile_expr
@@ -125,6 +126,14 @@ class TypedColumns:
         return expr.evaluate(self, self.sheet.df.index)
 
 
+def _duration(td: Any) -> str:
+    secs = pd.Timedelta(td).total_seconds()
+    for unit, n in (("days", 86400), ("h", 3600), ("min", 60)):
+        if secs >= n:
+            return f"{secs / n:.3g} {unit}"
+    return f"{secs:.3g} s"
+
+
 def _closest_hint(value: str, allowed: list[Any]) -> str:
     """Name the clearly closest allowed value ('bangalore' -> 'Bengaluru') without changing anything.
     Close spellings (>= 0.8) already get a fuzzy fix for review; this covers likely aliases."""
@@ -205,6 +214,10 @@ class SheetValidator:
             self._null_tokens()
         if self.srules.target:
             self._target_checks(self.srules.target)
+        time_col = next((c for c, r in self.srules.roles.items() if r == "timestamp"), None)
+        if self.srules.checks.timeseries and time_col in self.sheet.df.columns:
+            group = next((c for c, r in self.srules.roles.items() if r == "group" and c in self.sheet.df.columns), None)
+            self._timeseries(time_col, group)
         for trule in self.srules.rules:
             try:
                 self._table_rule(trule)
@@ -518,6 +531,56 @@ class SheetValidator:
                           f"Same features as row(s) {', '.join(map(str, others))} but a different label "
                           f"({' vs '.join(shown)}).", r, target, df.at[r, target],
                           context={"rows": rows, "labels": shown})
+
+    def _timeseries(self, time_col: str, group: str | None) -> None:
+        """Checks that need time order, per group (device, sensor, battery) and in file order. Nothing
+        is sorted, interpolated or removed: these are flags for review."""
+        df = self.sheet.df
+        measures = [c for c in df.columns if c not in (time_col, group)
+                    and self.typed.column_type(c) in NUMERIC_TYPES
+                    and not (self.profile.columns.get(c) and self.profile.columns[c].is_identifier)]
+        values = {c: self.typed(c) for c in measures}
+
+        def stamp(v: Any) -> pd.Timestamp | None:
+            d = to_timestamp(v, self.nulls, self.rules.dayfirst)
+            return None if d is None else pd.Timestamp(d)
+
+        rows: dict[Any, list[tuple[int, pd.Timestamp]]] = defaultdict(list)
+        for xl_row, v in df[time_col].items():
+            ts = stamp(v)
+            if ts is not None:
+                rows[to_text(df.at[xl_row, group], self.nulls) if group else None].append((int(xl_row), ts))
+        for key, seq in rows.items():
+            label = f" for {group} {key}" if group else ""
+            steps = [(b[1] - a[1]) for a, b in zip(seq, seq[1:], strict=False) if b[1] > a[1]]
+            typical = pd.Series(steps).median() if len(steps) >= 3 else None
+            # A gap only means "readings missing" when sampling is regular (a sensor every minute). Event
+            # logs (battery cycles of varying length) have no typical step: no gap check there.
+            if typical is not None and sum(abs(s - typical) <= 0.1 * typical for s in steps) < 2 / 3 * len(steps):
+                typical = None
+            for (r0, t0), (r1, t1) in zip(seq, seq[1:], strict=False):
+                if t1 < t0:
+                    self.emit("timeseries.out_of_order", "warning",
+                              f"Timestamp {t1} is earlier than the previous reading{label} ({t0}, row {r0}); "
+                              "the file order is kept, not sorted.", r1, time_col, df.at[r1, time_col])
+                elif t1 == t0:
+                    self.emit("timeseries.duplicate_timestamp", "warning",
+                              f"Same timestamp as row {r0}{label}.", r1, time_col, df.at[r1, time_col])
+                elif typical is not None and typical > pd.Timedelta(0) and (t1 - t0) > 1.5 * typical:
+                    missing = round((t1 - t0) / typical) - 1
+                    self.emit("timeseries.gap", "warning",
+                              f"Gap of {_duration(t1 - t0)} before this reading{label} (typical step "
+                              f"{_duration(typical)}): about "
+                              f"{missing} reading(s) missing after {t0}. Not interpolated.", r1, time_col,
+                              df.at[r1, time_col], context={"after_row": r0, "gap": str(t1 - t0),
+                                                            "typical_step": str(typical)})
+                if len(measures) >= 2:
+                    same = [c for c in measures if pd.notna(values[c].get(r1)) and values[c].get(r1) == values[c].get(r0)]
+                    if len(same) == len(measures):
+                        self.emit("timeseries.repeated_reading", "warning",
+                                  f"Every measurement ({', '.join(measures)}) repeats the previous reading{label} "
+                                  f"(row {r0}): a stuck sensor or a duplicated record? Kept for review.",
+                                  r1, time_col, df.at[r1, time_col], context={"previous_row": r0})
 
     def _case_variants(self) -> None:
         """Same value written with different capitalisation in one column (mumbai / MUMBAI / Mumbai)."""

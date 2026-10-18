@@ -12,12 +12,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
 from .pipeline import decide, export, prepare, run_checks
 from .profiling import profile_workbook
-from .reader import ReadError, read_workbook
+from .reader import ReadError, partial_text, read_workbook
+from .reader import where as where_of
 from .report import write_reports
 from .rules.schema import RulesError
 from .rules.suggest import suggest_rules
@@ -93,14 +95,23 @@ def main(argv: list[str] | None = None) -> int:
                 key = create_user(db, args.name)
             print(f"API key for {args.name} (shown once, store it safely):\n{key}")
     except ReadError as e:
-        print(f"error: {e}", file=sys.stderr)
+        # distinct statuses: unsupported, content-mismatch, damaged, malformed-records, too-large, unreadable
+        print(f"error [{getattr(e, 'status', 'unreadable')}]: {e}", file=sys.stderr)
+        for p in getattr(e, "problems", [])[:20]:
+            print(f"  - {where_of(p)}: {p['problem']}" + (f"   {p['raw']!r}" if p.get("raw") else ""), file=sys.stderr)
         return 2
     except RulesError as e:
-        print(f"error: {e}", file=sys.stderr)
+        print(f"error [invalid-rules]: {e}", file=sys.stderr)
         for err in e.errors:
-            where = ".".join(err.get("loc", [])) or (f"line {err.get('line')}" if err.get("line") else "")
-            print(f"  - {where}: {err['msg']}", file=sys.stderr)
+            loc = ".".join(err.get("loc", [])) or (f"line {err.get('line')}" if err.get("line") else "")
+            print(f"  - {loc}: {err['msg']}", file=sys.stderr)
         return 2
+    except Exception as e:  # a bug: say so plainly, without a traceback (ILOVECSV_DEBUG=1 shows it)
+        if os.environ.get("ILOVECSV_DEBUG"):
+            raise
+        print(f"error [internal]: unexpected {type(e).__name__}: {e}. This is a bug in IloveCSV, not in your "
+              "file; re-run with ILOVECSV_DEBUG=1 for the traceback.", file=sys.stderr)
+        return 3
     return 0
 
 
@@ -114,6 +125,9 @@ def _source_args(p: argparse.ArgumentParser) -> None:
     g.add_argument("--delimiter", default=None, help="CSV delimiter (default: detected)")
     g.add_argument("--encoding", default=None, help="text encoding (default: utf-8, then cp1252)")
     g.add_argument("--mat-layout", choices=["auto", "nasa_battery", "generic"], default=None)
+    g.add_argument("--skip-bad-records", action="store_const", const="skip", dest="bad_records", default=None,
+                   help="exclude malformed records / damaged archive members instead of stopping; each is listed "
+                        "in the report and the output is marked PARTIAL")
     g.add_argument("--series-context", action="append", default=None,
                    help="MATLAB struct arrays: numeric per-element field to repeat on every series row; repeatable")
     g.add_argument("--align-arrays", action="store_true", default=None,
@@ -123,7 +137,7 @@ def _source_args(p: argparse.ArgumentParser) -> None:
 def _source_from(args) -> dict | None:
     opts = {"sheets": args.sheet, "tables": args.table, "json_records": args.json_records,
             "max_rows": args.max_rows, "delimiter": args.delimiter, "encoding": args.encoding,
-            "mat_layout": args.mat_layout, "align_arrays": args.align_arrays,
+            "mat_layout": args.mat_layout, "align_arrays": args.align_arrays, "bad_records": args.bad_records,
             "series_context": args.series_context}
     opts = {k: v for k, v in opts.items() if v is not None}
     return opts or None
@@ -209,7 +223,11 @@ def _prepare(args) -> int:
         missing = [f"{c['name']} {c['missing']}" for c in sch["columns"] if c.get("missing")]
         if missing:
             print(f"  missing values in {sch['sheet']} (kept, never imputed): {', '.join(missing[:12])}")
-    print(f"  {'NOT FULLY CLEAN' if a['errors'] or a['warnings'] else 'clean'}; files in {ex.out_dir}:")
+    state = "NOT FULLY CLEAN" if a["errors"] or a["warnings"] else "clean"
+    if run.wb.partial:  # never just 'clean' when records were left out
+        state = ("PARTIAL IMPORT (the imported part passes every rule)" if state == "clean"
+                 else "PARTIAL IMPORT, NOT FULLY CLEAN")
+    print(f"  {state}; files in {ex.out_dir}:")
     if ex.corrected_path.suffix == ".xlsx":
         print(f"    cleaned workbook (changes highlighted): {ex.corrected_path.name}")
     elif ex.corrected_path.suffix == ".zip":
@@ -234,8 +252,8 @@ def _prepare(args) -> int:
         print(f"  recipe decisions: {d['applied']} of {d['recorded']} applied ({d['not_applicable']} did not match "
               "this data)")
     if run.wb.partial:
-        print(f"  ! PARTIAL: only the first {run.wb.partial.get('rows')} rows of each table were processed")
-    return 1 if a["errors"] else 0
+        print(f"  ! PARTIAL: {partial_text(run.wb.partial)}")
+    return 1 if a["errors"] or run.wb.partial else 0
 
 
 def _check(args) -> int:

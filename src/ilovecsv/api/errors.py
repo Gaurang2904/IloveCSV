@@ -69,3 +69,20 @@ def install(app: FastAPI) -> None:
         log.exception("Unhandled error on %s", request.url.path)
         return problem_response(request, 500, "internal-error",
                                 "An unexpected error occurred. The details were logged on the server.")
+
+
+_READ_STATUS = {  # ReadError.status -> (HTTP status, problem slug)
+    "unsupported": (415, "unsupported-media-type"),
+    "content-mismatch": (415, "content-mismatch"),
+    "damaged": (422, "damaged-file"),
+    "malformed-records": (422, "malformed-records"),
+    "too-large": (422, "dataset-too-large"),
+}
+
+
+def read_problem(e: Exception) -> Problem:
+    """A distinct status per kind of unreadable input; record-level details go in `errors`."""
+    status, slug = _READ_STATUS.get(getattr(e, "status", ""), (422, "unreadable-workbook"))
+    errors = [{k: v for k, v in p.items() if k in ("member", "line", "problem", "raw")}
+              for p in getattr(e, "problems", [])[:100]]
+    return Problem(status, slug, str(e), errors)

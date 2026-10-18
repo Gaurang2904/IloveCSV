@@ -79,7 +79,7 @@ def test_wrong_types(api, tmp_path):
     assert_problem(upload(client, alice, fake), 415, "content-mismatch")
     xlsm = tmp_path / "macro.xlsm"
     xlsm.write_bytes(b"PK\x03\x04")
-    assert_problem(upload(client, alice, xlsm), 415, "content-mismatch")  # not a readable zip
+    assert_problem(upload(client, alice, xlsm), 422, "damaged-file")  # truncated: not a readable zip
     parquet = tmp_path / "fake.parquet"
     parquet.write_text("a,b\n1,2\n")
     assert_problem(upload(client, alice, parquet), 415, "content-mismatch")

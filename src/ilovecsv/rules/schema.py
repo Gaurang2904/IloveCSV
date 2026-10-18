@@ -174,6 +174,8 @@ class Checks(_Strict):
     case_variants: bool = True
     # Flag placeholder text such as "N/A", "-" or "null" (see null_values); the safe fix empties the cell.
     null_tokens: bool = True
+    # Tables with a timestamp role: gaps, duplicate or out-of-order timestamps, repeated identical readings.
+    timeseries: bool = True
 
 
 class DuplicatePolicy(_Strict):

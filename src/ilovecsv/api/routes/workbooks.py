@@ -13,7 +13,7 @@ from ...reader import ReadError, sha256_file
 from ...rules.suggest import suggest_rules
 from ...sources import SourceOptions
 from ..deps import audit, current_user, get_db
-from ..errors import Problem
+from ..errors import read_problem
 from ..schemas import PrepareIn, RulesIn
 from ..service import create_run, get_workbook, load_wb, parse_rules, prepare_run
 from ..uploads import save_upload
@@ -47,7 +47,7 @@ async def upload(request: Request, file: UploadFile = File(...), user: User = De
         insp = inspect_file(path, file.filename)  # structure only: cheap even for large files
     except ReadError as e:
         path.unlink(missing_ok=True)
-        raise Problem(422, "unreadable-workbook", str(e)) from e
+        raise read_problem(e) from e
     row = Workbook(
         id=uuid.uuid4().hex, owner_id=user.id, filename=(file.filename or "upload")[:255], stored_path=str(path),
         file_type=_file_type(ext), sha256=sha256_file(path), size_bytes=size, warnings=insp.warnings,
@@ -82,7 +82,7 @@ def inspect(workbook_id: str, sheets: str | None = None, tables: str | None = No
                                 **({"mat_layout": mat_layout} if mat_layout else {}))
         insp = inspect_file(row.stored_path, row.filename, options)
     except (ReadError, ValueError) as e:
-        raise Problem(422, "unreadable-workbook", str(e)) from e
+        raise read_problem(e) from e
     return {"workbook_id": workbook_id, **insp.to_dict()}
 
 

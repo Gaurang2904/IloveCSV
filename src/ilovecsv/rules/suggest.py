@@ -166,6 +166,9 @@ def _sheet_rules(p: SheetProfile, for_ml: bool = False) -> dict[str, Any]:
     if key:
         out["key"] = key
         columns[key[0]].pop("unique", None)  # the key check already covers uniqueness
+    if p.time_series:  # turns on the time-series checks (gaps, repeated readings, order)
+        out["roles"] = {p.time_series["time"]: "timestamp",
+                        **({p.time_series["group"]: "group"} if p.time_series.get("group") else {})}
     out["columns"] = columns
     return out
 

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import math
 import re
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from functools import lru_cache
 from typing import Any
 
@@ -134,6 +134,52 @@ def _parse_date_cached(t: str, dayfirst: bool) -> tuple[date | None, bool]:
     if _HAS_MONTH_NAME.search(t):
         return _try_formats(t, _DATE_FORMATS_UNAMBIGUOUS), False
     return None, False
+
+
+_TIME_PART = re.compile(r"\d{1,2}:\d{2}")
+_DATETIME_FORMATS = ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y/%m/%d %H:%M:%S", "%Y/%m/%d %H:%M",
+                     "%Y-%m-%dT%H:%M", "%d %b %Y %H:%M", "%d %b %Y %H:%M:%S")
+
+
+def parse_datetime_text(s: str, dayfirst: bool = True) -> tuple[date | datetime | None, bool]:
+    """Like parse_date_text, but keeps the time of day when the text has one (2025-08-17 10:30).
+    Returns (None, False) for a text with a time that cannot be read exactly: a conversion must
+    never silently drop the time."""
+    t = s.strip()
+    d, ambiguous = parse_date_text(t, dayfirst)
+    if d is None or not _TIME_PART.search(t):
+        return d, ambiguous
+    try:
+        return datetime.fromisoformat(t.replace("/", "-").replace("Z", "+00:00")), ambiguous
+    except ValueError:
+        pass
+    for fmt in _DATETIME_FORMATS:
+        try:
+            return datetime.strptime(t, fmt), ambiguous
+        except ValueError:
+            continue
+    return None, False
+
+
+def to_timestamp(v: Any, nulls: frozenset[str] | tuple[str, ...] = DEFAULT_NULLS,
+                 dayfirst: bool = True) -> datetime | None:
+    """Date and time of day (midnight for plain dates), timezone-aware values converted to UTC."""
+    if is_null(v, nulls):
+        return None
+    if isinstance(v, datetime):
+        out = v
+    elif isinstance(v, date):
+        out = datetime(v.year, v.month, v.day)
+    elif isinstance(v, str):
+        d, _ = parse_datetime_text(v, dayfirst)
+        if d is None:
+            return None
+        out = d if isinstance(d, datetime) else datetime(d.year, d.month, d.day)
+    else:
+        return None
+    if out.tzinfo is not None:
+        out = out.astimezone(UTC).replace(tzinfo=None)
+    return out
 
 
 def _try_formats(t: str, fmts: tuple[str, ...]) -> date | None:

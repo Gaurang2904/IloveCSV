@@ -18,7 +18,7 @@ from ..resolution import apply_pre_export
 from ..rules.schema import RulesError, load_rules
 from ..rules.suggest import suggest_rules, with_prepare_options
 from ..sources import SourceOptions
-from .errors import Problem
+from .errors import Problem, read_problem
 from .settings import Settings
 
 
@@ -26,7 +26,7 @@ def load_wb(row: Workbook, source: SourceOptions | None = None):
     try:
         return read_workbook(row.stored_path, row.filename, source)
     except ReadError as e:
-        raise Problem(422, "unreadable-workbook", str(e)) from e
+        raise read_problem(e) from e
 
 
 def parse_rules(text: str):

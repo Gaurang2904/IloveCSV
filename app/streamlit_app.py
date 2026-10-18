@@ -166,6 +166,13 @@ def _inspection_panel(w: dict) -> dict:
         chosen = st.multiselect("Tables to prepare (default: all)", [t["name"] for t in tables], key="oc_tables")
         if chosen:
             source["sheets" if w["file_type"] == "xlsx" else "tables"] = chosen
+    if insp.get("excluded"):
+        st.error(f"**{len(insp['excluded'])} malformed record(s) or damaged part(s)** were found. Prepare stops on "
+                 "them unless you choose to exclude them.")
+        st.dataframe(pd.DataFrame(insp["excluded"]), hide_index=True, width="stretch")
+        if st.checkbox(f"Exclude these {len(insp['excluded'])} and import the rest (the output is marked PARTIAL and "
+                       "every excluded record is listed in the report)", value=False, key="oc_skip_bad"):
+            source["bad_records"] = "skip"
     if any("align_arrays" in w for w in insp.get("warnings", [])):
         if st.checkbox("The same-length arrays above are aligned: combine them into one table", value=False,
                        key="oc_align", help="Element k of each array is one record (e.g. one sample). Equal length "
@@ -255,7 +262,7 @@ if ss.step == ONE_CLICK:
             if sch["excluded"]["target"]:
                 roles.append({"role": "target", "columns": sch["excluded"]["target"]})
             roles += [{"role": f"excluded ({k})", "columns": ", ".join(sch["excluded"][k])}
-                      for k in ("identifier", "pii", "empty") if sch["excluded"][k]]
+                      for k in ("identifier", "pii", "empty", "constant") if sch["excluded"].get(k)]
             st.markdown(f"**{sch['sheet']}**")
             st.dataframe(pd.DataFrame(roles), hide_index=True, width="stretch")
             ml = mls.get(sch["sheet"], {})
@@ -328,8 +335,12 @@ if ss.step == ONE_CLICK:
             else:
                 st.success(f"Post-export verification passed ({len(checks)} checks: outputs reopened, columns and "
                            "row counts match, applied fixes present, re-validated).")
-        if (report.get("source") or {}).get("partial"):
-            st.warning("PARTIAL: only a sample of rows was processed (max_rows). Re-run without it for the full data.")
+        src = report.get("source") or {}
+        if src.get("partial"):
+            st.warning(f"**PARTIAL IMPORT:** {src.get('partial_reason') or 'only part of the source was imported'}. "
+                       "The results describe the imported part only.")
+            if src.get("excluded_records"):
+                st.dataframe(pd.DataFrame(src["excluded_records"]), hide_index=True, width="stretch")
         if p["review_required"] and st.button(f"Review the {p['review_required']} item(s) →"):
             go(STEPS[4])
 

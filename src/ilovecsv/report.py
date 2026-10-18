@@ -19,7 +19,8 @@ from .explain import explain_issue
 from .ml import feature_schema, mark_needs_review, ml_section
 from .models import ANOMALY, ERROR, RESOLUTIONS, jsonable
 from .pipeline import now_iso, tool_info
-from .reader import sha256_file
+from .reader import partial_text, sha256_file
+from .reader import where as record_where
 
 if TYPE_CHECKING:
     from .pipeline import ExportResult, RunResult
@@ -74,7 +75,9 @@ def build_audit(run: RunResult, exported: ExportResult | None = None) -> dict[st
                    "options": run.rules.source.model_dump(exclude_defaults=True),
                    "tables": {n: m for n, m in run.wb.tables_meta.items()},
                    "documentation": run.wb.docs, "unsupported": run.wb.unsupported, "partial": run.wb.partial,
-                   "warnings": run.wb.warnings, "structure": run.wb.tree[:200]},
+                   "warnings": run.wb.warnings, "structure": run.wb.tree[:200],
+                   "excluded_records": run.wb.excluded_records,
+                   "partial_reason": partial_text(run.wb.partial)},
         "recipe_decisions": run.recipe_decisions,
         "verification": exported.verification if exported else None,
     }
@@ -109,6 +112,7 @@ def build_audit(run: RunResult, exported: ExportResult | None = None) -> dict[st
 
 _FINDING_GROUPS = [  # (category, rule ids or prefixes), first match wins
     ("labels", ("target.",)),
+    ("time series", ("timeseries.",)),
     ("duplicates", ("row.duplicate", "unique", "key.duplicate")),
     ("suspicious readings", ("range", "not_future")),
     ("representation (safe conversions)", ("type.stored_as_text", "type.date_as_text", "type.date_serial",
@@ -136,6 +140,9 @@ def findings_overview(audit: dict[str, Any]) -> list[dict[str, Any]]:
                      "detail": detail[:500]})
 
     src = audit.get("source") or {}
+    for p in src.get("excluded_records", []):
+        add("structure", "excluded on request, not imported", 1, record_where(p),
+            p["problem"] + (f"  Raw: {p['raw']}" if p.get("raw") else ""))
     for w in src.get("warnings", []):
         add("structure", "source warning", 1, "", w)
     for u in src.get("unsupported", []):
@@ -161,6 +168,9 @@ def findings_overview(audit: dict[str, Any]) -> list[dict[str, Any]]:
         values = ", ".join(repr(i.get("value")) for i in items[:8] if i.get("value") is not None)
         add(cat, rid, len(items), where, (items[0].get("message") or "") + (f" Values: {values}" if values else ""))
     for sch in audit.get("columns", []):
+        for col in sch.get("excluded", {}).get("constant", []):
+            add("profile", "constant column (one value; kept, not a feature)", 1, f"{sch['sheet']}.{col}",
+                "every row holds the same value, so it carries no information for a model")
         for r in sch.get("needs_review", []):
             add("labels" if any("leakage" in x for x in r["reasons"]) else "invalid values",
                 "review before using as a feature", 1, f"{sch['sheet']}.{r['column']}", "; ".join(r["reasons"]))
@@ -265,6 +275,9 @@ def write_xlsx(audit: dict[str, Any], path: Path) -> None:
         left_e, left_w = after.get("errors", 0), after.get("warnings", 0)
         state = (f"NOT FULLY CLEAN: {left_e} error(s) and {left_w} warning(s) remain; see the Unresolved sheet"
                  if left_e or left_w else "Clean: no rule violations remain")
+        partial = (audit.get("source") or {}).get("partial")
+        if partial:
+            state = f"PARTIAL IMPORT ({partial_text(partial)}). {state} in the imported part"
     else:
         state = "Validated, not exported yet"
     resolutions = s.get("resolutions", {})
@@ -304,6 +317,8 @@ def write_xlsx(audit: dict[str, Any], path: Path) -> None:
     src = audit.get("source") or {}
     source_rows = [{"section": "table", "name": n, "detail": m.get("source", ""),
                     "notes": "; ".join(m.get("notes", []))} for n, m in src.get("tables", {}).items()]
+    source_rows += [{"section": "excluded (not imported)", "name": record_where(p), "detail": p["problem"],
+                     "notes": p.get("raw", "")} for p in src.get("excluded_records", [])]
     source_rows += [{"section": "warning", "name": "", "detail": w, "notes": ""} for w in src.get("warnings", [])]
     source_rows += [{"section": "not converted", "name": u.get("path", ""), "detail": u.get("reason", ""),
                      "notes": ""} for u in src.get("unsupported", [])]
@@ -397,7 +412,7 @@ def _ml_rows(audit: dict[str, Any]) -> list[tuple]:
                 rows.append(("feature list (ready)", sheet, role, ", ".join(cols), len(cols)))
         for r in schema.get("needs_review", []):
             rows.append(("needs review before use", sheet, r["column"], "; ".join(r["reasons"]), r["role"]))
-        for kind in ("identifier", "pii", "empty"):
+        for kind in ("identifier", "pii", "empty", "constant"):
             if schema["excluded"][kind]:
                 rows.append(("excluded from features", sheet, kind, ", ".join(schema["excluded"][kind]), ""))
         if schema["high_missing"]:

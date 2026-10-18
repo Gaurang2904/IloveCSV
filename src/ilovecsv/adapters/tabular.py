@@ -15,7 +15,9 @@ from ..reader import (
     _grid_to_sheet,
     count_lines,
     enforce_row_limit,
+    malformed,
     native,
+    note_excluded,
     read_workbook,
     sha256_file,
     sheet_from_frame,
@@ -160,32 +162,44 @@ class JSONAdapter(Adapter):
             records, bad = [], []
             limit = None if options.max_rows is None else options.max_rows
             total = 0
+            last_line = 0
             with open(path, encoding=options.encoding or "utf-8-sig", errors="replace") as f:
                 for n, line in enumerate(f, start=1):
                     if not line.strip():
                         continue
-                    total += 1
+                    total, last_line = total + 1, n
                     if limit is not None and len(records) >= limit:
                         continue  # keep counting for the total
                     try:
                         rec = json.loads(line)
                     except json.JSONDecodeError as e:
-                        bad.append(f"line {n}: {e.msg}")
+                        bad.append({"line": n, "problem": f"not valid JSON ({e.msg} at column {e.colno})",
+                                    "raw": line.rstrip("\r\n")[:300]})
+                        continue
+                    except RecursionError:
+                        bad.append({"line": n, "problem": "nested too deeply to read safely", "raw": line[:300]})
                         continue
                     records.append(rec if isinstance(rec, dict) else {"value": rec})
-            if bad:
-                wb.warnings.append(f"{len(bad)} line(s) are not valid JSON and were skipped: {'; '.join(bad[:5])}")
+            if bad and bad[-1]["line"] == last_line and not bad[-1]["raw"].rstrip().endswith("}"):
+                bad[-1]["problem"] = "truncated record at the end of the file (cut off before its closing brace)"
+            if bad and options.bad_records != "skip":
+                raise malformed("JSON lines", bad, valid=len(records), total=total)
             if not records:
                 raise ReadError("No JSON records found.")
-            df = pd.json_normalize(records, sep=".")
+            df, collisions = flatten_records(records)
             add_frame(wb, stem, df, options, source=f"{filename} (one record per line)", text_values="dates",
-                      notes=["nested objects flattened into dotted column names (a.b.c)"], total_rows=total)
+                      notes=["nested objects flattened into dotted column names (a.b.c)", *collisions],
+                      total_rows=total)
+            wb.warnings += collisions
+            note_excluded(wb, bad, "malformed JSON line(s)")
             return wb
         try:
             with open(path, encoding=options.encoding or "utf-8-sig") as f:
                 doc = json.load(f)
         except (json.JSONDecodeError, UnicodeDecodeError) as e:
-            raise ReadError(f"Not valid JSON: {e}") from e
+            raise ReadError(f"Not valid JSON: {e}. Nothing was imported.") from e
+        except RecursionError as e:
+            raise ReadError("The JSON document is nested too deeply to read safely. Nothing was imported.") from e
         if options.json_records:
             target = _follow(doc, options.json_records)
             if not isinstance(target, list):
@@ -206,11 +220,48 @@ class JSONAdapter(Adapter):
                                "became its own table. Set json_records to choose one.")
         for where, items in candidates:
             recs = [x if isinstance(x, dict) else {"value": x} for x in items]
-            df = pd.json_normalize(recs, sep=".")
+            df, collisions = flatten_records(recs)
             name = stem if len(candidates) == 1 else f"{stem}.{where}"
             add_frame(wb, name, df, options, source=f"{filename} → {where}", text_values="dates",
-                      notes=[f"records taken from '{where}'", "nested objects flattened into dotted column names"])
+                      notes=[f"records taken from '{where}'", "nested objects flattened into dotted column names",
+                             *collisions])
+            wb.warnings += collisions
         return wb
+
+
+def flatten_records(records: list[dict]) -> tuple[pd.DataFrame, list[str]]:
+    """Flatten nested objects into dotted names (customer.city). If a flattened name collides with a
+    key that already contains the dot ({"a.b": 1, "a": {"b": 2}}), pandas would silently keep one of
+    the two values; here the nested one is named with '/' (a/b) instead, and the collision is reported."""
+    paths: dict[tuple[str, ...], None] = {}
+
+    def walk(obj: dict, prefix: tuple[str, ...], out: dict[tuple[str, ...], Any]) -> None:
+        for k, v in obj.items():
+            p = (*prefix, str(k))
+            if isinstance(v, dict) and v:
+                walk(v, p, out)
+            else:
+                out[p] = v
+
+    flat_rows = []
+    for rec in records:
+        row: dict[tuple[str, ...], Any] = {}
+        walk(rec, (), row)
+        flat_rows.append(row)
+        paths.update(dict.fromkeys(row))
+    by_name: dict[str, list[tuple[str, ...]]] = {}
+    for p in paths:
+        by_name.setdefault(".".join(p), []).append(p)
+    names, notes = {}, []
+    for dotted, ps in by_name.items():
+        ps = sorted(ps, key=len)
+        names[ps[0]] = dotted
+        for p in ps[1:]:
+            names[p] = "/".join(p)
+            notes.append(f"field name collision: '{dotted}' exists as a key and as a nested path "
+                         f"{' -> '.join(p)}; both kept, the nested one as '{names[p]}'")
+    df = pd.DataFrame([{names[p]: v for p, v in row.items()} for row in flat_rows], columns=list(names.values()))
+    return df, notes
 
 
 # ----------------------------------------------------------------------------- Parquet / Arrow

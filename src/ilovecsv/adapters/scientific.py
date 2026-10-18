@@ -17,6 +17,8 @@ the impedance spectra, so no time series is squeezed into one awkward sheet.
 
 from __future__ import annotations
 
+import zipfile
+import zlib
 from collections import Counter
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -25,7 +27,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from ..reader import ReadError, WorkbookData, sha256_file
+from ..reader import DamagedFileError, ReadError, WorkbookData, note_excluded, sha256_file
 from ..sources import SourceOptions
 from .base import Adapter, frames_workbook
 from .tabular import add_frame
@@ -378,7 +380,8 @@ class MATAdapter(Adapter):
         except NotImplementedError as e:  # v7.3 without the text header
             return HDF5Adapter().load(path, filename, options, matlab=True) if "HDF" in str(e) else _raise(e)
         except Exception as e:
-            raise ReadError(f"Not a readable MATLAB file: {e}") from e
+            raise DamagedFileError(f"Not a readable MATLAB file: it is damaged, truncated or not a .mat file ({e}). "
+                                   "Nothing was imported.") from e
         variables = {k: v for k, v in content.items() if not k.startswith("__")}
         wb = frames_workbook(filename, path, sha256_file(path), "mat")
         for k, v in variables.items():
@@ -444,14 +447,53 @@ class NumpyAdapter(Adapter):
     def load(self, path: Path, filename: str, options: SourceOptions) -> WorkbookData:
         suffix = Path(filename).suffix.lower()
         wb = frames_workbook(filename, path, sha256_file(path), suffix.lstrip("."))
+        if suffix == ".npz":  # an .npz is a zip: same decompression limits as archives
+            from .archive import MAX_RATIO, MAX_TOTAL_BYTES
+
+            try:
+                with zipfile.ZipFile(path) as z:
+                    infos = z.infolist()
+            except (zipfile.BadZipFile, EOFError, OSError) as e:
+                raise DamagedFileError(f"The .npz file is damaged or truncated: it is not a readable NumPy archive "
+                                       f"({e}). No arrays were loaded.") from e
+            total = sum(i.file_size for i in infos)
+            if total > MAX_TOTAL_BYTES or any(i.compress_size and i.file_size > 1 << 20
+                                              and i.file_size / i.compress_size > MAX_RATIO for i in infos):
+                raise ReadError(f"The .npz expands to {total / 1e9:.1f} GB or has a suspicious compression ratio; "
+                                "refused (decompression limit). Nothing was imported.")
         try:
             loaded = np.load(path, allow_pickle=False)  # never unpickle untrusted files
         except ValueError as e:
             if "pickle" in str(e).lower():
                 raise ReadError("This NumPy file contains Python objects that need pickle to load; IloveCSV does "
                                 "not unpickle untrusted files. Re-save it with numeric/structured arrays.") from e
-            raise ReadError(f"Not a readable NumPy file: {e}") from e
-        arrays = {Path(filename).stem: loaded} if suffix == ".npy" else {k: loaded[k] for k in loaded.files}
+            raise DamagedFileError(f"The {suffix} file is damaged or truncated ({e}). No arrays were loaded.") from e
+        except (zipfile.BadZipFile, EOFError, OSError) as e:
+            raise DamagedFileError(f"The {suffix} file is damaged or truncated: it is not a readable NumPy "
+                                   f"{'archive' if suffix == '.npz' else 'array'} ({e}). No arrays were loaded.") from e
+        if suffix == ".npy":
+            arrays = {Path(filename).stem: loaded}
+        else:
+            arrays, damaged = {}, []
+            for k in loaded.files:  # arrays are read lazily: a damaged member fails here
+                try:
+                    arrays[k] = loaded[k]
+                except ValueError as e:
+                    if "pickle" in str(e).lower():
+                        wb.unsupported.append({"path": k, "reason": "holds Python objects (needs pickle): not "
+                                                                    "loaded, IloveCSV does not unpickle untrusted data"})
+                        continue
+                    damaged.append({"member": k, "line": None, "problem": f"damaged array, not loaded ({e})", "raw": ""})
+                except (zipfile.BadZipFile, zlib.error, EOFError, OSError) as e:
+                    damaged.append({"member": k, "line": None, "problem": f"damaged array, not loaded ({e})", "raw": ""})
+            if damaged and options.bad_records != "skip":
+                raise DamagedFileError(
+                    f"{len(damaged)} of {len(loaded.files)} arrays in the .npz are damaged: "
+                    + "; ".join(f"{d['member']}: {d['problem']}" for d in damaged[:5])
+                    + f". Intact: {', '.join(arrays) or 'none'}. Nothing was imported; re-run with bad_records: "
+                      "skip (CLI --skip-bad-records) to load only the intact arrays (output marked PARTIAL).",
+                    problems=damaged)
+            note_excluded(wb, damaged, "damaged array(s)")
         for k, a in arrays.items():
             wb.tree.append({"path": k, "kind": f"array {a.dtype}", "shape": _shape(a), "depth": 0})
         tables: dict[str, pd.DataFrame] = {}
@@ -483,7 +525,8 @@ class HDF5Adapter(Adapter):
         try:
             f = h5py.File(path, "r")
         except Exception as e:
-            raise ReadError(f"Not a readable HDF5 file: {e}") from e
+            raise DamagedFileError(f"Not a readable HDF5 file: it is damaged, truncated or not HDF5 ({e}). Nothing was "
+                                   "imported.") from e
         wb = frames_workbook(filename, path, sha256_file(path), "mat_v7.3" if matlab else "hdf5")
         tables: dict[str, pd.DataFrame] = {}
         notes: dict[str, list[str]] = {}
