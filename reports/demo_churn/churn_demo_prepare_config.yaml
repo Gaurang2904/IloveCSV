@@ -20,3 +20,4 @@ columns:
     type: text
     allowed: ['No', 'Yes']
 target: churn
+target_labels: ['No', 'Yes']

@@ -120,7 +120,8 @@ def test_feature_schema(prepared):
     sch = report["columns"][0]
     assert sch["features"]["numeric"] == ["monthly_charges", "tenure_months", "support_calls"]
     assert sch["features"]["categorical"] == ["plan", "contract"]
-    assert sch["features"]["datetime"] == ["signup_date", "cancellation_date"]
+    assert sch["features"]["datetime"] == ["signup_date"]  # cancellation_date leaks, so it is not "ready"
+    assert [r["column"] for r in sch["needs_review"]] == ["cancellation_date"]
     assert sch["excluded"] == {"identifier": ["customer_id"], "pii": ["email"], "empty": [], "target": "churn"}
 
 
@@ -205,7 +206,7 @@ def test_cli_prepare(churn, tmp_path, capsys):
     code = main(["prepare", str(path), "--target", "churn", "--out", str(tmp_path)])
     out = capsys.readouterr().out
     assert code == 1  # missing labels are unresolved errors
-    assert "Safe Auto-Clean applied" in out and "possible leakage: cancellation_date" in out
+    assert "Safe Auto-Clean applied" in out and "cancellation_date: possible target leakage" in out
     assert (tmp_path / "churn_cleaned.csv").exists()
     assert main(["prepare", str(path), "--target", "nope", "--out", str(tmp_path / "x")]) == 2
 

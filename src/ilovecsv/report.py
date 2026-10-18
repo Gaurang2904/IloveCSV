@@ -16,7 +16,7 @@ import pandas as pd
 from jinja2 import Environment, PackageLoader, select_autoescape
 
 from .explain import explain_issue
-from .ml import feature_schema, ml_section
+from .ml import feature_schema, mark_needs_review, ml_section
 from .models import ANOMALY, ERROR, RESOLUTIONS, jsonable
 from .pipeline import now_iso, tool_info
 from .reader import sha256_file
@@ -95,6 +95,7 @@ def build_audit(run: RunResult, exported: ExportResult | None = None) -> dict[st
             "kept_as_text": exported.kept_as_text,
             "config_file": exported.config_path.name if exported.config_path else None,
         }
+    mark_needs_review(audit["columns"], audit["ml"], (audit["dataset"] or {}).get("kept_as_text", []))
     return audit
 
 
@@ -282,10 +283,13 @@ def _ml_rows(audit: dict[str, Any]) -> list[tuple]:
     for schema in audit.get("columns", []):
         sheet = schema["sheet"]
         for c in schema["columns"]:
-            rows.append(("column", sheet, c["name"], f"role={c['role']}", c["dtype"]))
+            rows.append(("column", sheet, c["name"], f"role={c['role']}, status={c.get('status', 'ready')}",
+                         c["dtype"]))
         for role, cols in schema["features"].items():
             if cols:
-                rows.append(("feature list", sheet, role, ", ".join(cols), len(cols)))
+                rows.append(("feature list (ready)", sheet, role, ", ".join(cols), len(cols)))
+        for r in schema.get("needs_review", []):
+            rows.append(("needs review before use", sheet, r["column"], "; ".join(r["reasons"]), r["role"]))
         for kind in ("identifier", "pii", "empty"):
             if schema["excluded"][kind]:
                 rows.append(("excluded from features", sheet, kind, ", ".join(schema["excluded"][kind]), ""))
@@ -297,8 +301,12 @@ def _ml_rows(audit: dict[str, Any]) -> list[tuple]:
             continue
         sheet, ts = entry["sheet"], entry.get("target_summary") or {}
         rows.append(("target", sheet, entry["target"], ts.get("kind", ""), f"{ts.get('missing', 0)} missing"))
+        if ts.get("valid_labels"):
+            rows.append(("valid labels", sheet, entry["target"], ", ".join(ts["valid_labels"]), len(ts["valid_labels"])))
         for c in ts.get("classes", []):
             rows.append(("class balance", sheet, c["label"], f"{c['share']:.1%}", c["count"]))
+        for u in ts.get("unrecognised", []):
+            rows.append(("unrecognised label (not guessed)", sheet, u["label"], "", u["count"]))
         missing = entry.get("missing_target_rows", [])
         conflicts = entry.get("label_conflicts", [])
         rows.append(("missing labels (rows)", sheet, "", _capped(map(str, missing), ", "), len(missing)))

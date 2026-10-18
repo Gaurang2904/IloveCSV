@@ -67,6 +67,34 @@ def sheet_schema(prof: SheetProfile, srules: SheetRules | None) -> dict[str, Any
     }
 
 
+def mark_needs_review(schemas: list[dict[str, Any]], ml: dict[str, Any],
+                      kept_as_text: list[dict[str, Any]]) -> None:
+    """Take columns that are not ready for a model out of the feature lists, with the reason.
+
+    * leakage suspects: may encode the outcome; check they exist at prediction time;
+    * columns kept as text: some values could not be parsed into the intended dtype.
+    The columns stay in the dataset; only the "ready to use" lists change.
+    """
+    leaks = {(e["sheet"], s["column"]): s for e in ml.get("sheets", []) for s in e.get("leakage_suspects", [])}
+    kept = {(k["sheet"], k["column"]): k for k in kept_as_text}
+    for sch in schemas:
+        review = []
+        for col in sch["columns"]:
+            key = (sch["sheet"], col["name"])
+            reasons = []
+            if key in leaks:
+                reasons.append(f"possible target leakage: {leaks[key]['detail']}")
+            if key in kept:
+                reasons.append(f"{kept[key]['unparseable_values']} value(s) could not be parsed as "
+                               f"{kept[key]['intended_dtype']}; column exported as text")
+            col["status"] = "review" if reasons else "ready"
+            if reasons:
+                review.append({"column": col["name"], "role": col["role"], "reasons": reasons})
+        sch["needs_review"] = review
+        flagged = {r["column"] for r in review}
+        sch["features"] = {role: [c for c in cols if c not in flagged] for role, cols in sch["features"].items()}
+
+
 def feature_schema(run: RunResult) -> list[dict[str, Any]]:
     """One schema per validated sheet, from the profiles of `run` (pass the after-cleaning run)."""
     out = []
@@ -85,12 +113,23 @@ def _norm(v: Any, nulls) -> str | None:
     return None if t is None else collapse_ws(t)
 
 
-def target_summary(sheet: SheetData, target: str, nulls) -> dict[str, Any] | None:
+def _label_map(valid_labels: list[str] | None) -> dict[str, str] | None:
+    """casefolded label -> its declared spelling ('yes' -> 'Yes'); None when no labels are known."""
+    return {collapse_ws(x).casefold(): collapse_ws(x) for x in valid_labels} if valid_labels else None
+
+
+def target_summary(sheet: SheetData, target: str, nulls, valid_labels: list[str] | None = None) -> dict[str, Any] | None:
     if target not in sheet.df.columns:
         return None
     values = [_norm(v, nulls) for v in sheet.df[target]]
-    present = [v for v in values if v is not None]
-    summary: dict[str, Any] = {"column": target, "rows": len(values), "missing": len(values) - len(present)}
+    canon = _label_map(valid_labels)
+    invalid = Counter(v for v in values if v is not None and canon is not None and v.casefold() not in canon)
+    present = [v if canon is None else canon[v.casefold()] for v in values
+               if v is not None and (canon is None or v.casefold() in canon)]
+    summary: dict[str, Any] = {"column": target, "rows": len(values),
+                               "missing": sum(1 for v in values if v is None),
+                               "unrecognised": [{"label": k, "count": n} for k, n in invalid.most_common()],
+                               "valid_labels": valid_labels}
     nums = [to_number(v, nulls) for v in present]
     distinct = set(present)
     if present and all(n is not None for n in nums) and len(distinct) > 20:
@@ -107,7 +146,9 @@ def target_summary(sheet: SheetData, target: str, nulls) -> dict[str, Any] | Non
     return summary
 
 
-LEAKAGE_ACCURACY = 0.99  # near-perfect: one stray data error should not hide a leak
+LEAKAGE_ACCURACY = 0.95  # the column alone predicts the label for at least 95% of rows ...
+LEAKAGE_GAIN = 0.8       # ... and removes at least 80% of the errors of always guessing the majority class
+LEAKAGE_MIN_GROUP = 5    # the smaller side of a missingness split needs a few rows to count
 
 
 def _separation(pairs: list[tuple[Any, str]]) -> tuple[float, dict[Any, str]]:
@@ -120,18 +161,30 @@ def _separation(pairs: list[tuple[Any, str]]) -> tuple[float, dict[Any, str]]:
     return hits / len(pairs), majority
 
 
-def leakage_suspects(sheet: SheetData, prof: SheetProfile, target: str, nulls) -> list[dict[str, Any]]:
-    """Columns that predict a categorical target (near-)perfectly: review before using them.
+def _gain(acc: float, baseline: float) -> float:
+    """Share of the majority-guess errors the column removes (1.0 = perfect, 0 = no better)."""
+    return 0.0 if baseline >= 1 else (acc - baseline) / (1 - baseline)
+
+
+def leakage_suspects(sheet: SheetData, prof: SheetProfile, target: str, nulls,
+                     valid_labels: list[str] | None = None) -> list[dict[str, Any]]:
+    """Columns that predict a categorical target almost perfectly: review before using them.
 
     * missingness: whether the column is empty predicts the label (e.g. cancellation_date exists
       only for churned customers);
     * value: the column's value predicts the label (e.g. a status set after the outcome).
-    Prediction accuracy >= 99% counts, so a single data error does not hide a leak.
+    A column counts when it alone predicts >= 95% of labels AND removes >= 80% of the errors of
+    always guessing the majority class, so one stray data error cannot hide a leak, and a column
+    on a heavily imbalanced target does not look predictive just by matching the majority.
+    Unrecognised labels (outside `valid_labels`) are ignored rather than treated as a class.
     """
     df = sheet.df
     if target not in df.columns:
         return []
+    canon = _label_map(valid_labels)
     labels = [_norm(v, nulls) for v in df[target]]
+    if canon is not None:
+        labels = [None if y is None else canon.get(y.casefold()) for y in labels]
     if len({v for v in labels if v is not None}) < 2 or len({v for v in labels if v is not None}) > 20:
         return []  # only for classification targets
     out = []
@@ -145,13 +198,15 @@ def leakage_suspects(sheet: SheetData, prof: SheetProfile, target: str, nulls) -
             continue
         baseline = Counter(y for _, y in pairs).most_common(1)[0][1] / len(pairs)
         # missingness
-        missing_share = sum(1 for v, _ in pairs if v is None) / len(pairs)
-        if 0.05 <= missing_share <= 0.95:
+        n_missing = sum(1 for v, _ in pairs if v is None)
+        if min(n_missing, len(pairs) - n_missing) >= LEAKAGE_MIN_GROUP:
             acc, majority = _separation([(v is None, y) for v, y in pairs])
-            if acc >= LEAKAGE_ACCURACY and acc > baseline and majority[True] != majority[False]:
+            gain = _gain(acc, baseline)
+            if acc >= LEAKAGE_ACCURACY and gain >= LEAKAGE_GAIN and majority[True] != majority[False]:
                 out.append({"column": str(col), "kind": "missingness", "accuracy": round(acc, 4),
+                            "gain_over_baseline": round(gain, 4),
                             "detail": f"empty -> {target} = '{majority[True]}', filled -> '{majority[False]}' "
-                                      f"for {acc:.1%} of rows"})
+                                      f"for {acc:.1%} of rows (majority guess: {baseline:.1%})"})
                 continue
         # value -> label
         present = [(v, y) for v, y in pairs if v is not None]
@@ -159,9 +214,13 @@ def leakage_suspects(sheet: SheetData, prof: SheetProfile, target: str, nulls) -
         if len(present) < 20 or not 2 <= len(distinct) <= min(50, 0.2 * len(present)):
             continue  # near-unique columns "predict" anything; leave those to the identifier check
         acc, _ = _separation(present)
-        if acc >= LEAKAGE_ACCURACY and acc > baseline:
+        base_present = Counter(y for _, y in present).most_common(1)[0][1] / len(present)
+        gain = _gain(acc, base_present)
+        if acc >= LEAKAGE_ACCURACY and gain >= LEAKAGE_GAIN:
             out.append({"column": str(col), "kind": "value", "accuracy": round(acc, 4),
-                        "detail": f"its {len(distinct)} values predict {target} for {acc:.1%} of rows"})
+                        "gain_over_baseline": round(gain, 4),
+                        "detail": f"its {len(distinct)} values predict {target} for {acc:.1%} of rows "
+                                  f"(majority guess: {base_present:.1%})"})
     return out
 
 
@@ -178,8 +237,12 @@ def ml_section(run: RunResult, data_run: RunResult | None = None) -> dict[str, A
             continue
         entry: dict[str, Any] = {"sheet": name, "target": srules.target}
         if srules.target:
-            entry["target_summary"] = target_summary(sheet, srules.target, nulls)
-            entry["leakage_suspects"] = leakage_suspects(sheet, prof, srules.target, nulls)
+            rule = srules.columns.get(srules.target)
+            labels = srules.target_labels or (rule.allowed if rule else None)
+            entry["target_summary"] = target_summary(sheet, srules.target, nulls, labels)
+            entry["leakage_suspects"] = leakage_suspects(sheet, prof, srules.target, nulls, labels)
+            entry["invalid_label_rows"] = [i.xl_row for i in run.validation.issues
+                                           if i.sheet == name and i.rule_id == "target.invalid_label"]
             entry["missing_target_rows"] = [i.xl_row for i in run.validation.issues
                                             if i.sheet == name and i.rule_id == "target.missing"]
             entry["label_conflicts"] = sorted({tuple((i.context or {}).get("rows", [])) for i in run.validation.issues

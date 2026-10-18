@@ -166,12 +166,11 @@ pre { white-space: pre-wrap; background: var(--surface-0); padding: 12px; border
       <div class="name mono">{{ c.label }}</div><div class="track" title="{{ c.label }}: {{ c.count }} rows"><div class="fill" style="width: {{ '%.1f' % (c.share * 100) }}%"></div></div><div class="n">{{ c.count }}</div>
     {% endfor %}</div>{% endif %}
     {% if ml.label_conflicts %}<p class="warn">{{ ml.label_conflicts | length }} group(s) of rows have identical features but different labels (rows {% for g in ml.label_conflicts[:5] %}{{ g | join(" / ") }}{% if not loop.last %}; {% endif %}{% endfor %}).</p>{% endif %}
-    {% for s in ml.leakage_suspects %}<p class="warn"><strong>Possible leakage:</strong> <span class="mono">{{ s.column }}</span>: {{ s.detail }}. Check it is known at prediction time before using it as a feature.</p>{% endfor %}
+    {% if ts.unrecognised %}<p class="warn"><strong>Unrecognised labels (not guessed):</strong> {% for u in ts.unrecognised %}<span class="mono">'{{ u.label }}'</span> ×{{ u.count }}{% if not loop.last %}, {% endif %}{% endfor %}. Valid labels: {{ (ts.valid_labels or []) | join(", ") }}.</p>{% endif %}
     {% endif %}
+    {% for r in sch.needs_review %}<p class="warn"><strong>Review before using <span class="mono">{{ r.column }}</span></strong> (left out of the feature lists, kept in the dataset): {{ r.reasons | join("; ") }}.</p>{% endfor %}
   </div>
   {% endfor %}
-  {% if a.dataset and a.dataset.kept_as_text %}<p class="warn">Kept as text because some values could not be parsed:
-    {% for k in a.dataset.kept_as_text %}<span class="mono">{{ k.sheet }}.{{ k.column }}</span> ({{ k.unparseable_values }} value(s), intended {{ k.intended_dtype }}){% if not loop.last %}, {% endif %}{% endfor %}.</p>{% endif %}
 
   <h2>Review required ({{ a.review_required | length }})</h2>
   <div class="card scroll">

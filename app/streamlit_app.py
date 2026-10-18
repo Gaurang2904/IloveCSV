@@ -154,13 +154,20 @@ if ss.step == ONE_CLICK:
                               index=(columns.index(guess) + 1) if guess else 0,
                               help="Enables label checks (missing labels, conflicting labels, leakage suspects) "
                                    "and protects the labels from anything but case/spacing fixes.")
-        remove_exact = c2.checkbox("Remove exact duplicate rows automatically", value=False,
-                                   help="Rows identical in every column, ids included. Off: they wait for review. "
-                                        "Near-duplicates are always review-only.")
+        remove_exact = c2.checkbox("Remove exact duplicate rows automatically (off = review them)", value=False,
+                                   help="Rows identical in every column, ids included. Leave this off when repeated "
+                                        "observations can be legitimate. Near-duplicates are always review-only.")
         parquet = c3.checkbox("Also Parquet", value=False, help="Typed columns for pandas/scikit-learn.")
+        labels = ""
+        if target != "(none)":
+            labels = st.text_input("Valid target labels (optional, comma separated)", placeholder="e.g. No, Yes",
+                                   help="Variants such as ' yes ' or 'NO' are normalised to these exact labels; any "
+                                        "other value is flagged as unrecognised and never guessed. Empty: use the "
+                                        "labels found in the data (placeholders such as '?' are treated as missing).")
         if st.button("Prepare dataset", type="primary"):
             body = {"target": None if target == "(none)" else target, "remove_exact_duplicates": remove_exact,
-                    "formats": ["csv", "parquet"] if parquet else ["csv"]}
+                    "formats": ["csv", "parquet"] if parquet else ["csv"],
+                    "target_labels": [x.strip() for x in labels.split(",") if x.strip()] or None}
             with st.spinner("Profiling, validating, applying safe fixes, re-validating, exporting…"):
                 r = call("POST", f"/v1/workbooks/{w['id']}/prepare", json=body)
             if r:
@@ -201,46 +208,54 @@ if ss.step == ONE_CLICK:
                 st.caption(f"Target **{ml['target']}**: {ts['missing']} missing label(s)"
                            + (f", imbalance {ts['imbalance_ratio']}:1" if ts.get("imbalance_ratio") else ""))
                 st.bar_chart(pd.DataFrame(ts["classes"]).set_index("label")["count"], horizontal=True)
-            for leak in ml.get("leakage_suspects", []):
-                st.warning(f"Possible leakage: **{leak['column']}**: {leak['detail']}. "
-                           "Check it is known at prediction time before using it as a feature.")
+            for r in sch.get("needs_review", []):
+                st.warning(f"**Review before using `{r['column']}`** (not in the feature lists above): "
+                           + "; ".join(r["reasons"]) + ". The column is kept in the dataset.")
+            if ts.get("unrecognised"):
+                st.error("Unrecognised target labels (not guessed): "
+                         + ", ".join(f"'{u['label']}' ×{u['count']}" for u in ts["unrecognised"])
+                         + f". Valid labels: {', '.join(ts.get('valid_labels') or [])}.")
             if ml.get("missing_target_rows"):
-                st.info(f"{len(ml['missing_target_rows'])} row(s) have no label (rows "
+                st.info(f"{len(ml['missing_target_rows'])} row(s) have no usable label (rows "
                         f"{', '.join(map(str, ml['missing_target_rows'][:10]))}). They are kept and flagged.")
             if ml.get("label_conflicts"):
-                st.info(f"{len(ml['label_conflicts'])} group(s) of rows have identical features but different labels.")
+                st.info(f"{len(ml['label_conflicts'])} group(s) of rows have identical features but different labels: "
+                        + "; ".join(" / ".join(map(str, g)) for g in ml["label_conflicts"][:5]) + ".")
             if sch["high_missing"]:
                 st.caption(f"Over 50% missing (kept; decide in your pipeline): {', '.join(sch['high_missing'])}")
-        for k in ds.get("kept_as_text", []):
-            st.caption(f"{k['sheet']}.{k['column']} kept as text: {k['unparseable_values']} value(s) could not be "
-                       f"parsed as {k['intended_dtype']} (see unresolved issues).")
 
         st.subheader("Downloads")
         stem = Path(ss.workbook["filename"]).stem
-        dl = st.columns(4)
-        i = 0
-        for sheet, files in ds.get("files", {}).items():
-            for fmt, name in files.items():
-                d = call("GET", f"/v1/runs/{rid}/dataset", params={"format": fmt, "sheet": sheet})
-                if d:
-                    dl[i % 4].download_button(f"Dataset ({name})", d.content, name, key=f"dl-{sheet}-{fmt}")
-                    i += 1
-        for fmt in ("json", "xlsx", "html"):
-            d = call("GET", f"/v1/runs/{rid}/report", params={"format": fmt})
-            if d:
-                dl[i % 4].download_button(f"Cleaning report (.{fmt})", d.content, f"{stem}_cleaning_report.{fmt}",
-                                          key=f"dl-rep-{fmt}")
-                i += 1
-        if ss.workbook["file_type"] == "xlsx":
+        is_xlsx = ss.workbook["file_type"] == "xlsx"
+        a1, a2, a3 = st.columns(3)
+        with a1:
+            st.markdown("**Cleaned file**  \n<small>Same format as your upload, all approved fixes applied.</small>",
+                        unsafe_allow_html=True)
             d = call("GET", f"/v1/runs/{rid}/corrected")
             if d:
-                dl[i % 4].download_button("Annotated workbook (.xlsx)", d.content, f"{stem}_cleaned.xlsx",
-                                          key="dl-annotated")
-                i += 1
-        d = call("GET", f"/v1/runs/{rid}/config")
-        if d:
-            dl[i % 4].download_button("Prepare config (.yaml)", d.content, f"{stem}_prepare_config.yaml",
-                                      key="dl-config")
+                label = "Cleaned workbook (.xlsx, changes highlighted)" if is_xlsx else "Cleaned file (.csv)"
+                st.download_button(label, d.content, f"{stem}_cleaned.{'xlsx' if is_xlsx else 'csv'}",
+                                   key="dl-cleaned")
+        with a2:
+            st.markdown("**ML-ready dataset**  \n<small>One table per sheet: ISO dates, plain numbers, empty cells "
+                        "for missing values.</small>", unsafe_allow_html=True)
+            for sheet, files in ds.get("files", {}).items():
+                for fmt, name in files.items():
+                    d = call("GET", f"/v1/runs/{rid}/dataset", params={"format": fmt, "sheet": sheet})
+                    if d:
+                        st.download_button(f"{name}", d.content, name, key=f"dl-{sheet}-{fmt}")
+        with a3:
+            st.markdown("**Cleaning report & config**  \n<small>What changed, what needs review, what is "
+                        "unresolved.</small>", unsafe_allow_html=True)
+            for fmt in ("json", "xlsx", "html"):
+                d = call("GET", f"/v1/runs/{rid}/report", params={"format": fmt})
+                if d:
+                    st.download_button(f"Cleaning report (.{fmt})", d.content, f"{stem}_cleaning_report.{fmt}",
+                                       key=f"dl-rep-{fmt}")
+            d = call("GET", f"/v1/runs/{rid}/config")
+            if d:
+                st.download_button("Prepare config (.yaml)", d.content, f"{stem}_prepare_config.yaml",
+                                   key="dl-config")
         if p["review_required"] and st.button(f"Review the {p['review_required']} item(s) →"):
             go(STEPS[4])
 

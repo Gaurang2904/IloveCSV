@@ -203,6 +203,7 @@ def profile_column(name: str, letter: str, values: list[Any], nulls=DEFAULT_NULL
             prof.numeric = {
                 "bulk_min": float(bulk.min()),
                 "bulk_max": float(bulk.max()),
+                "negative_share": round(float((nums < 0).mean()), 4),
                 "min": float(nums.min()),
                 "max": float(nums.max()),
                 "mean": float(nums.mean()),
@@ -267,17 +268,61 @@ def collapse_ws(s: str) -> str:
     return " ".join(s.split())
 
 
+def text_style(s: str) -> str:
+    if sum(ch.isalpha() for ch in s) < 2:
+        return "other"
+    if s.isupper():
+        return "upper"
+    if s.islower():
+        return "lower"
+    return "title" if s.istitle() else "mixed"
+
+
+def column_style(spellings: Counter) -> str | None:
+    """The capitalisation most values in the column use (weighted by rows), if one dominates."""
+    weights: Counter = Counter()
+    for s, n in spellings.items():
+        style = text_style(s)
+        if style != "other":
+            weights[style] += n
+    if not weights:
+        return None
+    style, n = weights.most_common(1)[0]
+    return style if n / sum(weights.values()) >= 0.5 else None
+
+
+def pick_spelling(variants: Counter, style: str | None = None) -> str:
+    """Canonical spelling for one group of case/spacing variants.
+
+    Prefer variants written in the column's dominant style (so 'Yes' next to 'No', even when 'YES'
+    is more frequent), then the most frequent, then Title Case. 'USA' stays 'USA' when no variant in
+    the dominant style exists.
+    """
+    pool = {s: n for s, n in variants.items() if style and text_style(s) == style} or dict(variants)
+    return max(pool.items(), key=lambda kv: (kv[1], kv[0].istitle(), not (kv[0].isupper() or kv[0].islower())))[0]
+
+
+def canonical_spellings(strings: list[str]) -> dict[str, str]:
+    """casefolded value -> canonical spelling, for every value of one column."""
+    spelled = Counter(collapse_ws(s) for s in strings if isinstance(s, str) and s.strip())
+    style = column_style(spelled)
+    groups: dict[str, Counter] = defaultdict(Counter)
+    for s, n in spelled.items():
+        groups[s.casefold()][s] += n
+    return {k: pick_spelling(c, style) for k, c in groups.items()}
+
+
 def case_variant_groups(strings: list[str], limit: int = 10) -> list[dict[str, Any]]:
     groups: dict[str, Counter] = defaultdict(Counter)
     for s in strings:
         groups[collapse_ws(s).casefold()][s] += 1
+    canonical = canonical_spellings(strings)
     out = []
-    for counter in groups.values():
+    for key, counter in groups.items():
         if len(counter) > 1:
-            canonical = counter.most_common(1)[0][0]
             out.append(
                 {
-                    "canonical": collapse_ws(canonical),
+                    "canonical": canonical[key],
                     "variants": [{"value": v, "count": c} for v, c in counter.most_common()],
                 }
             )

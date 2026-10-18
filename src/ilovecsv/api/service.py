@@ -126,14 +126,14 @@ def approve_safe(db: Session, run: Run, approver: str) -> int:
 
 
 def prepare_run(db: Session, user: User, wb_row: Workbook, settings: Settings, target: str | None,
-                remove_exact_duplicates: bool, formats: list[str], rules_yaml: str | None = None
-                ) -> tuple[Run, ExportResult, int]:
+                remove_exact_duplicates: bool, formats: list[str], rules_yaml: str | None = None,
+                target_labels: list[str] | None = None) -> tuple[Run, ExportResult, int]:
     """One click: suggested (or saved) rules + options, validate, Safe Auto-Clean, export."""
     wb = load_wb(wb_row)
     text = rules_yaml or suggest_rules(profile_workbook(wb), for_ml=True)
     columns = {name: [str(c) for c in s.df.columns] for name, s in wb.sheets.items()}
     try:
-        text = with_prepare_options(text, columns, target, remove_exact_duplicates)
+        text = with_prepare_options(text, columns, target, remove_exact_duplicates, target_labels)
     except ValueError as e:
         raise Problem(422, "invalid-target", str(e)) from e
     run, _ = create_run(db, user, wb_row, text)

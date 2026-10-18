@@ -19,7 +19,7 @@ from typing import Any, Literal
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
-from ..values import DEFAULT_NULLS
+from ..values import DEFAULT_NULLS, DEFAULT_TYPED_NULLS
 from .expr import ExprError, compile_expr
 
 Severity = Literal["error", "warning", "info"]
@@ -199,6 +199,9 @@ class SheetRules(_Strict):
     # Label column for supervised learning: enables target checks and protects the labels from
     # anything but trim/case/placeholder fixes.
     target: str | None = None
+    # The valid labels, e.g. [No, Yes]. Case/spacing variants are normalised to these exact
+    # spellings; any other value is flagged as an unrecognised label and never guessed.
+    target_labels: list[str] | None = None
     duplicates: DuplicatePolicy = Field(default_factory=DuplicatePolicy)
     checks: Checks = Field(default_factory=Checks)
     columns: dict[str, ColumnRule] = Field(default_factory=dict)
@@ -216,6 +219,12 @@ class SheetRules(_Strict):
         # A label identifies the outcome, not the observation; keying on it hides label conflicts.
         if self.target and self.key and self.target in self.key:
             raise ValueError("the target column cannot be part of the key")
+        if self.target_labels is not None:
+            if not self.target:
+                raise ValueError("target_labels needs a target column")
+            self.target_labels = [str(x) for x in self.target_labels]
+            rule = self.columns.get(self.target) or ColumnRule()
+            self.columns[self.target] = rule.model_copy(update={"allowed": self.target_labels})
         return self
 
     @model_validator(mode="after")
@@ -230,6 +239,8 @@ class SheetRules(_Strict):
 class RuleSet(_Strict):
     version: Literal[1] = 1
     null_values: list[str] = Field(default_factory=lambda: list(DEFAULT_NULLS))
+    # Placeholder words treated as missing only in numeric, date and boolean columns.
+    typed_null_values: list[str] = Field(default_factory=lambda: list(DEFAULT_TYPED_NULLS))
     dayfirst: bool = True
     anomalies: AnomalyConfig = Field(default_factory=AnomalyConfig)
     sheets: list[SheetRules] = Field(default_factory=lambda: [SheetRules()])
@@ -238,7 +249,7 @@ class RuleSet(_Strict):
     @classmethod
     def _single_sheet_layout(cls, data: Any) -> Any:
         if isinstance(data, dict) and "sheets" not in data:
-            sheet_keys = {"sheet", "key", "target", "duplicates", "checks", "columns", "rules"}
+            sheet_keys = {"sheet", "key", "target", "target_labels", "duplicates", "checks", "columns", "rules"}
             sheet = {k: data[k] for k in sheet_keys if k in data}
             rest = {k: v for k, v in data.items() if k not in sheet_keys}
             rest["sheets"] = [sheet]

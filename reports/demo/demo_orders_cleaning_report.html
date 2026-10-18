@@ -80,7 +80,7 @@ pre { white-space: pre-wrap; background: var(--surface-0); padding: 12px; border
 <main>
   
   <h1>Dataset Preparation Report</h1>
-  <p class="sub">demo_orders.xlsx · rows checked: Orders 301, Customers 40 · run 1217eae69086</p>
+  <p class="sub">demo_orders.xlsx · rows checked: Orders 301, Customers 40 · run 62ca521e2b51</p>
 
   
   <p class="warn">1 suggested fix(es) were still pending and were not applied.</p>
@@ -252,13 +252,14 @@ pre { white-space: pre-wrap; background: var(--surface-0); padding: 12px; border
     <table style="margin-top:8px">
       <thead><tr><th>Role</th><th>Columns</th></tr></thead>
       <tbody>
-      <tr><td>numeric feature</td><td class="mono">quantity, unit_price, shipping_cost, total</td></tr><tr><td>categorical feature</td><td class="mono">status, channel</td></tr><tr><td>datetime feature</td><td class="mono">order_date, ship_date</td></tr><tr><td>text feature</td><td class="mono">customer_id</td></tr>
+      <tr><td>numeric feature</td><td class="mono">unit_price, shipping_cost, total</td></tr><tr><td>categorical feature</td><td class="mono">status, channel</td></tr><tr><td>datetime feature</td><td class="mono">ship_date</td></tr><tr><td>text feature</td><td class="mono">customer_id</td></tr>
       
       <tr><td>excluded (identifier)</td><td class="mono">order_id</td></tr><tr><td>excluded (pii)</td><td class="mono">email</td></tr>
       
       </tbody>
     </table>
     
+    <p class="warn"><strong>Review before using <span class="mono">order_date</span></strong> (left out of the feature lists, kept in the dataset): 1 value(s) could not be parsed as datetime64[ns]; column exported as text.</p><p class="warn"><strong>Review before using <span class="mono">quantity</span></strong> (left out of the feature lists, kept in the dataset): 1 value(s) could not be parsed as Int64; column exported as text.</p>
   </div>
   
   
@@ -276,10 +277,9 @@ pre { white-space: pre-wrap; background: var(--surface-0); padding: 12px; border
       </tbody>
     </table>
     
+    
   </div>
   
-  <p class="warn">Kept as text because some values could not be parsed:
-    <span class="mono">Orders.order_date</span> (1 value(s), intended datetime64[ns]), <span class="mono">Orders.quantity</span> (1 value(s), intended Int64).</p>
 
   <h2>Review required (6)</h2>
   <div class="card scroll">
@@ -810,39 +810,39 @@ pre { white-space: pre-wrap; background: var(--surface-0); padding: 12px; border
       
       <tr><td class="mono">Orders!B235</td><td>set</td><td class="mono">15/03/2024</td>
         <td class="mono">2024-03-15</td><td class="mono">text_to_date</td><td class="mono">type.date_as_text</td>
-        <td>demo-reviewer <span class="why">2026-10-18T06:33:15+00:00</span></td></tr>
+        <td>demo-reviewer <span class="why">2026-10-18T09:13:50+00:00</span></td></tr>
       
       <tr><td class="mono">Orders!B269</td><td>set</td><td class="mono">45000</td>
         <td class="mono">2023-03-15</td><td class="mono">serial_to_date</td><td class="mono">type.date_serial</td>
-        <td>demo-reviewer <span class="why">2026-10-18T06:33:15+00:00</span></td></tr>
+        <td>demo-reviewer <span class="why">2026-10-18T09:13:50+00:00</span></td></tr>
       
       <tr><td class="mono">Orders!E17</td><td>set</td><td class="mono">delivered</td>
         <td class="mono">Delivered</td><td class="mono">canonical_category</td><td class="mono">allowed.noncanonical</td>
-        <td>demo-reviewer <span class="why">2026-10-18T06:33:15+00:00</span></td></tr>
+        <td>demo-reviewer <span class="why">2026-10-18T09:13:50+00:00</span></td></tr>
       
       <tr><td class="mono">Orders!E75</td><td>set</td><td class="mono">Shiped</td>
         <td class="mono">Shipped</td><td class="mono">fuzzy_category</td><td class="mono">allowed</td>
-        <td>demo-reviewer <span class="why">2026-10-18T06:33:15+00:00</span></td></tr>
+        <td>demo-reviewer <span class="why">2026-10-18T09:13:50+00:00</span></td></tr>
       
       <tr><td class="mono">Orders!G100</td><td>set</td><td class="mono">12</td>
         <td class="mono">12</td><td class="mono">text_to_number</td><td class="mono">type.stored_as_text</td>
-        <td>demo-reviewer <span class="why">2026-10-18T06:33:15+00:00</span></td></tr>
+        <td>demo-reviewer <span class="why">2026-10-18T09:13:50+00:00</span></td></tr>
       
       <tr><td class="mono">Orders!H166</td><td>set</td><td class="mono">1,200.50</td>
         <td class="mono">1200.5</td><td class="mono">text_to_number</td><td class="mono">type.stored_as_text</td>
-        <td>demo-reviewer <span class="why">2026-10-18T06:33:15+00:00</span></td></tr>
+        <td>demo-reviewer <span class="why">2026-10-18T09:13:50+00:00</span></td></tr>
       
       <tr><td class="mono">Orders!E52</td><td>set</td><td class="mono">Pending </td>
         <td class="mono">Pending</td><td class="mono">trim_whitespace</td><td class="mono">format.whitespace</td>
-        <td>demo-reviewer <span class="why">2026-10-18T06:33:15+00:00</span></td></tr>
+        <td>demo-reviewer <span class="why">2026-10-18T09:13:50+00:00</span></td></tr>
       
       <tr><td class="mono">Customers!C6</td><td>set</td><td class="mono">Nort</td>
         <td class="mono">North</td><td class="mono">fuzzy_category</td><td class="mono">allowed</td>
-        <td>demo-reviewer <span class="why">2026-10-18T06:33:15+00:00</span></td></tr>
+        <td>demo-reviewer <span class="why">2026-10-18T09:13:50+00:00</span></td></tr>
       
       <tr><td class="mono">Customers!C11</td><td>set</td><td class="mono">south</td>
         <td class="mono">South</td><td class="mono">canonical_category</td><td class="mono">allowed.noncanonical</td>
-        <td>demo-reviewer <span class="why">2026-10-18T06:33:15+00:00</span></td></tr>
+        <td>demo-reviewer <span class="why">2026-10-18T09:13:50+00:00</span></td></tr>
       
       </tbody>
     </table>
@@ -858,12 +858,12 @@ pre { white-space: pre-wrap; background: var(--surface-0); padding: 12px; border
   <div class="card">
     <dl class="prov">
       <dt>Tool</dt><dd>IloveCSV 0.1.0</dd>
-      <dt>Validated</dt><dd>2026-10-18T06:33:15+00:00</dd>
-      <dt>Exported</dt><dd>2026-10-18T06:33:15+00:00</dd>
-      <dt>Input SHA-256</dt><dd class="mono">ff8087c14a0c3c28e42becbbc16c8ca1f145e1683c3c1aac4b4f15d846858d24</dd>
+      <dt>Validated</dt><dd>2026-10-18T09:13:50+00:00</dd>
+      <dt>Exported</dt><dd>2026-10-18T09:13:51+00:00</dd>
+      <dt>Input SHA-256</dt><dd class="mono">c7d585b04eea74df1b2e1ac2fa86b71f7fc3a5332c239ab7621b24cb1fe3c291</dd>
       <dt>Rules SHA-256</dt><dd class="mono">1f44a51bf7cf6b2a3620a24fbfb93621b64c16548dd9146108ec2277281fc85d</dd>
       <dt>Output</dt><dd>demo_orders_cleaned.xlsx</dd>
-      <dt>Output SHA-256</dt><dd class="mono">982f3cb742072588b9fd325541ebf2778e5cd56a62ea984c343ef16c0e5aaeff</dd>
+      <dt>Output SHA-256</dt><dd class="mono">fee5141088b4166788db422727155600bc44407237d913085bff44eaa93b8a26</dd>
     </dl>
     <details style="margin-top:12px"><summary>Rule file used</summary><pre class="mono">version: 1
 dayfirst: true

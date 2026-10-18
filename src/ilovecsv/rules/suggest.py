@@ -61,7 +61,8 @@ def suggest_rules(profiles: dict[str, SheetProfile], for_ml: bool = False) -> st
 
 
 def with_prepare_options(rules_text: str, sheet_columns: dict[str, list[str]], target: str | None = None,
-                         remove_exact_duplicates: bool | None = None) -> str:
+                         remove_exact_duplicates: bool | None = None,
+                         target_labels: list[str] | None = None) -> str:
     """Set the target and the exact-duplicate policy in a rule file (suggested or saved).
 
     `sheet_columns` maps sheet name -> column names; the target goes to the first validated sheet
@@ -71,6 +72,8 @@ def with_prepare_options(rules_text: str, sheet_columns: dict[str, list[str]], t
     single = "sheets" not in doc
     blocks = [doc] if single else doc["sheets"]
     first_sheet = next(iter(sheet_columns), None)
+    if not target and target_labels:  # labels for the target a saved config already declares
+        target = next((b["target"] for b in blocks if b.get("target")), None)
     if target:
         block = next((b for b in blocks if target in sheet_columns.get(b.get("sheet") or first_sheet, [])), None)
         if block is None:
@@ -79,6 +82,12 @@ def with_prepare_options(rules_text: str, sheet_columns: dict[str, list[str]], t
         rule = (block.get("columns") or {}).get(target)
         if isinstance(rule, dict):
             rule.pop("required", None)  # a missing label is reported as target.missing instead
+            if target_labels is None and rule.get("allowed"):
+                target_labels = list(rule["allowed"])  # the labels the data uses, placeholders excluded
+        if target_labels:
+            block["target_labels"] = [str(x).strip() for x in target_labels if str(x).strip()]
+    elif target_labels:
+        raise ValueError("target labels need a target column")
     if remove_exact_duplicates is not None:
         for b in blocks:
             b["duplicates"] = {"exact": "remove" if remove_exact_duplicates else "review"}
@@ -109,6 +118,11 @@ def _sheet_rules(p: SheetProfile, for_ml: bool = False) -> dict[str, Any]:
             r["type"] = _TYPE_MAP[c.inferred_type]
         if c.inferred_type in ("int", "float") and c.numeric and not c.is_identifier:
             lo, hi = c.numeric["bulk_min"], c.numeric["bulk_max"]
+            # A column that is (almost) never negative gets min 0: in a small file a stray -4 can sit
+            # inside the robust bulk, and an age, count or price below zero is an error, not a range.
+            mostly_positive = c.numeric.get("negative_share", 0) <= 0.05 and c.numeric["median"] >= 0
+            if mostly_positive:
+                lo = max(lo, 0)
             width = (hi - lo) or abs(hi) or 1.0
             r["min"] = 0 if lo >= 0 else _round_down(lo - width)
             r["max"] = _round_up(hi + width)

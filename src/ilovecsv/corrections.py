@@ -17,7 +17,6 @@ import csv
 import difflib
 import io
 import re
-from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from pathlib import Path
@@ -29,13 +28,14 @@ from openpyxl.styles import PatternFill
 from openpyxl.utils.cell import column_index_from_string, coordinate_from_string
 
 from .models import APPROVED, ERROR, Issue, Suggestion, jsonable
-from .profiling import SheetProfile, collapse_ws
+from .profiling import SheetProfile, canonical_spellings, collapse_ws
 from .reader import WorkbookData, sha256_file
-from .rules.engine import TypedColumns, best_spelling
+from .rules.engine import TypedColumns
 from .rules.expr import ExprError, compile_expr
 from .rules.schema import RuleSet, SheetRules
 from .values import (
     excel_serial_to_date,
+    is_null,
     normalise_nulls,
     normalize_phone,
     parse_date_text,
@@ -128,11 +128,8 @@ def suggest_corrections(
         elif rid == "format.case_variant" and isinstance(raw, str):
             key = (issue.sheet, issue.column)
             if key not in spellings:
-                groups: dict[str, Counter] = defaultdict(Counter)
-                for v in sheet.df[issue.column]:
-                    if isinstance(v, str) and v.strip():
-                        groups[collapse_ws(v).casefold()][collapse_ws(v)] += 1
-                spellings[key] = {k: best_spelling(c) for k, c in groups.items()}
+                values = [v for v in sheet.df[issue.column] if isinstance(v, str) and not is_null(v, nulls)]
+                spellings[key] = canonical_spellings(values)
             canon = spellings[key].get(collapse_ws(raw).casefold())
             if canon is not None:
                 sug("canonical_spelling", canon, 0.9)

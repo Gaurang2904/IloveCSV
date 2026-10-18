@@ -106,7 +106,8 @@ def prepare(workbook_id: str, request: Request, body: PrepareIn | None = None, u
     body = body or PrepareIn()
     wb_row = get_workbook(db, user, workbook_id)
     run, exported, applied = prepare_run(db, user, wb_row, request.app.state.settings, body.target,
-                                         body.remove_exact_duplicates, list(body.formats), body.rules_yaml)
+                                         body.remove_exact_duplicates, list(body.formats), body.rules_yaml,
+                                         body.target_labels)
     audit(db, user, "run.prepared", workbook_id=wb_row.id, run_id=run.id, detail={
         "target": body.target, "remove_exact_duplicates": body.remove_exact_duplicates,
         "safe_fixes_approved": applied, "applied": len(exported.apply.applied),

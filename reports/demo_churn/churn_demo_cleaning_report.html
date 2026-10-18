@@ -80,7 +80,7 @@ pre { white-space: pre-wrap; background: var(--surface-0); padding: 12px; border
 <main>
   
   <h1>Dataset Preparation Report</h1>
-  <p class="sub">churn_demo.xlsx · rows checked: Customers 403 · run 1b50cdbe2d21</p>
+  <p class="sub">churn_demo.xlsx · rows checked: Customers 403 · run ad22acef44ad</p>
 
   
   <p class="warn">2 suggested fix(es) were still pending and were not applied.</p>
@@ -142,13 +142,13 @@ pre { white-space: pre-wrap; background: var(--surface-0); padding: 12px; border
       <tr><td class="mono">Customers!J48</td><td class="mono">Customers!J48</td>
         <td class="mono">target.missing <span class="chip error">error</span></td>
         <td class="mono"></td>
-        <td>No target label: this row cannot be used for supervised training.<div class="why">No safe automatic correction exists; fix the source data by hand.</div></td>
+        <td>No usable target label: this row cannot be used for supervised training.<div class="why">No safe automatic correction exists; fix the source data by hand.</div></td>
         <td><span class="chip error">open</span></td></tr>
       
       <tr><td class="mono">Customers!J54</td><td class="mono">Customers!J54</td>
         <td class="mono">target.missing <span class="chip error">error</span></td>
         <td class="mono"></td>
-        <td>No target label: this row cannot be used for supervised training.<div class="why">No safe automatic correction exists; fix the source data by hand.</div></td>
+        <td>No usable target label: this row cannot be used for supervised training.<div class="why">No safe automatic correction exists; fix the source data by hand.</div></td>
         <td><span class="chip error">open</span></td></tr>
       
       <tr><td class="mono">Customers!J69</td><td class="mono">Customers!J69</td>
@@ -179,7 +179,7 @@ pre { white-space: pre-wrap; background: var(--surface-0); padding: 12px; border
     <table style="margin-top:8px">
       <thead><tr><th>Role</th><th>Columns</th></tr></thead>
       <tbody>
-      <tr><td>numeric feature</td><td class="mono">monthly_charges, tenure_months, support_calls</td></tr><tr><td>categorical feature</td><td class="mono">plan, contract</td></tr><tr><td>datetime feature</td><td class="mono">signup_date, cancellation_date</td></tr>
+      <tr><td>numeric feature</td><td class="mono">monthly_charges, tenure_months, support_calls</td></tr><tr><td>categorical feature</td><td class="mono">plan, contract</td></tr><tr><td>datetime feature</td><td class="mono">signup_date</td></tr>
       <tr><td>target</td><td class="mono">churn</td></tr>
       <tr><td>excluded (identifier)</td><td class="mono">customer_id</td></tr><tr><td>excluded (pii)</td><td class="mono">email</td></tr>
       <tr><td>over 50% missing</td><td class="mono">cancellation_date <span class="why">(kept: missingness can be a signal; decide in your pipeline)</span></td></tr>
@@ -193,10 +193,10 @@ pre { white-space: pre-wrap; background: var(--surface-0); padding: 12px; border
       <div class="name mono">Yes</div><div class="track" title="Yes: 121 rows"><div class="fill" style="width: 30.2%"></div></div><div class="n">121</div>
     </div>
     <p class="warn">1 group(s) of rows have identical features but different labels (rows 69 / 402).</p>
-    <p class="warn"><strong>Possible leakage:</strong> <span class="mono">cancellation_date</span>: empty -&gt; churn = &#39;No&#39;, filled -&gt; &#39;Yes&#39; for 99.8% of rows. Check it is known at prediction time before using it as a feature.</p>
     
+    
+    <p class="warn"><strong>Review before using <span class="mono">cancellation_date</span></strong> (left out of the feature lists, kept in the dataset): possible target leakage: empty -&gt; churn = &#39;No&#39;, filled -&gt; &#39;Yes&#39; for 99.8% of rows (majority guess: 69.8%).</p>
   </div>
-  
   
 
   <h2>Review required (2)</h2>
@@ -475,13 +475,13 @@ pre { white-space: pre-wrap; background: var(--surface-0); padding: 12px; border
       <tr><td class="mono">Customers!J48</td><td class="mono">target.missing</td>
         <td><span class="chip error">error</span></td>
         <td class="mono"></td>
-        <td>No target label: this row cannot be used for supervised training.<div class="why">A cross-column business rule from the rule file was not satisfied.</div></td>
+        <td>No usable target label: this row cannot be used for supervised training.<div class="why">A cross-column business rule from the rule file was not satisfied.</div></td>
         <td><span class="chip error">open</span><div class="why">No safe automatic correction exists; fix the source data by hand.</div></td></tr>
       
       <tr><td class="mono">Customers!J54</td><td class="mono">target.missing</td>
         <td><span class="chip error">error</span></td>
         <td class="mono"></td>
-        <td>No target label: this row cannot be used for supervised training.<div class="why">A cross-column business rule from the rule file was not satisfied.</div></td>
+        <td>No usable target label: this row cannot be used for supervised training.<div class="why">A cross-column business rule from the rule file was not satisfied.</div></td>
         <td><span class="chip error">open</span><div class="why">No safe automatic correction exists; fix the source data by hand.</div></td></tr>
       
       <tr><td class="mono">Customers!J69</td><td class="mono">target.conflict</td>
@@ -520,39 +520,39 @@ pre { white-space: pre-wrap; background: var(--surface-0); padding: 12px; border
       
       <tr><td class="mono">Customers!E60</td><td>set</td><td class="mono">₹1,997.36</td>
         <td class="mono">1997.36</td><td class="mono">text_to_number</td><td class="mono">type.stored_as_text</td>
-        <td>safe-auto-clean <span class="why">2026-10-18T06:33:14+00:00</span></td></tr>
+        <td>safe-auto-clean <span class="why">2026-10-18T09:13:49+00:00</span></td></tr>
       
       <tr><td class="mono">Customers!E62</td><td>set</td><td class="mono">₹1,616.01</td>
         <td class="mono">1616.01</td><td class="mono">text_to_number</td><td class="mono">type.stored_as_text</td>
-        <td>safe-auto-clean <span class="why">2026-10-18T06:33:14+00:00</span></td></tr>
+        <td>safe-auto-clean <span class="why">2026-10-18T09:13:49+00:00</span></td></tr>
       
       <tr><td class="mono">Customers!J32</td><td>set</td><td class="mono">no</td>
         <td class="mono">No</td><td class="mono">canonical_category</td><td class="mono">allowed.noncanonical</td>
-        <td>safe-auto-clean <span class="why">2026-10-18T06:33:14+00:00</span></td></tr>
+        <td>safe-auto-clean <span class="why">2026-10-18T09:13:49+00:00</span></td></tr>
       
       <tr><td class="mono">Customers!J38</td><td>set</td><td class="mono">NO </td>
         <td class="mono">No</td><td class="mono">canonical_category</td><td class="mono">allowed.noncanonical</td>
-        <td>safe-auto-clean <span class="why">2026-10-18T06:33:14+00:00</span></td></tr>
+        <td>safe-auto-clean <span class="why">2026-10-18T09:13:49+00:00</span></td></tr>
       
       <tr><td class="mono">Customers!J42</td><td>set</td><td class="mono">NO</td>
         <td class="mono">No</td><td class="mono">canonical_category</td><td class="mono">allowed.noncanonical</td>
-        <td>safe-auto-clean <span class="why">2026-10-18T06:33:14+00:00</span></td></tr>
+        <td>safe-auto-clean <span class="why">2026-10-18T09:13:49+00:00</span></td></tr>
       
       <tr><td class="mono">Customers!C24</td><td>set</td><td class="mono">n/a</td>
         <td class="mono"></td><td class="mono">null_token_to_empty</td><td class="mono">format.null_token</td>
-        <td>safe-auto-clean <span class="why">2026-10-18T06:33:14+00:00</span></td></tr>
+        <td>safe-auto-clean <span class="why">2026-10-18T09:13:49+00:00</span></td></tr>
       
       <tr><td class="mono">Customers!D12</td><td>set</td><td class="mono">-</td>
         <td class="mono"></td><td class="mono">null_token_to_empty</td><td class="mono">format.null_token</td>
-        <td>safe-auto-clean <span class="why">2026-10-18T06:33:14+00:00</span></td></tr>
+        <td>safe-auto-clean <span class="why">2026-10-18T09:13:49+00:00</span></td></tr>
       
       <tr><td class="mono">Customers!E18</td><td>set</td><td class="mono">null</td>
         <td class="mono"></td><td class="mono">null_token_to_empty</td><td class="mono">format.null_token</td>
-        <td>safe-auto-clean <span class="why">2026-10-18T06:33:14+00:00</span></td></tr>
+        <td>safe-auto-clean <span class="why">2026-10-18T09:13:49+00:00</span></td></tr>
       
       <tr><td class="mono">Customers!G6</td><td>set</td><td class="mono">N/A</td>
         <td class="mono"></td><td class="mono">null_token_to_empty</td><td class="mono">format.null_token</td>
-        <td>safe-auto-clean <span class="why">2026-10-18T06:33:14+00:00</span></td></tr>
+        <td>safe-auto-clean <span class="why">2026-10-18T09:13:49+00:00</span></td></tr>
       
       </tbody>
     </table>
@@ -563,12 +563,12 @@ pre { white-space: pre-wrap; background: var(--surface-0); padding: 12px; border
   <div class="card">
     <dl class="prov">
       <dt>Tool</dt><dd>IloveCSV 0.1.0</dd>
-      <dt>Validated</dt><dd>2026-10-18T06:33:14+00:00</dd>
-      <dt>Exported</dt><dd>2026-10-18T06:33:14+00:00</dd>
-      <dt>Input SHA-256</dt><dd class="mono">374fc97c15434cc5fa6c839301ff3fa6fe20214d9872ed43e8ea7a8f75b6ff85</dd>
-      <dt>Rules SHA-256</dt><dd class="mono">fc85c64a8cf816212510fea09933fd37a0e5526651fa3122c037448bb273e168</dd>
+      <dt>Validated</dt><dd>2026-10-18T09:13:49+00:00</dd>
+      <dt>Exported</dt><dd>2026-10-18T09:13:50+00:00</dd>
+      <dt>Input SHA-256</dt><dd class="mono">5482fbacf973fd6b26ad9052be23847235d6561a94522317e61389e5856167ee</dd>
+      <dt>Rules SHA-256</dt><dd class="mono">1a0e14293532c464ee36fdfe08c65759354046567efe27c6f2cce39063dab2c3</dd>
       <dt>Output</dt><dd>churn_demo_cleaned.xlsx</dd>
-      <dt>Output SHA-256</dt><dd class="mono">a3f52697b5eed944a4c5be7c00e1d2221ac9aad2668cae38cc0a75fb2821a775</dd>
+      <dt>Output SHA-256</dt><dd class="mono">b41c5a856572fbd1898ef12b8d1b5e3546797bc0df3137eb18bf414dbb95d8a5</dd>
     </dl>
     <details style="margin-top:12px"><summary>Rule file used</summary><pre class="mono"># IloveCSV prepare config: rules + policy. Re-use with `ilovecsv prepare --config` to clean new
 # batches (e.g. later scoring data) exactly the same way.
@@ -592,6 +592,7 @@ columns:
     type: text
     allowed: [&#39;No&#39;, &#39;Yes&#39;]
 target: churn
+target_labels: [&#39;No&#39;, &#39;Yes&#39;]
 </pre></details>
   </div>
 </main>

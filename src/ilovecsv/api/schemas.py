@@ -49,6 +49,10 @@ class ExportIn(BaseModel):
 class PrepareIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
     target: str | None = Field(default=None, max_length=255, description="Label column for supervised learning.")
+    target_labels: list[str] | None = Field(
+        default=None, max_length=100,
+        description="Valid labels (e.g. ['No', 'Yes']). Variants are normalised to them; anything else is "
+                    "flagged as unrecognised. Default: the labels found in the data.")
     remove_exact_duplicates: bool = Field(
         default=False, description="Let Safe Auto-Clean delete rows identical in every column (ids too).")
     formats: list[Literal["csv", "parquet"]] = Field(default_factory=lambda: ["csv"])

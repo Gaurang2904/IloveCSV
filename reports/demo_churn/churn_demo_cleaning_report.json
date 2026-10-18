@@ -5,14 +5,14 @@
     "version": "0.1.0"
   },
   "run": {
-    "id": "1b50cdbe2d21",
-    "created_at": "2026-10-18T06:33:14+00:00",
-    "exported_at": "2026-10-18T06:33:14+00:00"
+    "id": "ad22acef44ad",
+    "created_at": "2026-10-18T09:13:49+00:00",
+    "exported_at": "2026-10-18T09:13:50+00:00"
   },
   "input": {
     "filename": "churn_demo.xlsx",
     "file_type": "xlsx",
-    "sha256": "374fc97c15434cc5fa6c839301ff3fa6fe20214d9872ed43e8ea7a8f75b6ff85",
+    "sha256": "5482fbacf973fd6b26ad9052be23847235d6561a94522317e61389e5856167ee",
     "sheets": [
       {
         "name": "Customers",
@@ -35,8 +35,8 @@
     "preserved_copy": "original\\churn_demo.xlsx"
   },
   "rules": {
-    "sha256": "fc85c64a8cf816212510fea09933fd37a0e5526651fa3122c037448bb273e168",
-    "text": "# IloveCSV prepare config: rules + policy. Re-use with `ilovecsv prepare --config` to clean new\n# batches (e.g. later scoring data) exactly the same way.\nversion: 1\nsheet: Customers\ncolumns:\n  customer_id: {required: true, type: text, min_length: 6, max_length: 6}\n  signup_date: {type: date}\n  plan:\n    type: text\n    allowed: [Basic, Premium, Standard]\n  contract:\n    type: text\n    allowed: [Month-to-month, One year, Two year]\n  monthly_charges: {type: float, min: 0, max: 3800}\n  tenure_months: {type: int, min: 0, max: 150}\n  support_calls: {type: int, min: 0, max: 18}\n  email: {format: email}\n  cancellation_date: {type: date}\n  churn:\n    type: text\n    allowed: ['No', 'Yes']\ntarget: churn\n"
+    "sha256": "1a0e14293532c464ee36fdfe08c65759354046567efe27c6f2cce39063dab2c3",
+    "text": "# IloveCSV prepare config: rules + policy. Re-use with `ilovecsv prepare --config` to clean new\n# batches (e.g. later scoring data) exactly the same way.\nversion: 1\nsheet: Customers\ncolumns:\n  customer_id: {required: true, type: text, min_length: 6, max_length: 6}\n  signup_date: {type: date}\n  plan:\n    type: text\n    allowed: [Basic, Premium, Standard]\n  contract:\n    type: text\n    allowed: [Month-to-month, One year, Two year]\n  monthly_charges: {type: float, min: 0, max: 3800}\n  tenure_months: {type: int, min: 0, max: 150}\n  support_calls: {type: int, min: 0, max: 18}\n  email: {format: email}\n  cancellation_date: {type: date}\n  churn:\n    type: text\n    allowed: ['No', 'Yes']\ntarget: churn\ntarget_labels: ['No', 'Yes']\n"
   },
   "summary": {
     "sheets_checked": [
@@ -454,6 +454,7 @@
           "numeric": {
             "bulk_min": 279.03,
             "bulk_max": 1997.36,
+            "negative_share": 0.0,
             "min": 279.03,
             "max": 1997.36,
             "mean": 636.8575373134328,
@@ -576,6 +577,7 @@
           "numeric": {
             "bulk_min": 1.0,
             "bulk_max": 72.0,
+            "negative_share": 0.0,
             "min": 1.0,
             "max": 72.0,
             "mean": 35.459057071960295,
@@ -687,6 +689,7 @@
           "numeric": {
             "bulk_min": 0.0,
             "bulk_max": 9.0,
+            "negative_share": 0.0,
             "min": 0.0,
             "max": 9.0,
             "mean": 4.490049751243781,
@@ -1338,7 +1341,7 @@
       "sheet": "Customers",
       "rule_id": "target.missing",
       "severity": "error",
-      "message": "No target label: this row cannot be used for supervised training.",
+      "message": "No usable target label: this row cannot be used for supervised training.",
       "xl_row": 48,
       "column": "churn",
       "cell_ref": "Customers!J48",
@@ -1357,7 +1360,7 @@
       "sheet": "Customers",
       "rule_id": "target.missing",
       "severity": "error",
-      "message": "No target label: this row cannot be used for supervised training.",
+      "message": "No usable target label: this row cannot be used for supervised training.",
       "xl_row": 54,
       "column": "churn",
       "cell_ref": "Customers!J54",
@@ -1480,7 +1483,7 @@
       "rule_id": "type.stored_as_text",
       "status": "approved",
       "decided_by": "safe-auto-clean",
-      "decided_at": "2026-10-18T06:33:14+00:00",
+      "decided_at": "2026-10-18T09:13:49+00:00",
       "safety": "safe",
       "id": "s-545e76b312db"
     },
@@ -1498,7 +1501,7 @@
       "rule_id": "type.stored_as_text",
       "status": "approved",
       "decided_by": "safe-auto-clean",
-      "decided_at": "2026-10-18T06:33:14+00:00",
+      "decided_at": "2026-10-18T09:13:49+00:00",
       "safety": "safe",
       "id": "s-b42c877fe580"
     },
@@ -1516,7 +1519,7 @@
       "rule_id": "allowed.noncanonical",
       "status": "approved",
       "decided_by": "safe-auto-clean",
-      "decided_at": "2026-10-18T06:33:14+00:00",
+      "decided_at": "2026-10-18T09:13:49+00:00",
       "safety": "safe",
       "id": "s-855fa222275e"
     },
@@ -1534,7 +1537,7 @@
       "rule_id": "allowed.noncanonical",
       "status": "approved",
       "decided_by": "safe-auto-clean",
-      "decided_at": "2026-10-18T06:33:14+00:00",
+      "decided_at": "2026-10-18T09:13:49+00:00",
       "safety": "safe",
       "id": "s-e07c3c36e738"
     },
@@ -1552,7 +1555,7 @@
       "rule_id": "allowed.noncanonical",
       "status": "approved",
       "decided_by": "safe-auto-clean",
-      "decided_at": "2026-10-18T06:33:14+00:00",
+      "decided_at": "2026-10-18T09:13:49+00:00",
       "safety": "safe",
       "id": "s-fca8929971cc"
     },
@@ -1570,7 +1573,7 @@
       "rule_id": "format.null_token",
       "status": "approved",
       "decided_by": "safe-auto-clean",
-      "decided_at": "2026-10-18T06:33:14+00:00",
+      "decided_at": "2026-10-18T09:13:49+00:00",
       "safety": "safe",
       "id": "s-547f326d854a"
     },
@@ -1588,7 +1591,7 @@
       "rule_id": "format.null_token",
       "status": "approved",
       "decided_by": "safe-auto-clean",
-      "decided_at": "2026-10-18T06:33:14+00:00",
+      "decided_at": "2026-10-18T09:13:49+00:00",
       "safety": "safe",
       "id": "s-bbd77cd40caf"
     },
@@ -1606,7 +1609,7 @@
       "rule_id": "format.null_token",
       "status": "approved",
       "decided_by": "safe-auto-clean",
-      "decided_at": "2026-10-18T06:33:14+00:00",
+      "decided_at": "2026-10-18T09:13:49+00:00",
       "safety": "safe",
       "id": "s-680ab0cd08ec"
     },
@@ -1624,7 +1627,7 @@
       "rule_id": "format.null_token",
       "status": "approved",
       "decided_by": "safe-auto-clean",
-      "decided_at": "2026-10-18T06:33:14+00:00",
+      "decided_at": "2026-10-18T09:13:49+00:00",
       "safety": "safe",
       "id": "s-7ac68ca310ea"
     }
@@ -1644,7 +1647,7 @@
       "safety": "safe",
       "rule_id": "type.stored_as_text",
       "approved_by": "safe-auto-clean",
-      "approved_at": "2026-10-18T06:33:14+00:00",
+      "approved_at": "2026-10-18T09:13:49+00:00",
       "row_cleaned": 60
     },
     {
@@ -1661,7 +1664,7 @@
       "safety": "safe",
       "rule_id": "type.stored_as_text",
       "approved_by": "safe-auto-clean",
-      "approved_at": "2026-10-18T06:33:14+00:00",
+      "approved_at": "2026-10-18T09:13:49+00:00",
       "row_cleaned": 62
     },
     {
@@ -1678,7 +1681,7 @@
       "safety": "safe",
       "rule_id": "allowed.noncanonical",
       "approved_by": "safe-auto-clean",
-      "approved_at": "2026-10-18T06:33:14+00:00",
+      "approved_at": "2026-10-18T09:13:49+00:00",
       "row_cleaned": 32
     },
     {
@@ -1695,7 +1698,7 @@
       "safety": "safe",
       "rule_id": "allowed.noncanonical",
       "approved_by": "safe-auto-clean",
-      "approved_at": "2026-10-18T06:33:14+00:00",
+      "approved_at": "2026-10-18T09:13:49+00:00",
       "row_cleaned": 38
     },
     {
@@ -1712,7 +1715,7 @@
       "safety": "safe",
       "rule_id": "allowed.noncanonical",
       "approved_by": "safe-auto-clean",
-      "approved_at": "2026-10-18T06:33:14+00:00",
+      "approved_at": "2026-10-18T09:13:49+00:00",
       "row_cleaned": 42
     },
     {
@@ -1729,7 +1732,7 @@
       "safety": "safe",
       "rule_id": "format.null_token",
       "approved_by": "safe-auto-clean",
-      "approved_at": "2026-10-18T06:33:14+00:00",
+      "approved_at": "2026-10-18T09:13:49+00:00",
       "row_cleaned": 24
     },
     {
@@ -1746,7 +1749,7 @@
       "safety": "safe",
       "rule_id": "format.null_token",
       "approved_by": "safe-auto-clean",
-      "approved_at": "2026-10-18T06:33:14+00:00",
+      "approved_at": "2026-10-18T09:13:49+00:00",
       "row_cleaned": 12
     },
     {
@@ -1763,7 +1766,7 @@
       "safety": "safe",
       "rule_id": "format.null_token",
       "approved_by": "safe-auto-clean",
-      "approved_at": "2026-10-18T06:33:14+00:00",
+      "approved_at": "2026-10-18T09:13:49+00:00",
       "row_cleaned": 18
     },
     {
@@ -1780,7 +1783,7 @@
       "safety": "safe",
       "rule_id": "format.null_token",
       "approved_by": "safe-auto-clean",
-      "approved_at": "2026-10-18T06:33:14+00:00",
+      "approved_at": "2026-10-18T09:13:49+00:00",
       "row_cleaned": 6
     }
   ],
@@ -1916,7 +1919,7 @@
       "sheet": "Customers",
       "rule_id": "target.missing",
       "severity": "error",
-      "message": "No target label: this row cannot be used for supervised training.",
+      "message": "No usable target label: this row cannot be used for supervised training.",
       "xl_row": 48,
       "column": "churn",
       "cell_ref": "Customers!J48",
@@ -1940,7 +1943,7 @@
       "sheet": "Customers",
       "rule_id": "target.missing",
       "severity": "error",
-      "message": "No target label: this row cannot be used for supervised training.",
+      "message": "No usable target label: this row cannot be used for supervised training.",
       "xl_row": 54,
       "column": "churn",
       "cell_ref": "Customers!J54",
@@ -2028,7 +2031,7 @@
   ],
   "output": {
     "filename": "churn_demo_cleaned.xlsx",
-    "sha256": "a3f52697b5eed944a4c5be7c00e1d2221ac9aad2668cae38cc0a75fb2821a775"
+    "sha256": "b41c5a856572fbd1898ef12b8d1b5e3546797bc0df3137eb18bf414dbb95d8a5"
   },
   "not_verified": [],
   "config": {
@@ -2039,7 +2042,7 @@
     "exact_duplicates": {
       "Customers": "review"
     },
-    "rules_sha256": "fc85c64a8cf816212510fea09933fd37a0e5526651fa3122c037448bb273e168"
+    "rules_sha256": "1a0e14293532c464ee36fdfe08c65759354046567efe27c6f2cce39063dab2c3"
   },
   "dataset": {
     "rows_before": {
@@ -2072,7 +2075,8 @@
           "inferred_type": "text",
           "missing": 0,
           "missing_rate": 0.0,
-          "distinct": 402
+          "distinct": 402,
+          "status": "ready"
         },
         {
           "name": "signup_date",
@@ -2081,7 +2085,8 @@
           "inferred_type": "date",
           "missing": 0,
           "missing_rate": 0.0,
-          "distinct": 343
+          "distinct": 343,
+          "status": "ready"
         },
         {
           "name": "plan",
@@ -2090,7 +2095,8 @@
           "inferred_type": "category",
           "missing": 1,
           "missing_rate": 0.0025,
-          "distinct": 3
+          "distinct": 3,
+          "status": "ready"
         },
         {
           "name": "contract",
@@ -2099,7 +2105,8 @@
           "inferred_type": "category",
           "missing": 1,
           "missing_rate": 0.0025,
-          "distinct": 3
+          "distinct": 3,
+          "status": "ready"
         },
         {
           "name": "monthly_charges",
@@ -2108,7 +2115,8 @@
           "inferred_type": "float",
           "missing": 1,
           "missing_rate": 0.0025,
-          "distinct": 390
+          "distinct": 390,
+          "status": "ready"
         },
         {
           "name": "tenure_months",
@@ -2117,7 +2125,8 @@
           "inferred_type": "int",
           "missing": 0,
           "missing_rate": 0.0,
-          "distinct": 72
+          "distinct": 72,
+          "status": "ready"
         },
         {
           "name": "support_calls",
@@ -2126,7 +2135,8 @@
           "inferred_type": "int",
           "missing": 1,
           "missing_rate": 0.0025,
-          "distinct": 10
+          "distinct": 10,
+          "status": "ready"
         },
         {
           "name": "email",
@@ -2135,7 +2145,8 @@
           "inferred_type": "text",
           "missing": 0,
           "missing_rate": 0.0,
-          "distinct": 400
+          "distinct": 400,
+          "status": "ready"
         },
         {
           "name": "cancellation_date",
@@ -2144,7 +2155,8 @@
           "inferred_type": "date",
           "missing": 281,
           "missing_rate": 0.6973,
-          "distinct": 118
+          "distinct": 118,
+          "status": "review"
         },
         {
           "name": "churn",
@@ -2153,7 +2165,8 @@
           "inferred_type": "category",
           "missing": 2,
           "missing_rate": 0.005,
-          "distinct": 2
+          "distinct": 2,
+          "status": "ready"
         }
       ],
       "features": {
@@ -2167,8 +2180,7 @@
           "contract"
         ],
         "datetime": [
-          "signup_date",
-          "cancellation_date"
+          "signup_date"
         ],
         "boolean": [],
         "text": []
@@ -2185,6 +2197,15 @@
       },
       "high_missing": [
         "cancellation_date"
+      ],
+      "needs_review": [
+        {
+          "column": "cancellation_date",
+          "role": "datetime",
+          "reasons": [
+            "possible target leakage: empty -> churn = 'No', filled -> 'Yes' for 99.8% of rows (majority guess: 69.8%)"
+          ]
+        }
       ]
     }
   ],
@@ -2197,6 +2218,11 @@
           "column": "churn",
           "rows": 403,
           "missing": 2,
+          "unrecognised": [],
+          "valid_labels": [
+            "No",
+            "Yes"
+          ],
           "kind": "classification",
           "classes": [
             {
@@ -2217,9 +2243,11 @@
             "column": "cancellation_date",
             "kind": "missingness",
             "accuracy": 0.9975,
-            "detail": "empty -> churn = 'No', filled -> 'Yes' for 99.8% of rows"
+            "gain_over_baseline": 0.9917,
+            "detail": "empty -> churn = 'No', filled -> 'Yes' for 99.8% of rows (majority guess: 69.8%)"
           }
         ],
+        "invalid_label_rows": [],
         "missing_target_rows": [
           48,
           54

@@ -37,9 +37,27 @@ _ANOMALY_RESOLUTION = {OPEN: PENDING_REVIEW, CONFIRMED_ERROR: OPEN, DISMISSED: D
 NO_FIX = "No safe automatic correction exists; fix the source data by hand."
 
 
+# Issues about a *missing* value: no cell fix can supply the value, so they never borrow another
+# fix on the same cell (clearing an 'N/A' placeholder resolves the placeholder issue, not these).
+MISSING_VALUE_RULES = frozenset({"required", "target.missing"})
+
+
 def _suggestion_for(issue: Issue, by_issue: dict[str, Suggestion], by_cell: dict[str, Suggestion]) -> Suggestion | None:
     """The suggestion that addresses this issue: its own, or the one that won for the same cell."""
-    return by_issue.get(issue.id) or (by_cell.get(issue.cell_ref) if issue.cell_ref and issue.column else None)
+    own = by_issue.get(issue.id)
+    if own is not None or issue.rule_id in MISSING_VALUE_RULES:
+        return own
+    return by_cell.get(issue.cell_ref) if issue.cell_ref and issue.column else None
+
+
+def _missing_note(issue: Issue, by_cell: dict[str, Suggestion]) -> str:
+    s = by_cell.get(issue.cell_ref) if issue.cell_ref else None
+    if s is not None and s.method == "null_token_to_empty":
+        if s.status == APPROVED:
+            return (f"The placeholder '{s.old}' was cleared (resolved separately); the value itself is still "
+                    "missing. Fill it in the source data or handle it in your pipeline.")
+        return f"The cell holds the placeholder '{s.old}'; the value is missing either way."
+    return NO_FIX
 
 
 def _indexes(suggestions: list[Suggestion]) -> tuple[dict[str, Suggestion], dict[str, Suggestion]]:
@@ -57,7 +75,8 @@ def apply_pre_export(issues: list[Issue], suggestions: list[Suggestion]) -> None
             continue
         s = _suggestion_for(i, by_issue, by_cell)
         if s is None:
-            i.resolution, i.resolution_note = OPEN, NO_FIX
+            i.resolution = OPEN
+            i.resolution_note = _missing_note(i, by_cell) if i.rule_id in MISSING_VALUE_RULES else NO_FIX
         elif s.status == APPROVED:
             i.resolution, i.resolution_note = APPROVED, f"Fix approved ({s.method}); applied on export."
         elif s.status == REJECTED:
@@ -117,7 +136,8 @@ def finalize(run: RunResult, apply: ApplyResult, after_issues: list[Issue], afte
                                  else "Row removed by an approved duplicate deletion.")
         elif key in remaining:
             if s is None:
-                i.resolution, i.resolution_note = OPEN, NO_FIX
+                i.resolution = OPEN
+                i.resolution_note = _missing_note(i, by_cell) if i.rule_id in MISSING_VALUE_RULES else NO_FIX
             elif s.status == REJECTED:
                 i.resolution, i.resolution_note = REJECTED, f"Suggested fix ({s.method}) was rejected."
             elif s.status == PENDING:

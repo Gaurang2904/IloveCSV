@@ -35,6 +35,8 @@ def main(argv: list[str] | None = None) -> int:
     pr.add_argument("--config", default=None, help="reuse a saved *_prepare_config.yaml")
     pr.add_argument("--remove-exact-duplicates", action="store_true",
                     help="let Safe Auto-Clean delete rows identical in every column (default: review)")
+    pr.add_argument("--labels", default=None,
+                    help="valid target labels, comma separated (e.g. No,Yes); default: inferred from the data")
     pr.add_argument("--format", action="append", choices=["csv", "parquet"], default=None,
                     help="dataset format; repeat for several (default: csv)")
 
@@ -95,6 +97,7 @@ def _prepare(args) -> int:
     try:
         res = prepare(args.file, args.out, target=args.target, config=args.config,
                       remove_exact_duplicates=True if args.remove_exact_duplicates else None,
+                      target_labels=[x.strip() for x in args.labels.split(",") if x.strip()] if args.labels else None,
                       formats=tuple(args.format or ["csv"]))
     except ValueError as e:
         print(f"error: {e}", file=sys.stderr)
@@ -112,19 +115,23 @@ def _prepare(args) -> int:
         if sheet.target:
             print(f"  target: {sheet.target}")
     report = json.loads(res.report.read_text(encoding="utf-8"))
-    for entry in report["ml"]["sheets"]:
-        for leak in entry.get("leakage_suspects", []):
-            print(f"  ! possible leakage: {leak['column']} ({leak['detail']})")
+    for entry in report["ml"]["sheets"]:  # leakage suspects are printed with the needs-review columns below
         if entry.get("missing_target_rows"):
             print(f"  ! {len(entry['missing_target_rows'])} row(s) without a label")
         if entry.get("label_conflicts"):
             print(f"  ! {len(entry['label_conflicts'])} group(s) of identical rows with different labels")
-    for k in ex.kept_as_text:
-        print(f"  ! {k['sheet']}.{k['column']} kept as text ({k['unparseable_values']} unparseable value(s))")
+        if entry.get("invalid_label_rows"):
+            print(f"  ! {len(entry['invalid_label_rows'])} unrecognised label(s), not guessed "
+                  f"(valid: {', '.join((entry.get('target_summary') or {}).get('valid_labels') or [])})")
+    for sch in report["columns"]:
+        for r in sch.get("needs_review", []):
+            print(f"  ! review before using {sch['sheet']}.{r['column']}: {'; '.join(r['reasons'])}")
     print(f"  {'NOT FULLY CLEAN' if a['errors'] or a['warnings'] else 'clean'}; files in {ex.out_dir}:")
+    if ex.corrected_path.suffix == ".xlsx":
+        print(f"    cleaned workbook (changes highlighted): {ex.corrected_path.name}")
     for files in ex.datasets.values():
         for fmt, name in files.items():
-            print(f"    dataset ({fmt}): {name}")
+            print(f"    ML-ready dataset ({fmt}): {name}")
     for kind, path in ex.reports.items():
         print(f"    report ({kind}): {path.name}")
     if ex.config_path:

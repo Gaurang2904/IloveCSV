@@ -219,6 +219,7 @@ def prepare(
     target: str | None = None,
     config: str | Path | None = None,
     remove_exact_duplicates: bool | None = None,
+    target_labels: list[str] | None = None,
     formats: tuple[str, ...] = ("csv",),
     filename: str | None = None,
     approver: str = "safe-auto-clean",
@@ -234,9 +235,9 @@ def prepare(
         rules_text = Path(config).read_text(encoding="utf-8")
     else:
         rules_text = suggest_rules(profile_workbook(wb), for_ml=True)
-    if target is not None or remove_exact_duplicates is not None:
+    if target is not None or remove_exact_duplicates is not None or target_labels:
         columns = {name: [str(c) for c in s.df.columns] for name, s in wb.sheets.items()}
-        rules_text = with_prepare_options(rules_text, columns, target, remove_exact_duplicates)
+        rules_text = with_prepare_options(rules_text, columns, target, remove_exact_duplicates, target_labels)
     run = run_on_workbook(wb, load_rules(rules_text), rules_text)
     decide(run, mode="safe", approver=approver)
     return PreparedResult(run, export(run, out_dir, formats=formats))

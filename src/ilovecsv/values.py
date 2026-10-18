@@ -14,7 +14,11 @@ from datetime import date, datetime, timedelta
 from functools import lru_cache
 from typing import Any
 
-DEFAULT_NULLS = ("", "na", "n/a", "-", "null", "none", "nan", "#n/a")
+# Placeholders that mean "missing" in any column ("?" is the classic marker, e.g. UCI Adult).
+DEFAULT_NULLS = ("", "na", "n/a", "-", "null", "none", "nan", "#n/a", "?")
+# Words that mean "missing" only where a real value cannot be a word: numeric, date and boolean
+# columns. In a text or category column "Unknown" can be a deliberate category, so it stays.
+DEFAULT_TYPED_NULLS = ("unknown", "unk", "missing", "not available", "not applicable", "not known", "tbd", "n.a.")
 
 _NUMERIC_TEXT = re.compile(r"^[+-]?[₹$€£]?\s?(\d{1,3}(,\d{3})+|\d+)(\.\d+)?$|^[+-]?\.\d+$")
 _LEADING_ZERO_ID = re.compile(r"^0\d+$")

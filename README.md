@@ -37,21 +37,36 @@ Steps whose parameters are learned from data (imputation, scaling, encoding) mus
 ### ML-specific checks (flag only)
 
 With `--target <column>`:
-* **Missing labels:** rows without a label are flagged as unusable for supervised training; they are kept, not dropped.
+* **Missing labels:** rows without a label are flagged as unusable for supervised training; they are kept, not dropped. A `?` label counts as missing, not as a class.
+* **Valid labels:** `--labels No,Yes` (or inferred from the data). Variants such as ` yes ` or `NO` become exactly `Yes` and `No`; any other value (e.g. `Maybe`) is flagged as an unrecognised label and never guessed.
 * **Label conflicts:** rows identical on every feature but with different labels.
 * **Class balance**, or a distribution summary for a numeric target.
-* **Possible leakage:** a column, or its missingness, that predicts the target with ≥ 99% accuracy. Example: `cancellation_date` exists only for churned customers.
+* **Possible leakage:** a column, or its missingness, that alone predicts ≥ 95% of labels and removes ≥ 80% of the errors of always guessing the majority class. One stray row cannot hide a leak, and an imbalanced target cannot fake one. Example: `cancellation_date` exists only for churned customers.
 * **Label protection:** the target is excluded from anomaly detection (a rare class is the signal). Its labels get only case and spacing fixes automatically; aliases on the target need review.
 
 The report always includes a **feature schema**: each column's role and pandas dtype, plus feature lists for a scikit-learn `ColumnTransformer`. IDs and PII are listed as excluded from features.
+
+The feature lists contain only columns that are **ready**. A column moves to `needs_review`, with the reason, when:
+* it is a leakage suspect;
+* some of its values could not be parsed (for example `"two"` in a count column), so it was exported as text.
+
+It stays in the dataset; you decide.
+
+**Placeholders.**
+* `N/A`, `-`, `null`, `?` and similar become empty cells in every column.
+* Words such as `unknown`, `missing` or `not available` become empty only in numeric, date and boolean columns, where a real value can't be a word. In a text column, `Unknown` can be a genuine category.
+* Both lists are configurable (`null_values`, `typed_null_values`).
+* Missing values are reported, never imputed.
+
+**Numeric bounds.** A column that is almost never negative (≤ 5% of values) gets `min: 0`, so a stray `-4` age is an error even in a small file.
 
 ### Outputs (`prepared/`)
 
 | File | Contents |
 |---|---|
-| `{name}_cleaned.csv` | The dataset: ISO-8601 dates, plain numbers, empty cells for missing values (one file per data sheet) |
+| `{name}_cleaned.csv` | The **ML-ready dataset**: ISO-8601 dates, plain numbers, empty cells for missing values (one file per data sheet). For CSV input this is also the cleaned file |
 | `{name}_cleaned.parquet` | Optional (`--format parquet`): typed columns (`Int64`, `Float64`, `datetime64`, `category`) |
-| `{name}_cleaned.xlsx` | Excel input only: the workbook with changed cells (yellow) and unresolved cells (orange) marked and commented |
+| `{name}_cleaned.xlsx` | Excel input: the **cleaned workbook**, same sheets and formatting as the upload, with changed cells (yellow) and unresolved cells (orange) marked and commented |
 | `{name}_cleaning_report.json` | Machine-readable: `schema_version`, config, dataset rows before/after, feature schema, ML checks, every change and removed row (with original and cleaned row numbers), the review queue, unresolved issues |
 | `{name}_cleaning_report.xlsx` / `.html` | Human-readable audit: summary, unresolved, review required, dataset for ML, changes, removed rows |
 | `{name}_prepare_config.yaml` | The exact rules and policy, to clean new batches the same way |
@@ -92,7 +107,7 @@ The second run reuses the same rules instead of re-suggesting them from the new 
 
 ### Entry points
 
-* **CLI:** `ilovecsv prepare FILE [--target COL] [--out DIR] [--config CFG] [--remove-exact-duplicates] [--format csv --format parquet]`. Exits with code 1 while unresolved errors remain, so it can gate a data pipeline in CI.
+* **CLI:** `ilovecsv prepare FILE [--target COL] [--labels No,Yes] [--out DIR] [--config CFG] [--remove-exact-duplicates] [--format csv --format parquet]`. Exits with code 1 while unresolved errors remain, so it can gate a data pipeline in CI.
 * **Python:** `from ilovecsv.pipeline import prepare; res = prepare("data.csv", target="churn")`, then `res.dataset_path()`, `res.report` and `res.unresolved`.
 * **API:** `POST /v1/workbooks/{id}/prepare`, then `GET /v1/runs/{id}/dataset`, `/report` and `/config`.
 * **UI:** the first page, **★ One-click prepare**: upload, pick the target (auto-guessed), Prepare, then download. The numbered pages are the advanced review flow for working through the review queue.
@@ -112,7 +127,7 @@ On the demo churn table (`python scripts/make_demo.py`: 403 rows, planted proble
 | **Anomaly detection** | Robust z-score (median/MAD) per numeric column, an IQR fallback, rare categories, and a row-level **Isolation Forest** after PCA whitening, which catches combinations that are each normal on their own. Anomalies are **kept separate from errors**: never auto-fixed, never deleted; a reviewer confirms or dismisses each one. |
 | **Review workflow** | Each issue's outcome is decided by re-validating the cleaned output: resolved, open, pending_review, approved, rejected or dismissed. Duplicate pairs are shown side by side before removal. Unresolved cells are marked in the cleaned workbook. |
 | **API engineering** | FastAPI with API-key auth (keys stored as SHA-256 hashes), per-user isolation, a streaming body-size limit, extension and magic-byte checks, zip-bomb and macro rejection, RFC 9457 `application/problem+json` errors, and a SQL-backed audit log. |
-| **Testing** | 132 tests. Seeded synthetic datasets carry **known planted problems and a ground-truth manifest**. Tests check that each rule catches *exactly* the cells it should, across several seeds; that a clean file produces zero issues; that Safe Auto-Clean changes only safe things; and the report contract. |
+| **Testing** | 140 tests. Seeded synthetic datasets carry **known planted problems and a ground-truth manifest**. Tests check that each rule catches *exactly* the cells it should, across several seeds; that a clean file produces zero issues; that Safe Auto-Clean changes only safe things; and the report contract. |
 
 ## Architecture
 
@@ -151,7 +166,7 @@ pip install -e ".[ui,dev,parquet]"
 
 python scripts/make_demo.py      # builds examples/churn_demo.xlsx + the orders demo, writes reports/
 ilovecsv prepare examples/churn_demo.xlsx --target churn --out prepared/
-pytest                           # 132 tests
+pytest                           # 140 tests
 ```
 
 ### CLI: rule-file workflow
@@ -387,7 +402,7 @@ I also ran it on the public [BODMAS](https://whyisyoung.github.io/BODMAS/) malwa
 ```
 src/ilovecsv/        core engine, API (api/), report template (templates/)
 app/                 Streamlit UI
-tests/               132 tests: per-rule ground truth, anomalies, corrections, prepare, audit, API, CLI
+tests/               140 tests: per-rule ground truth, anomalies, corrections, prepare, ML checks, audit, API, CLI
 scripts/             make_demo.py, create_api_key.py
 examples/            churn_demo.xlsx (ML demo), demo_orders.xlsx + rule file (rule-engine demo); all synthetic
 reports/demo_churn/  one-click prepare output: cleaned CSV, annotated XLSX, cleaning report, config

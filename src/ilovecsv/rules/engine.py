@@ -18,8 +18,10 @@ from ..models import ERROR, Issue
 from ..profiling import (
     SheetProfile,
     collapse_ws,
+    column_style,
     has_whitespace_problem,
     id_like_name,
+    pick_spelling,
     profile_workbook,
 )
 from ..reader import SheetData, WorkbookData
@@ -127,9 +129,15 @@ class SheetValidator:
                  profile: SheetProfile, nulls):
         self.wb, self.sheet, self.srules, self.rules = wb, sheet, srules, rules
         self.profile, self.nulls = profile, nulls
+        self.typed_nulls = nulls | normalise_nulls(rules.typed_null_values)
         self.typed = TypedColumns(sheet, srules, profile, nulls, rules.dayfirst)
         self.issues: list[Issue] = []
         self.rule_errors: list[dict[str, Any]] = []
+
+    def col_nulls(self, col: str) -> frozenset[str]:
+        """Placeholders for this column: typed words such as 'unknown' only count as missing where a
+        real value can't be a word (numeric, date and boolean columns)."""
+        return self.typed_nulls if self.typed.column_type(col) in (*NUMERIC_TYPES, "date", "bool") else self.nulls
 
     # ------------------------------------------------------------------ emit helpers
     def emit(self, rule_id: str, severity: str, message: str, xl_row: int | None = None,
@@ -180,10 +188,11 @@ class SheetValidator:
         items = list(self.sheet.df[col].items())
         sev = rule.severity
         msg = rule.message
+        nulls = self.col_nulls(col)
 
         present: list[tuple[int, Any]] = []
         for xl_row, v in items:
-            if is_null(v, self.nulls):
+            if is_null(v, nulls):
                 if rule.required:
                     self.emit("required", sev, msg or f"'{col}' is required but empty.", xl_row, col, v)
             else:
@@ -261,7 +270,13 @@ class SheetValidator:
                         self.emit("allowed.noncanonical", "warning",
                                   f"'{t}' should be written '{canonical}'.", xl_row, col, v)
                     continue
-                self.emit("allowed", sev, msg or f"'{t}' is not an allowed value for '{col}'.", xl_row, col, v)
+                if col == self.srules.target:
+                    # A label outside the known classes is never guessed, not even by fuzzy matching.
+                    self.emit("target.invalid_label", "error",
+                              f"'{t}' is not a recognised label for '{col}' (expected one of "
+                              f"{', '.join(rule.allowed)}).", xl_row, col, v)
+                else:
+                    self.emit("allowed", sev, msg or f"'{t}' is not an allowed value for '{col}'.", xl_row, col, v)
 
         if rule.regex:
             pattern = re.compile(rule.regex)
@@ -416,9 +431,10 @@ class SheetValidator:
         real empty cell, which pandas and other tools read as missing without extra settings.
         """
         for col in self.sheet.df.columns:
+            nulls = self.col_nulls(col)
             for xl_row, v in self.sheet.df[col].items():
-                if isinstance(v, str) and is_null(v, self.nulls) and not self.sheet.is_formula(int(xl_row), col):
-                    shown = v if v.strip() else "(spaces only)"
+                if isinstance(v, str) and is_null(v, nulls) and not self.sheet.is_formula(int(xl_row), col):
+                    shown = v.strip() if v.strip() else "(spaces only)"
                     self.emit("format.null_token", "warning",
                               f"Placeholder '{shown}' stands for a missing value.", int(xl_row), col, v)
 
@@ -429,8 +445,9 @@ class SheetValidator:
             return
         for xl_row, v in df[target].items():
             if is_null(v, self.nulls):
+                was = f" (the cell held the placeholder '{v.strip()}')" if isinstance(v, str) and v.strip() else ""
                 self.emit("target.missing", "error",
-                          "No target label: this row cannot be used for supervised training.",
+                          f"No usable target label{was}: this row cannot be used for supervised training.",
                           int(xl_row), target, v)
         # Identical features, different labels: contradictory training examples.
         ignored = self.duplicate_ignored_columns()  # a surrogate id would make every row unique
@@ -476,7 +493,8 @@ class SheetValidator:
                 spelled = collapse_ws(v)
                 spellings[spelled.casefold()][spelled] += 1
                 cells.append((int(xl_row), v, spelled))
-            canonical = {k: best_spelling(c) for k, c in spellings.items() if len(c) > 1}
+            style = column_style(Counter(spelled for _, _, spelled in cells))
+            canonical = {k: best_spelling(c, style) for k, c in spellings.items() if len(c) > 1}
             for xl_row, v, spelled in cells:
                 canon = canonical.get(spelled.casefold())
                 if canon is not None and spelled != canon:
@@ -563,12 +581,9 @@ class SheetValidator:
                           int(xl_row), spec.column, v)
 
 
-def best_spelling(counter: Counter) -> str:
-    """Most common spelling; ties go to Title Case, then to mixed case over ALL CAPS / lowercase."""
-    def score(item: tuple[str, int]) -> tuple:
-        s, n = item
-        return (n, s.istitle(), not (s.isupper() or s.islower()))
-    return max(counter.items(), key=score)[0]
+def best_spelling(counter: Counter, style: str | None = None) -> str:
+    """Canonical spelling of one variant group (see profiling.pick_spelling)."""
+    return pick_spelling(counter, style)
 
 
 def _as_date(b: Any) -> date | None:
