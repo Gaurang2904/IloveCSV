@@ -259,7 +259,9 @@ def _comment(text: str) -> Comment:
 
 
 def _apply_csv(wb: WorkbookData, approved: list[Suggestion], out_path: Path):
-    text = wb.path.read_bytes().decode("utf-8-sig", errors="replace")
+    raw = wb.path.read_bytes()
+    text = raw.decode("utf-8-sig", errors="replace")
+    newline = "\r\n" if b"\r\n" in raw[:65536] else "\n"
     delimiter = wb.csv_delimiter or ","
     grid = list(csv.reader(io.StringIO(text), delimiter=delimiter))
     applied, skipped = [], []
@@ -278,7 +280,7 @@ def _apply_csv(wb: WorkbookData, approved: list[Suggestion], out_path: Path):
         applied.append(_record(s))
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with open(out_path, "w", newline="", encoding="utf-8") as f:
-        csv.writer(f, delimiter=delimiter).writerows(grid)
+        csv.writer(f, delimiter=delimiter, lineterminator=newline).writerows(grid)
     return applied, skipped
 
 

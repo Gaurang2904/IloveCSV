@@ -75,3 +75,12 @@ def test_rejects_unsupported(tmp_path):
     q.write_text("not a zip")
     with pytest.raises(ReadError):
         read_workbook(q)
+
+
+def test_iso_datetimes_with_timezone():
+    assert parse_date_text("2007-01-01 08:46:39+00:00") == (date(2007, 1, 1), False)
+    assert parse_date_text("2024-03-05T10:00:00Z") == (date(2024, 3, 5), False)
+    assert parse_date_text("2024/03/05") == (date(2024, 3, 5), False)
+    assert parse_date_text("5 Mar 2024") == (date(2024, 3, 5), False)
+    assert parse_date_text("upatre") == (None, False)
+    assert value_kind("2007-01-01 08:46:39+00:00") == "date_text"

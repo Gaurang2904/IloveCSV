@@ -125,7 +125,7 @@ pre { white-space: pre-wrap; background: var(--surface-0); padding: 12px; border
             {% elif c.dates %}{{ c.dates.min }} … {{ c.dates.max }}
             {% else %}{% for t in c.top_values[:3] %}{{ t.value }} <span class="why">({{ t.count }})</span>{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}</td>
         <td>{{ (c.numeric.histogram if c.numeric else None) | hist | safe }}</td>
-        <td class="why">{% if c.n_whitespace %}{{ c.n_whitespace }} extra spaces. {% endif %}{% if c.n_numeric_text %}{{ c.n_numeric_text }} numbers as text. {% endif %}{% if c.n_date_text %}{{ c.n_date_text }} dates as text. {% endif %}{% if c.case_variants %}{{ c.case_variants | length }} case variant groups.{% endif %}</td>
+        <td class="why">{% if c.n_whitespace %}{{ c.n_whitespace }} extra spaces. {% endif %}{% if c.n_numeric_text %}{{ c.n_numeric_text }} numbers as text. {% endif %}{% if c.n_date_text %}{{ c.n_date_text }} dates as text. {% endif %}{% if c.case_variants %}{{ c.case_variants | length }} case variant groups. {% endif %}{% if c.dominant_value %}<strong>Dominant value</strong> “{{ c.dominant_value.value }}” in {{ c.dominant_value.count }} rows ({{ '%.1f' % (c.dominant_value.share * 100) }}%), possibly a placeholder.{% endif %}{% if c.lengths and c.lengths.off_mode and c.lengths.mode_share >= 0.99 %} {{ c.lengths.off_mode }} values not {{ c.lengths.mode }} characters long.{% endif %}</td>
       </tr>
       {% endfor %}
       </tbody>

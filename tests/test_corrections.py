@@ -147,3 +147,15 @@ def test_csv_corrections(tmp_path):
     text = ex.corrected_path.read_text(encoding="utf-8").splitlines()
     assert text == ["id,status,qty", "1,Pending,5", "2,Shipped,1200"]
     assert ex.after["errors"] == 0 and ex.after["warnings"] == 0
+
+
+def test_csv_revalidation_keeps_sheet_name_and_bytes(tmp_path):
+    p = tmp_path / "metadata.csv"
+    p.write_bytes(b"sha,family\nabc1,x\nabc2,y\nab,z\n")
+    rules = "sheet: metadata\ncolumns:\n  sha: {min_length: 4, max_length: 4}\n"
+    run = run_checks(p, rules)
+    assert run.summary()["errors"] == 1
+    ex = export(run, tmp_path / "out")  # nothing approved
+    assert ex.after["errors"] == 1 and "sheet_missing" not in ex.after["by_rule"]
+    assert ex.corrected_path.read_bytes() == p.read_bytes()  # untouched file round-trips exactly
+    assert run.summary()["quality_score"] < 100

@@ -51,6 +51,8 @@ def _sheet_rules(p: SheetProfile) -> dict[str, Any]:
             r["max"] = _round_up(hi)
         if c.inferred_type == "category":
             r["allowed"] = _canonical_values(c.top_values, c.case_variants)
+        if c.is_identifier and c.inferred_type == "text" and c.lengths and c.lengths["mode_share"] >= 0.99:
+            r["min_length"] = r["max_length"] = c.lengths["mode"]
         non_null = c.n_rows - c.n_missing
         if c.is_identifier and non_null and c.n_distinct == non_null:
             r["unique"] = True

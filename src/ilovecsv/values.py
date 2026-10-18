@@ -11,6 +11,7 @@ from __future__ import annotations
 import math
 import re
 from datetime import date, datetime, timedelta
+from functools import lru_cache
 from typing import Any
 
 DEFAULT_NULLS = ("", "na", "n/a", "-", "null", "none", "nan", "#n/a")
@@ -36,6 +37,9 @@ _DATE_FORMATS_UNAMBIGUOUS = (
     "%d-%b-%y",
 )
 _DAYFIRST = ("%d/%m/%Y", "%d-%m-%Y", "%d.%m.%Y")
+_ISO_START = re.compile(r"^\d{4}[-/]\d{1,2}[-/]\d{1,2}")
+_NUMERIC_DMY = re.compile(r"^\d{1,2}[-/.]\d{1,2}[-/.]\d{4}$")
+_HAS_MONTH_NAME = re.compile(r"(?i)\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b")
 _MONTHFIRST = ("%m/%d/%Y", "%m-%d-%Y", "%m.%d.%Y")
 
 
@@ -74,22 +78,30 @@ def parse_date_text(s: str, dayfirst: bool = True) -> tuple[date | None, bool]:
     Ambiguous means the day-first and month-first readings are both valid and
     differ (03/04/2024): the result follows `dayfirst` but is flagged.
     """
-    t = s.strip()
-    if not t or len(t) > 40:
+    return _parse_date_cached(s.strip(), dayfirst)
+
+
+@lru_cache(maxsize=65536)
+def _parse_date_cached(t: str, dayfirst: bool) -> tuple[date | None, bool]:
+    # Cheap shape checks first: strptime is slow, and most text is not a date.
+    if not 6 <= len(t) <= 40 or not any(ch.isdigit() for ch in t):
         return None, False
-    for fmt in _DATE_FORMATS_UNAMBIGUOUS:
+    if _ISO_START.match(t):
         try:
-            return datetime.strptime(t, fmt).date(), False
+            return datetime.fromisoformat(t.replace("/", "-")).date(), False  # handles time + timezone
         except ValueError:
-            continue
-    d_first = _try_formats(t, _DAYFIRST)
-    m_first = _try_formats(t, _MONTHFIRST)
-    if d_first and m_first:
-        if d_first == m_first:
-            return d_first, False
-        return (d_first if dayfirst else m_first), True
-    if d_first or m_first:
+            pass
+        return _try_formats(t, _DATE_FORMATS_UNAMBIGUOUS), False
+    if _NUMERIC_DMY.match(t):
+        d_first = _try_formats(t, _DAYFIRST)
+        m_first = _try_formats(t, _MONTHFIRST)
+        if d_first and m_first:
+            if d_first == m_first:
+                return d_first, False
+            return (d_first if dayfirst else m_first), True
         return d_first or m_first, False
+    if _HAS_MONTH_NAME.search(t):
+        return _try_formats(t, _DATE_FORMATS_UNAMBIGUOUS), False
     return None, False
 
 

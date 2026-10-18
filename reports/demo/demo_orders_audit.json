@@ -4,14 +4,14 @@
     "version": "0.1.0"
   },
   "run": {
-    "id": "534a0830d353",
-    "created_at": "2026-10-17T20:10:46+00:00",
-    "exported_at": "2026-10-17T20:10:46+00:00"
+    "id": "a65149554b28",
+    "created_at": "2026-10-18T04:22:36+00:00",
+    "exported_at": "2026-10-18T04:22:36+00:00"
   },
   "input": {
     "filename": "demo_orders.xlsx",
     "file_type": "xlsx",
-    "sha256": "ced905d3588631ef78d0173be18e1ba8d41a5e1e468fa903360ed4973fdcc3e0",
+    "sha256": "9def0ed7ac687a655ebf5087e970e13744f54d0b5f5b6e58e9b5ee5b37d614d0",
     "sheets": [
       {
         "name": "Orders",
@@ -157,7 +157,10 @@
           "lengths": {
             "min": 8,
             "max": 9,
-            "mean": 9.0
+            "mean": 9.0,
+            "mode": 9,
+            "mode_share": 0.9967,
+            "off_mode": 1
           },
           "patterns": [
             {
@@ -174,7 +177,8 @@
           "n_numeric_text": 0,
           "n_date_text": 0,
           "n_serial_dates": 0,
-          "is_identifier": true
+          "is_identifier": true,
+          "dominant_value": null
         },
         {
           "name": "order_date",
@@ -241,7 +245,10 @@
           "lengths": {
             "min": 10,
             "max": 10,
-            "mean": 10.0
+            "mean": 10.0,
+            "mode": 10,
+            "mode_share": 1.0,
+            "off_mode": 0
           },
           "patterns": [
             {
@@ -258,7 +265,8 @@
           "n_numeric_text": 0,
           "n_date_text": 1,
           "n_serial_dates": 1,
-          "is_identifier": false
+          "is_identifier": false,
+          "dominant_value": null
         },
         {
           "name": "ship_date",
@@ -327,7 +335,8 @@
           "n_numeric_text": 0,
           "n_date_text": 0,
           "n_serial_dates": 0,
-          "is_identifier": false
+          "is_identifier": false,
+          "dominant_value": null
         },
         {
           "name": "customer_id",
@@ -389,7 +398,10 @@
           "lengths": {
             "min": 4,
             "max": 4,
-            "mean": 4.0
+            "mean": 4.0,
+            "mode": 4,
+            "mode_share": 1.0,
+            "off_mode": 0
           },
           "patterns": [
             {
@@ -402,7 +414,8 @@
           "n_numeric_text": 0,
           "n_date_text": 0,
           "n_serial_dates": 0,
-          "is_identifier": false
+          "is_identifier": false,
+          "dominant_value": null
         },
         {
           "name": "status",
@@ -451,7 +464,10 @@
           "lengths": {
             "min": 4,
             "max": 9,
-            "mean": 8.03
+            "mean": 8.03,
+            "mode": 9,
+            "mode_share": 0.5216,
+            "off_mode": 144
           },
           "patterns": [
             {
@@ -503,7 +519,8 @@
           "n_numeric_text": 0,
           "n_date_text": 0,
           "n_serial_dates": 0,
-          "is_identifier": false
+          "is_identifier": false,
+          "dominant_value": null
         },
         {
           "name": "channel",
@@ -540,7 +557,10 @@
           "lengths": {
             "min": 3,
             "max": 5,
-            "mean": 4.32
+            "mean": 4.32,
+            "mode": 5,
+            "mode_share": 0.6611,
+            "off_mode": 102
           },
           "patterns": [
             {
@@ -557,7 +577,8 @@
           "n_numeric_text": 0,
           "n_date_text": 0,
           "n_serial_dates": 0,
-          "is_identifier": false
+          "is_identifier": false,
+          "dominant_value": null
         },
         {
           "name": "quantity",
@@ -658,7 +679,10 @@
           "lengths": {
             "min": 2,
             "max": 3,
-            "mean": 2.5
+            "mean": 2.5,
+            "mode": 2,
+            "mode_share": 0.5,
+            "off_mode": 1
           },
           "patterns": [
             {
@@ -675,7 +699,8 @@
           "n_numeric_text": 1,
           "n_date_text": 0,
           "n_serial_dates": 0,
-          "is_identifier": false
+          "is_identifier": false,
+          "dominant_value": null
         },
         {
           "name": "unit_price",
@@ -776,7 +801,10 @@
           "lengths": {
             "min": 8,
             "max": 8,
-            "mean": 8.0
+            "mean": 8.0,
+            "mode": 8,
+            "mode_share": 1.0,
+            "off_mode": 0
           },
           "patterns": [
             {
@@ -789,7 +817,8 @@
           "n_numeric_text": 1,
           "n_date_text": 0,
           "n_serial_dates": 0,
-          "is_identifier": false
+          "is_identifier": false,
+          "dominant_value": null
         },
         {
           "name": "shipping_cost",
@@ -893,7 +922,8 @@
           "n_numeric_text": 0,
           "n_date_text": 0,
           "n_serial_dates": 0,
-          "is_identifier": false
+          "is_identifier": false,
+          "dominant_value": null
         },
         {
           "name": "total",
@@ -997,7 +1027,8 @@
           "n_numeric_text": 0,
           "n_date_text": 0,
           "n_serial_dates": 0,
-          "is_identifier": false
+          "is_identifier": false,
+          "dominant_value": null
         },
         {
           "name": "email",
@@ -1058,7 +1089,10 @@
           "lengths": {
             "min": 12,
             "max": 23,
-            "mean": 22.61
+            "mean": 22.61,
+            "mode": 23,
+            "mode_share": 0.6711,
+            "off_mode": 99
           },
           "patterns": [
             {
@@ -1083,7 +1117,8 @@
           "n_numeric_text": 0,
           "n_date_text": 0,
           "n_serial_dates": 0,
-          "is_identifier": false
+          "is_identifier": false,
+          "dominant_value": null
         }
       ],
       "n_duplicate_rows": 1
@@ -1156,7 +1191,10 @@
           "lengths": {
             "min": 4,
             "max": 4,
-            "mean": 4.0
+            "mean": 4.0,
+            "mode": 4,
+            "mode_share": 1.0,
+            "off_mode": 0
           },
           "patterns": [
             {
@@ -1169,7 +1207,8 @@
           "n_numeric_text": 0,
           "n_date_text": 0,
           "n_serial_dates": 0,
-          "is_identifier": true
+          "is_identifier": true,
+          "dominant_value": null
         },
         {
           "name": "name",
@@ -1230,7 +1269,10 @@
           "lengths": {
             "min": 10,
             "max": 11,
-            "mean": 10.78
+            "mean": 10.78,
+            "mode": 11,
+            "mode_share": 0.775,
+            "off_mode": 9
           },
           "patterns": [
             {
@@ -1247,7 +1289,8 @@
           "n_numeric_text": 0,
           "n_date_text": 0,
           "n_serial_dates": 0,
-          "is_identifier": true
+          "is_identifier": true,
+          "dominant_value": null
         },
         {
           "name": "region",
@@ -1292,7 +1335,10 @@
           "lengths": {
             "min": 4,
             "max": 5,
-            "mean": 4.55
+            "mean": 4.55,
+            "mode": 5,
+            "mode_share": 0.55,
+            "off_mode": 18
           },
           "patterns": [
             {
@@ -1323,7 +1369,8 @@
           "n_numeric_text": 0,
           "n_date_text": 0,
           "n_serial_dates": 0,
-          "is_identifier": false
+          "is_identifier": false,
+          "dominant_value": null
         },
         {
           "name": "credit_limit",
@@ -1384,7 +1431,8 @@
           "n_numeric_text": 0,
           "n_date_text": 0,
           "n_serial_dates": 0,
-          "is_identifier": false
+          "is_identifier": false,
+          "dominant_value": null
         }
       ],
       "n_duplicate_rows": 0
@@ -1425,7 +1473,10 @@
           "lengths": {
             "min": 6,
             "max": 13,
-            "mean": 9.5
+            "mean": 9.5,
+            "mode": 13,
+            "mode_share": 0.5,
+            "off_mode": 1
           },
           "patterns": [
             {
@@ -1442,7 +1493,8 @@
           "n_numeric_text": 0,
           "n_date_text": 0,
           "n_serial_dates": 0,
-          "is_identifier": true
+          "is_identifier": true,
+          "dominant_value": null
         },
         {
           "name": "value",
@@ -1466,7 +1518,8 @@
           "n_numeric_text": 0,
           "n_date_text": 0,
           "n_serial_dates": 0,
-          "is_identifier": false
+          "is_identifier": false,
+          "dominant_value": null
         }
       ],
       "n_duplicate_rows": 0
@@ -1987,7 +2040,7 @@
       "rule_id": "row.duplicate",
       "status": "approved",
       "decided_by": "demo-reviewer",
-      "decided_at": "2026-10-17T20:10:46+00:00",
+      "decided_at": "2026-10-18T04:22:36+00:00",
       "id": "s-7774b41ecf04"
     },
     {
@@ -2004,7 +2057,7 @@
       "rule_id": "type.date_as_text",
       "status": "approved",
       "decided_by": "demo-reviewer",
-      "decided_at": "2026-10-17T20:10:46+00:00",
+      "decided_at": "2026-10-18T04:22:36+00:00",
       "id": "s-915a62b70b3a"
     },
     {
@@ -2021,7 +2074,7 @@
       "rule_id": "type.date_serial",
       "status": "approved",
       "decided_by": "demo-reviewer",
-      "decided_at": "2026-10-17T20:10:46+00:00",
+      "decided_at": "2026-10-18T04:22:36+00:00",
       "id": "s-eea6356ac391"
     },
     {
@@ -2038,7 +2091,7 @@
       "rule_id": "allowed.noncanonical",
       "status": "approved",
       "decided_by": "demo-reviewer",
-      "decided_at": "2026-10-17T20:10:46+00:00",
+      "decided_at": "2026-10-18T04:22:36+00:00",
       "id": "s-c8ed62ac6afc"
     },
     {
@@ -2055,7 +2108,7 @@
       "rule_id": "allowed",
       "status": "approved",
       "decided_by": "demo-reviewer",
-      "decided_at": "2026-10-17T20:10:46+00:00",
+      "decided_at": "2026-10-18T04:22:36+00:00",
       "id": "s-0a91f295343f"
     },
     {
@@ -2072,7 +2125,7 @@
       "rule_id": "type.stored_as_text",
       "status": "approved",
       "decided_by": "demo-reviewer",
-      "decided_at": "2026-10-17T20:10:46+00:00",
+      "decided_at": "2026-10-18T04:22:36+00:00",
       "id": "s-0beb9ae4d8d7"
     },
     {
@@ -2089,7 +2142,7 @@
       "rule_id": "type.stored_as_text",
       "status": "approved",
       "decided_by": "demo-reviewer",
-      "decided_at": "2026-10-17T20:10:46+00:00",
+      "decided_at": "2026-10-18T04:22:36+00:00",
       "id": "s-775202917615"
     },
     {
@@ -2106,7 +2159,7 @@
       "rule_id": "format.whitespace",
       "status": "approved",
       "decided_by": "demo-reviewer",
-      "decided_at": "2026-10-17T20:10:46+00:00",
+      "decided_at": "2026-10-18T04:22:36+00:00",
       "id": "s-00786a6ea67b"
     },
     {
@@ -2140,7 +2193,7 @@
       "rule_id": "allowed",
       "status": "approved",
       "decided_by": "demo-reviewer",
-      "decided_at": "2026-10-17T20:10:46+00:00",
+      "decided_at": "2026-10-18T04:22:36+00:00",
       "id": "s-f88ea446d618"
     },
     {
@@ -2157,7 +2210,7 @@
       "rule_id": "allowed.noncanonical",
       "status": "approved",
       "decided_by": "demo-reviewer",
-      "decided_at": "2026-10-17T20:10:46+00:00",
+      "decided_at": "2026-10-18T04:22:36+00:00",
       "id": "s-dcfe22b80161"
     }
   ],
@@ -2172,7 +2225,7 @@
       "method": "text_to_date",
       "rule_id": "type.date_as_text",
       "approved_by": "demo-reviewer",
-      "approved_at": "2026-10-17T20:10:46+00:00"
+      "approved_at": "2026-10-18T04:22:36+00:00"
     },
     {
       "suggestion_id": "s-eea6356ac391",
@@ -2184,7 +2237,7 @@
       "method": "serial_to_date",
       "rule_id": "type.date_serial",
       "approved_by": "demo-reviewer",
-      "approved_at": "2026-10-17T20:10:46+00:00"
+      "approved_at": "2026-10-18T04:22:36+00:00"
     },
     {
       "suggestion_id": "s-c8ed62ac6afc",
@@ -2196,7 +2249,7 @@
       "method": "canonical_category",
       "rule_id": "allowed.noncanonical",
       "approved_by": "demo-reviewer",
-      "approved_at": "2026-10-17T20:10:46+00:00"
+      "approved_at": "2026-10-18T04:22:36+00:00"
     },
     {
       "suggestion_id": "s-0a91f295343f",
@@ -2208,7 +2261,7 @@
       "method": "fuzzy_category",
       "rule_id": "allowed",
       "approved_by": "demo-reviewer",
-      "approved_at": "2026-10-17T20:10:46+00:00"
+      "approved_at": "2026-10-18T04:22:36+00:00"
     },
     {
       "suggestion_id": "s-0beb9ae4d8d7",
@@ -2220,7 +2273,7 @@
       "method": "text_to_number",
       "rule_id": "type.stored_as_text",
       "approved_by": "demo-reviewer",
-      "approved_at": "2026-10-17T20:10:46+00:00"
+      "approved_at": "2026-10-18T04:22:36+00:00"
     },
     {
       "suggestion_id": "s-775202917615",
@@ -2232,7 +2285,7 @@
       "method": "text_to_number",
       "rule_id": "type.stored_as_text",
       "approved_by": "demo-reviewer",
-      "approved_at": "2026-10-17T20:10:46+00:00"
+      "approved_at": "2026-10-18T04:22:36+00:00"
     },
     {
       "suggestion_id": "s-00786a6ea67b",
@@ -2244,7 +2297,7 @@
       "method": "trim_whitespace",
       "rule_id": "format.whitespace",
       "approved_by": "demo-reviewer",
-      "approved_at": "2026-10-17T20:10:46+00:00"
+      "approved_at": "2026-10-18T04:22:36+00:00"
     },
     {
       "suggestion_id": "s-f88ea446d618",
@@ -2256,7 +2309,7 @@
       "method": "fuzzy_category",
       "rule_id": "allowed",
       "approved_by": "demo-reviewer",
-      "approved_at": "2026-10-17T20:10:46+00:00"
+      "approved_at": "2026-10-18T04:22:36+00:00"
     },
     {
       "suggestion_id": "s-dcfe22b80161",
@@ -2268,7 +2321,7 @@
       "method": "canonical_category",
       "rule_id": "allowed.noncanonical",
       "approved_by": "demo-reviewer",
-      "approved_at": "2026-10-17T20:10:46+00:00"
+      "approved_at": "2026-10-18T04:22:36+00:00"
     }
   ],
   "skipped_changes": [
@@ -2282,7 +2335,7 @@
       "method": "remove_duplicate_row",
       "rule_id": "row.duplicate",
       "approved_by": "demo-reviewer",
-      "approved_at": "2026-10-17T20:10:46+00:00",
+      "approved_at": "2026-10-18T04:22:36+00:00",
       "reason": "workbook contains formulas; deleting rows could break references, so the row was kept and marked"
     }
   ],
@@ -2324,7 +2377,7 @@
   },
   "output": {
     "filename": "demo_orders_corrected.xlsx",
-    "sha256": "f3f73502006f9c7743632524ffde2c2fd6bcaf64575ac881d4f1698fb7b3b7f4"
+    "sha256": "3d93520c4f5dd7c48be8cf3877f9a4d4596504cfab79375410757f4c5fdbc649"
   },
   "remaining_issues": [
     {

@@ -33,7 +33,7 @@ from .schema import ColumnRule, RuleSet, SheetRules, TableRule
 NUMERIC_TYPES = {"int", "float", "number"}
 # CSV has no cell types, so plain numbers and ISO dates are already canonical there.
 _CANONICAL_NUMBER = re.compile(r"^-?\d+(\.\d+)?$")
-_CANONICAL_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+_CANONICAL_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}([ T]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?)?$")
 
 
 @dataclass

@@ -25,7 +25,7 @@ from .values import (
 _ID_NAME = re.compile(r"(^|[_\s-])(id|code|no|num|number|ref|key)$", re.IGNORECASE)
 _CAMEL_ID = re.compile(r"[a-z]ID$")
 _PLAIN_NUMBER = re.compile(r"^-?\d+(\.\d+)?$")
-_ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+_ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}([ T]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?)?$")
 
 
 @dataclass
@@ -50,6 +50,9 @@ class ColumnProfile:
     n_date_text: int = 0
     n_serial_dates: int = 0
     is_identifier: bool = False
+    # A value far more frequent than any typical value in a high-cardinality column,
+    # e.g. a placeholder date such as 2020-01-01 00:00:00 used for unknown dates.
+    dominant_value: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -212,10 +215,14 @@ def profile_column(name: str, letter: str, values: list[Any], nulls=DEFAULT_NULL
     raw_strings = [v for v in values if isinstance(v, str) and not value_kind(v, nulls) == "null"]
     if raw_strings:
         lengths = [len(s) for s in raw_strings]
+        mode, mode_n = Counter(lengths).most_common(1)[0]
         prof.lengths = {
             "min": min(lengths),
             "max": max(lengths),
             "mean": round(sum(lengths) / len(lengths), 2),
+            "mode": mode,
+            "mode_share": round(mode_n / len(lengths), 4),
+            "off_mode": len(lengths) - mode_n,
         }
         prof.n_whitespace = sum(1 for s in raw_strings if has_whitespace_problem(s))
         prof.patterns = [
@@ -225,6 +232,8 @@ def profile_column(name: str, letter: str, values: list[Any], nulls=DEFAULT_NULL
         prof.case_variants = case_variant_groups(raw_strings)
 
     prof.is_identifier = _looks_like_identifier(name, prof)
+    if inferred in ("date", "int", "float"):  # where placeholders like 1900-01-01 or 9999 hide
+        prof.dominant_value = _dominant_value(counts, len(non_null_texts))
     prof.top_values = [{"value": jsonable(t["value"]), "count": t["count"]} for t in prof.top_values]
     return prof
 
@@ -263,4 +272,18 @@ def _looks_like_identifier(name: str, prof: ColumnProfile) -> bool:
     n = name.strip()
     if (_ID_NAME.search(n) or _CAMEL_ID.search(n)) and unique_ratio > 0.5:
         return True
+    same_length = prof.lengths is not None and prof.lengths["mode_share"] >= 0.99
+    if prof.inferred_type == "text" and unique_ratio == 1.0 and non_null >= 20 and same_length:
+        return True  # hashes, codes: every value distinct and (almost) all the same length
     return prof.inferred_type == "text" and unique_ratio > 0.98 and len(prof.patterns) <= 2
+
+
+def _dominant_value(counts: Counter, n: int) -> dict[str, Any] | None:
+    if len(counts) < 50 or n == 0:
+        return None
+    (value, top), *_ = counts.most_common(1)
+    typical = float(np.median(list(counts.values())))
+    if top / n >= 0.01 and top >= 20 * max(typical, 1.0):
+        return {"value": jsonable(value), "count": top, "share": round(top / n, 4),
+                "typical_count": typical}
+    return None

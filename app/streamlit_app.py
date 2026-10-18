@@ -63,7 +63,7 @@ def go(step: str) -> None:
 with st.sidebar:
     st.title("🧹 IloveCSV")
     st.caption("Spreadsheet quality and validation engine")
-    ss.api_url = st.text_input("API URL", os.environ.get("ILOVECSV_API_URL", "http://127.0.0.1:8000"))
+    ss.api_url = st.text_input("API URL", os.environ.get("ILOVECSV_API_URL", "http://127.0.0.1:8010"))
     ss.api_key = st.text_input("API key", os.environ.get("ILOVECSV_API_KEY", ""), type="password",
                                help="Create one with: python scripts/create_api_key.py yourname")
     st.radio("Steps", STEPS, key="nav", label_visibility="collapsed")
@@ -76,6 +76,28 @@ with st.sidebar:
         st.caption(f"Run `{ss.run['id']}` · {s['errors']} errors · {s['warnings']} warnings · "
                    f"{s['anomalies']} anomalies")
 
+@st.cache_data(ttl=10, show_spinner=False)
+def check_api(url: str) -> str | None:
+    """Return None if `url` is a live IloveCSV API, else a message saying what is wrong."""
+    try:
+        r = httpx.get(f"{url.rstrip('/')}/health", timeout=3)
+    except httpx.HTTPError:
+        return (f"Nothing is answering at {url}. Start the API in its own terminal: "
+                "`uvicorn ilovecsv.api.main:app --port 8010`")
+    try:
+        ok = r.json().get("service") == "ilovecsv"
+    except ValueError:
+        ok = False
+    if not ok:
+        return (f"The server at {url} is a different application, not the IloveCSV API (port already in use?). "
+                "Start IloveCSV on a free port, e.g. `uvicorn ilovecsv.api.main:app --port 8010`, "
+                "and put that URL in the sidebar.")
+    return None
+
+
+if problem := check_api(ss.api_url):
+    st.error(problem)
+    st.stop()
 if not ss.api_key:
     st.info("Enter your API key in the sidebar to start. Create one with `python scripts/create_api_key.py yourname`.")
     st.stop()

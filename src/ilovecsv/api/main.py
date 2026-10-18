@@ -1,6 +1,6 @@
 """FastAPI application.
 
-Run with:  uvicorn ilovecsv.api.main:app --reload
+Run with:  uvicorn ilovecsv.api.main:app --port 8010
 """
 
 from __future__ import annotations
@@ -35,7 +35,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/health", tags=["meta"])
     def health():
-        return {"status": "ok", "version": __version__}
+        return {"status": "ok", "service": "ilovecsv", "version": __version__}
 
     return app
 

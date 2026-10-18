@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import math
 import uuid
 from collections import Counter
 from collections.abc import Iterable
@@ -124,7 +125,8 @@ def export(run: RunResult, out_dir: str | Path, annotate: bool = True, write_rep
     applied = apply_corrections(run.wb, run.suggestions, corrected, annotate=annotate)
 
     # Re-validate the corrected file with the same rules: proves what the fixes achieved.
-    wb2 = read_workbook(corrected)
+    # Read it under the original filename: a CSV's sheet name comes from its file name.
+    wb2 = read_workbook(corrected, run.wb.filename)
     after_run = run_on_workbook(wb2, run.rules, run.rules_text, run_id=run.run_id + "-after")
     after = after_run.summary()
     after["remaining_errors"] = [i.to_dict() for i in after_run.validation.issues]
@@ -159,7 +161,8 @@ def summarise(
         "anomalies_open": sum(1 for i in anomalies if i.status == "open"),
         "anomalies_confirmed": sum(1 for i in anomalies if i.status == "confirmed_error"),
         "cells_with_errors": len(bad_cells),
-        "quality_score": round(100 * (1 - len(bad_cells) / cells), 2) if cells else 100.0,
+        # Floored, so a sheet with any error never displays as 100%.
+        "quality_score": math.floor(10000 * (1 - len(bad_cells) / cells)) / 100 if cells else 100.0,
         "by_rule": dict(by_rule.most_common()),
         "suggestions": len(suggestions),
         "suggestions_by_status": {k: status.get(k, 0) for k in (PENDING, APPROVED, REJECTED)},

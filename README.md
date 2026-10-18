@@ -54,7 +54,7 @@ python -m venv .venv && .venv\Scripts\activate        # Windows (source .venv/bi
 pip install -e ".[ui,dev]"
 
 python scripts/make_demo.py      # builds examples/demo_orders.xlsx + rules, writes reports/demo/
-pytest                           # 103 tests
+pytest                           # 107 tests
 ```
 
 ### CLI
@@ -69,15 +69,22 @@ ilovecsv check examples/demo_orders.xlsx --rules examples/rules_orders.yaml --ou
 
 ### API + UI
 
+Run each command in its **own terminal**, from the project folder with the venv active. `uvicorn` keeps running, so anything pasted after it in the same terminal will not run.
+
 ```bash
-python scripts/create_api_key.py alice          # prints the key once
-uvicorn ilovecsv.api.main:app                   # http://127.0.0.1:8000/docs
-set ILOVECSV_API_KEY=<key>  &&  streamlit run app/streamlit_app.py
+# terminal 1 (once): create a key, it is printed only once
+python scripts/create_api_key.py alice
+# terminal 1: the API on port 8010 (docs at http://127.0.0.1:8010/docs)
+uvicorn ilovecsv.api.main:app --port 8010
+# terminal 2: the UI (paste the key into the sidebar)
+streamlit run app/streamlit_app.py
 ```
+
+The UI checks the API URL before doing anything else. It tells you if nothing is listening there, or if the port belongs to a different application (port 8000 is often taken by another dev server).
 
 The UI walks through **Upload → Profile → Rules → Issues → Review fixes → Export**. The rule editor and the form builder edit the same YAML. "Use the demo workbook" loads the synthetic file and its rules.
 
-Settings use environment variables: `ILOVECSV_DATA_DIR` (default `./data`), `ILOVECSV_MAX_UPLOAD_MB` (10), `ILOVECSV_MAX_UNCOMPRESSED_MB` (200), `ILOVECSV_DATABASE_URL`.
+Settings use environment variables: `ILOVECSV_DATA_DIR` (default `./data`), `ILOVECSV_MAX_UPLOAD_MB` (25), `ILOVECSV_MAX_UNCOMPRESSED_MB` (200), `ILOVECSV_DATABASE_URL`.
 
 ## Rule file
 
@@ -137,7 +144,7 @@ Every error is `application/problem+json`:
 
 ```json
 {"type": "/problems/file-too-large", "title": "Content Too Large", "status": 413,
- "detail": "The upload exceeds the 10 MB limit.", "instance": "/v1/workbooks"}
+ "detail": "The upload exceeds the 25 MB limit.", "instance": "/v1/workbooks"}
 ```
 
 ## Results on the demo workbook
@@ -157,6 +164,18 @@ The demo has 301 order rows and 40 customer rows. Problems were injected on purp
   * The approved duplicate-row deletion was **kept and marked** instead of executed, because the workbook has formulas that row deletion could break.
   * Most remaining errors (missing ids, impossible quantities) need a human. The tool does not guess them.
 
+## Results on real data
+
+I also ran it on the public [BODMAS](https://whyisyoung.github.io/BODMAS/) malware metadata CSV: 134,435 rows of `sha, timestamp, family`, 12 MB. The file itself is not in this repo.
+
+* Run time through the API: upload 0.8 s, profile + validation with suggested rules 9 s, export with re-validation 11 s.
+* The suggested rules made `sha` the key with a 64-character length rule. That flagged **7 rows whose id is `VirusShare_<md5>` (43 characters) instead of a SHA-256**.
+* The profiler flagged a **dominant value in `timestamp`**: `2020-01-01 00:00:00+00:00` appears in 5,877 rows (4.4%), while a typical timestamp appears once. That pattern looks like a placeholder for unknown dates.
+* Real data exposed three problems the synthetic tests had missed, all now fixed:
+  * Profiling took 66 s because `strptime` was tried in about 16 formats for every string. It now takes 2.8 s, using shape checks, `fromisoformat` and caching.
+  * ISO timestamps with a timezone were not recognised as dates.
+  * Re-validating a corrected CSV looked for the wrong sheet name, because a CSV's sheet name comes from its file name.
+
 ## Design decisions
 
 * **Errors vs anomalies.** An error means a stated rule was broken, so it is confirmed. An anomaly means the value is statistically unusual, so it is a question for a person. Mixing the two produces either alert fatigue or silent "corrections" of legitimate outliers.
@@ -170,7 +189,7 @@ The demo has 301 order rows and 40 customer rows. Problems were injected on purp
 
 * openpyxl does not preserve charts or images when re-saving a workbook. The tool warns when the input contains them.
 * Row deletion is skipped in workbooks that contain formulas or merged body cells. The row is marked instead.
-* Validation is synchronous, which is fine for files up to the 10 MB default. Large files would need a job queue.
+* Validation is synchronous: about 10 s for 134k rows × 3 columns. Much larger files would need a background job queue.
 * `.xls` and `.xlsm` files are rejected by design.
 * `explain.py` uses fixed templates. It is the single place to plug in an LLM later for context-specific explanations.
 
@@ -179,7 +198,7 @@ The demo has 301 order rows and 40 customer rows. Problems were injected on purp
 ```
 src/ilovecsv/        core engine, API (api/), report template (templates/)
 app/                 Streamlit UI
-tests/               103 tests: per-rule ground truth, anomalies, corrections, audit, API, CLI
+tests/               107 tests: per-rule ground truth, anomalies, corrections, audit, API, CLI
 scripts/             make_demo.py, create_api_key.py
 examples/            demo workbook + rule file (synthetic)
 reports/demo/        demo outputs: corrected workbook, HTML/Excel/JSON audit

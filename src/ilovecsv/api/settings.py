@@ -12,7 +12,7 @@ class Settings(BaseSettings):
 
     data_dir: Path = Path("data")
     database_url: str | None = None  # default: sqlite file inside data_dir
-    max_upload_mb: float = 10.0
+    max_upload_mb: float = 25.0
     max_uncompressed_mb: float = 200.0  # zip-bomb guard for .xlsx
     max_zip_entries: int = 10_000
     max_compression_ratio: float = 200.0

@@ -76,7 +76,7 @@ pre { white-space: pre-wrap; background: var(--surface-0); padding: 12px; border
 <main>
   
   <h1>Data Quality Report</h1>
-  <p class="sub">demo_orders.xlsx · sheets checked: Orders, Customers · 341 rows · run 534a0830d353</p>
+  <p class="sub">demo_orders.xlsx · sheets checked: Orders, Customers · 341 rows · run a65149554b28</p>
 
   
   
@@ -186,7 +186,7 @@ pre { white-space: pre-wrap; background: var(--surface-0); padding: 12px; border
         <td class="num">299</td>
         <td>ORD-00128 <span class="why">(2)</span>, ORD-00001 <span class="why">(1)</span>, ORD-00002 <span class="why">(1)</span></td>
         <td></td>
-        <td class="why"></td>
+        <td class="why"> 1 values not 9 characters long.</td>
       </tr>
       
       <tr>
@@ -228,7 +228,7 @@ pre { white-space: pre-wrap; background: var(--surface-0); padding: 12px; border
         <td class="num">7</td>
         <td>Delivered <span class="why">(126)</span>, Shipped <span class="why">(92)</span>, Pending <span class="why">(50)</span></td>
         <td></td>
-        <td class="why">1 extra spaces. 2 case variant groups.</td>
+        <td class="why">1 extra spaces. 2 case variant groups. </td>
       </tr>
       
       <tr>
@@ -332,7 +332,7 @@ pre { white-space: pre-wrap; background: var(--surface-0); padding: 12px; border
         <td class="num">6</td>
         <td>South <span class="why">(13)</span>, East <span class="why">(11)</span>, North <span class="why">(8)</span></td>
         <td></td>
-        <td class="why">1 case variant groups.</td>
+        <td class="why">1 case variant groups. </td>
       </tr>
       
       <tr>
@@ -562,39 +562,39 @@ pre { white-space: pre-wrap; background: var(--surface-0); padding: 12px; border
       
       <tr><td class="mono">Orders!B235</td><td>set</td><td class="mono">15/03/2024</td>
         <td class="mono">2024-03-15</td><td class="mono">text_to_date</td><td class="mono">type.date_as_text</td>
-        <td>demo-reviewer <span class="why">2026-10-17T20:10:46+00:00</span></td></tr>
+        <td>demo-reviewer <span class="why">2026-10-18T04:22:36+00:00</span></td></tr>
       
       <tr><td class="mono">Orders!B269</td><td>set</td><td class="mono">45000</td>
         <td class="mono">2023-03-15</td><td class="mono">serial_to_date</td><td class="mono">type.date_serial</td>
-        <td>demo-reviewer <span class="why">2026-10-17T20:10:46+00:00</span></td></tr>
+        <td>demo-reviewer <span class="why">2026-10-18T04:22:36+00:00</span></td></tr>
       
       <tr><td class="mono">Orders!E17</td><td>set</td><td class="mono">delivered</td>
         <td class="mono">Delivered</td><td class="mono">canonical_category</td><td class="mono">allowed.noncanonical</td>
-        <td>demo-reviewer <span class="why">2026-10-17T20:10:46+00:00</span></td></tr>
+        <td>demo-reviewer <span class="why">2026-10-18T04:22:36+00:00</span></td></tr>
       
       <tr><td class="mono">Orders!E75</td><td>set</td><td class="mono">Shiped</td>
         <td class="mono">Shipped</td><td class="mono">fuzzy_category</td><td class="mono">allowed</td>
-        <td>demo-reviewer <span class="why">2026-10-17T20:10:46+00:00</span></td></tr>
+        <td>demo-reviewer <span class="why">2026-10-18T04:22:36+00:00</span></td></tr>
       
       <tr><td class="mono">Orders!G100</td><td>set</td><td class="mono">12</td>
         <td class="mono">12</td><td class="mono">text_to_number</td><td class="mono">type.stored_as_text</td>
-        <td>demo-reviewer <span class="why">2026-10-17T20:10:46+00:00</span></td></tr>
+        <td>demo-reviewer <span class="why">2026-10-18T04:22:36+00:00</span></td></tr>
       
       <tr><td class="mono">Orders!H166</td><td>set</td><td class="mono">1,200.50</td>
         <td class="mono">1200.5</td><td class="mono">text_to_number</td><td class="mono">type.stored_as_text</td>
-        <td>demo-reviewer <span class="why">2026-10-17T20:10:46+00:00</span></td></tr>
+        <td>demo-reviewer <span class="why">2026-10-18T04:22:36+00:00</span></td></tr>
       
       <tr><td class="mono">Orders!E52</td><td>set</td><td class="mono">Pending </td>
         <td class="mono">Pending</td><td class="mono">trim_whitespace</td><td class="mono">format.whitespace</td>
-        <td>demo-reviewer <span class="why">2026-10-17T20:10:46+00:00</span></td></tr>
+        <td>demo-reviewer <span class="why">2026-10-18T04:22:36+00:00</span></td></tr>
       
       <tr><td class="mono">Customers!C6</td><td>set</td><td class="mono">Nort</td>
         <td class="mono">North</td><td class="mono">fuzzy_category</td><td class="mono">allowed</td>
-        <td>demo-reviewer <span class="why">2026-10-17T20:10:46+00:00</span></td></tr>
+        <td>demo-reviewer <span class="why">2026-10-18T04:22:36+00:00</span></td></tr>
       
       <tr><td class="mono">Customers!C11</td><td>set</td><td class="mono">south</td>
         <td class="mono">South</td><td class="mono">canonical_category</td><td class="mono">allowed.noncanonical</td>
-        <td>demo-reviewer <span class="why">2026-10-17T20:10:46+00:00</span></td></tr>
+        <td>demo-reviewer <span class="why">2026-10-18T04:22:36+00:00</span></td></tr>
       
       </tbody>
     </table>
@@ -610,12 +610,12 @@ pre { white-space: pre-wrap; background: var(--surface-0); padding: 12px; border
   <div class="card">
     <dl class="prov">
       <dt>Tool</dt><dd>IloveCSV 0.1.0</dd>
-      <dt>Validated</dt><dd>2026-10-17T20:10:46+00:00</dd>
-      <dt>Exported</dt><dd>2026-10-17T20:10:46+00:00</dd>
-      <dt>Input SHA-256</dt><dd class="mono">ced905d3588631ef78d0173be18e1ba8d41a5e1e468fa903360ed4973fdcc3e0</dd>
+      <dt>Validated</dt><dd>2026-10-18T04:22:36+00:00</dd>
+      <dt>Exported</dt><dd>2026-10-18T04:22:36+00:00</dd>
+      <dt>Input SHA-256</dt><dd class="mono">9def0ed7ac687a655ebf5087e970e13744f54d0b5f5b6e58e9b5ee5b37d614d0</dd>
       <dt>Rules SHA-256</dt><dd class="mono">1f44a51bf7cf6b2a3620a24fbfb93621b64c16548dd9146108ec2277281fc85d</dd>
       <dt>Output</dt><dd>demo_orders_corrected.xlsx</dd>
-      <dt>Output SHA-256</dt><dd class="mono">f3f73502006f9c7743632524ffde2c2fd6bcaf64575ac881d4f1698fb7b3b7f4</dd>
+      <dt>Output SHA-256</dt><dd class="mono">3d93520c4f5dd7c48be8cf3877f9a4d4596504cfab79375410757f4c5fdbc649</dd>
     </dl>
     <details style="margin-top:12px"><summary>Rule file used</summary><pre class="mono">version: 1
 dayfirst: true
