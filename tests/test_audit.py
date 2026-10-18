@@ -30,7 +30,7 @@ def test_reports_carry_provenance(orders, rules_text, tmp_path):
     from openpyxl import load_workbook
 
     sheets = load_workbook(ex.reports["xlsx"]).sheetnames
-    assert sheets == ["Summary", "Profile", "Issues", "Anomalies", "Changes", "Skipped"]
+    assert sheets == ["Summary", "Unresolved", "Profile", "Issues", "Anomalies", "Changes", "Skipped"]
 
 
 def test_suggested_rules_are_valid_and_pass_on_clean_data(clean_orders):

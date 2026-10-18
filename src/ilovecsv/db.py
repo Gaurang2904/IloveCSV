@@ -5,7 +5,19 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import JSON, Float, ForeignKey, Integer, String, Text, create_engine, event
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    create_engine,
+    event,
+    inspect,
+    text,
+)
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 
@@ -76,6 +88,11 @@ class IssueRow(Base):
     decided_by: Mapped[str | None] = mapped_column(String(100), nullable=True)
     decided_at: Mapped[str | None] = mapped_column(String(32), nullable=True)
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    resolution: Mapped[str | None] = mapped_column(String(20), nullable=True, index=True)
+    resolution_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    context: Mapped[Any] = mapped_column(JSON, nullable=True)
+    introduced_by_fix: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    corrected_cell_ref: Mapped[str | None] = mapped_column(String(300), nullable=True)
 
 
 class SuggestionRow(Base):
@@ -116,7 +133,20 @@ def make_engine(url: str) -> Engine:
         def _fk_on(dbapi_conn, _):  # pragma: no cover - trivial
             dbapi_conn.execute("PRAGMA foreign_keys=ON")
     Base.metadata.create_all(engine)
+    _add_missing_columns(engine)
     return engine
+
+
+def _add_missing_columns(engine: Engine) -> None:
+    """Tiny forward-only migration: add columns introduced after a database was created."""
+    insp = inspect(engine)
+    with engine.begin() as conn:
+        for table in Base.metadata.sorted_tables:
+            existing = {c["name"] for c in insp.get_columns(table.name)}
+            for col in table.columns:
+                if col.name not in existing:
+                    ddl = col.type.compile(engine.dialect)
+                    conn.execute(text(f'ALTER TABLE {table.name} ADD COLUMN "{col.name}" {ddl}'))
 
 
 def make_sessionmaker(engine: Engine) -> sessionmaker:

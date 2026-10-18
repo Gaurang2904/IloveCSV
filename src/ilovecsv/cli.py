@@ -37,6 +37,8 @@ def main(argv: list[str] | None = None) -> int:
     pc.add_argument("--out", default="reports/out", help="output directory")
     pc.add_argument("--approve-min", type=float, default=None,
                     help="approve suggestions with confidence >= this and export a corrected file")
+    pc.add_argument("--approve-deletions", action="store_true",
+                    help="let --approve-min also remove duplicate rows (off by default)")
     pc.add_argument("--approver", default="cli")
     pc.add_argument("--no-annotate", action="store_true", help="do not highlight/comment changed cells")
 
@@ -87,12 +89,19 @@ def _check(args) -> int:
     for e in s["rule_errors"]:
         print(f"  ! rule {e['rule_id']} could not run: {e['error']}")
     if args.approve_min is not None:
-        n = decide(run, min_confidence=args.approve_min, approver=args.approver)
+        n = decide(run, min_confidence=args.approve_min, approver=args.approver,
+                   include_row_deletions=args.approve_deletions)
         ex = export(run, out, annotate=not args.no_annotate)
         a = ex.after
+        pending_rows = sum(1 for x in run.suggestions if x.action == "delete_row" and x.status == "pending")
         print(f"  approved {n} suggestions; applied {len(ex.apply.applied)}, skipped {len(ex.apply.skipped)}")
-        print(f"  after: quality score {a['quality_score']}%  errors {a['errors']}  warnings {a['warnings']}")
-        print(f"  corrected file: {ex.corrected_path}")
+        if pending_rows:
+            print(f"  {pending_rows} duplicate-row deletion(s) left for review (use --approve-deletions)")
+        print(f"  after: quality score {a['quality_score']}%  unresolved errors {a['errors']}  "
+              f"unresolved warnings {a['warnings']}")
+        print(f"  score: {a['quality_calculation']}")
+        print("  outcomes: " + ", ".join(f"{k} {v}" for k, v in sorted(a["resolution_counts"].items())))
+        print(f"  {'NOT FULLY CLEAN' if a['errors'] or a['warnings'] else 'clean'}: corrected file {ex.corrected_path}")
         paths = ex.reports
     else:
         out.mkdir(parents=True, exist_ok=True)

@@ -133,7 +133,7 @@ class SheetValidator:
 
     # ------------------------------------------------------------------ emit helpers
     def emit(self, rule_id: str, severity: str, message: str, xl_row: int | None = None,
-             column: str | None = None, value: Any = None) -> None:
+             column: str | None = None, value: Any = None, context: dict[str, Any] | None = None) -> None:
         if xl_row is not None and column is not None:
             if self.sheet.is_formula(xl_row, column) and is_null(value, self.nulls):
                 return  # formula without a cached value (file never recalculated)
@@ -143,7 +143,7 @@ class SheetValidator:
         else:
             cell_ref = None
         self.issues.append(Issue(ERROR, self.sheet.name, rule_id, severity, message,
-                                 xl_row=xl_row, column=column, cell_ref=cell_ref, value=value))
+                                 xl_row=xl_row, column=column, cell_ref=cell_ref, value=value, context=context))
 
     def rule_error(self, rule_id: str, error: str) -> None:
         self.rule_errors.append({"sheet": self.sheet.name, "rule_id": rule_id, "error": error})
@@ -231,10 +231,15 @@ class SheetValidator:
             for xl_row, v in present:
                 t = to_text(v, self.nulls)
                 norm = normalize_phone(t, rule.phone_digits)
+                numeric = isinstance(v, (int, float)) and not isinstance(v, bool)
                 if norm is None:
                     n = sum(ch.isdigit() for ch in t)
                     self.emit("format.phone", sev, msg or f"'{t}' is not a {rule.phone_digits}-digit phone number "
                               f"({n} digits).", xl_row, col, v)
+                elif numeric:
+                    self.emit("format.phone_numeric", "warning",
+                              f"Phone {t} is stored as a number; store it as text so leading zeros and "
+                              "formatting are kept.", xl_row, col, v)
                 elif norm != t:
                     self.emit("format.phone_style", "warning",
                               f"Phone written as '{t}'; the standard form is {norm}.", xl_row, col, v)
@@ -350,19 +355,51 @@ class SheetValidator:
         # Keep at least two columns to compare, or every short row would look like a duplicate.
         return ignored if len(self.sheet.df.columns) - len(ignored) >= 2 else []
 
-    def _duplicate_rows(self) -> None:
-        """Rows that repeat an earlier row in every column except ids, ignoring case and spacing."""
+    def duplicate_columns(self) -> tuple[list[str], list[str]]:
+        """(compared columns, ignored columns) for the duplicate check."""
         df = self.sheet.df
+        chosen = self.srules.checks.duplicate_columns
+        if chosen:
+            missing = [c for c in chosen if c not in df.columns]
+            if missing:
+                self.rule_error("row.duplicate", f"duplicate_columns not in sheet: {missing}")
+            compared = [c for c in chosen if c in df.columns]
+            return compared, [c for c in df.columns if c not in compared]
         ignored = self.duplicate_ignored_columns()
-        cols = [c for c in df.columns if c not in ignored]
-        note = f" (ignoring {', '.join(ignored)}; case and spacing ignored)" if ignored else " (case and spacing ignored)"
+        return [c for c in df.columns if c not in ignored], ignored
+
+    def _duplicate_rows(self) -> None:
+        """Rows that repeat an earlier row on the compared columns (by default: all except a
+        surrogate id, ignoring case and spacing). Each issue records both rows for a preview."""
+        df = self.sheet.df
+        cols, ignored = self.duplicate_columns()
+        if not cols:
+            return
+        normalized = self.srules.checks.duplicate_match == "normalized"
+
+        def norm(v: Any) -> str | None:
+            t = to_text(v, self.nulls)
+            return None if t is None else (collapse_ws(t).casefold() if normalized else t)
+
+        parts = []
+        if ignored:
+            parts.append(f"ignoring {', '.join(map(str, ignored))}")
+        if normalized:
+            parts.append("case and spacing ignored")
+        note = f" ({'; '.join(parts)})" if parts else ""
         first: dict[tuple, int] = {}
+        raw_rows = {int(r): row for r, row in zip(df.index, df.itertuples(index=False), strict=True)}
         for xl_row, row in zip(df.index, df[cols].itertuples(index=False), strict=True):
-            key = tuple(None if (t := to_text(v, self.nulls)) is None else collapse_ws(t).casefold() for v in row)
+            key = tuple(norm(v) for v in row)
             if all(k is None for k in key):
                 continue
             if key in first:
-                self.emit("row.duplicate", "error", f"Row repeats row {first[key]}{note}.", int(xl_row))
+                orig = first[key]
+                exact = tuple(raw_rows[orig]) == tuple(raw_rows[int(xl_row)])  # every cell identical, ids too
+                self.emit("row.duplicate", "error", f"Row repeats row {orig}{note}.", int(xl_row),
+                          context={"duplicate_of": orig, "exact": exact, "compared_columns": [str(c) for c in cols],
+                                   "ignored_columns": [str(c) for c in ignored],
+                                   "match": self.srules.checks.duplicate_match})
             else:
                 first[key] = int(xl_row)
 

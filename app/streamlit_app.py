@@ -320,8 +320,11 @@ elif ss.step == STEPS[3]:
         if df.empty:
             st.success("No errors or warnings for this filter.")
         else:
-            st.dataframe(as_text(df[["cell_ref", "rule_id", "severity", "value", "message"]]), hide_index=True,
-                         width="stretch")
+            st.caption("Outcome: resolved (fixed and re-validated) · open (no safe fix; correct the data) · "
+                       "pending_review (a fix or anomaly awaits your decision) · approved (applied on export) · "
+                       "rejected (fix declined).")
+            st.dataframe(as_text(df[["cell_ref", "rule_id", "severity", "value", "message", "resolution",
+                                     "resolution_note"]]), hide_index=True, width="stretch")
             pick = st.selectbox("Inspect an issue", df["id"], format_func=lambda i: f"{i} · " +
                                 df.set_index("id").loc[i, "cell_ref"])
             if pick:
@@ -357,6 +360,33 @@ elif ss.step == STEPS[4]:
     st.header("Review suggested corrections")
     st.write("Only the fixes you approve are written to the corrected workbook. "
              "Missing values and out-of-range numbers are never guessed.")
+    dups = call("GET", f"/v1/runs/{rid}/duplicates").json()["items"]
+    if dups:
+        st.subheader(f"Duplicate rows ({len(dups)})")
+        st.caption("Removing a row cannot be judged from one cell, so each pair is shown in full. Bulk approval "
+                   "never deletes rows unless you tick the box below it.")
+        for dp in dups:
+            with st.container(border=True):
+                how = "exact copy" if dp["exact"] else (
+                    f"matches on {', '.join(dp['compared_columns'] or [])}"
+                    + (f"; ignoring {', '.join(dp['ignored_columns'])}" if dp["ignored_columns"] else "")
+                    + ("; case and spacing ignored" if dp["match"] == "normalized" else ""))
+                st.markdown(f"**Row {dp['row']}** repeats **row {dp['duplicate_of']}** ({how}) · "
+                            f"decision: **{dp['suggestion_status']}**")
+                pair = pd.DataFrame([dp["duplicate_of_values"] or {}, dp["row_values"] or {}],
+                                    index=[f"keep · row {dp['duplicate_of']}", f"remove · row {dp['row']}"])
+                st.dataframe(as_text(pair), width="stretch")
+                if dp["suggestion_id"]:
+                    b1, b2, _ = st.columns([1, 1, 4])
+                    if b1.button("Remove this row", key=f"dup-a-{dp['issue_id']}"):
+                        call("POST", f"/v1/runs/{rid}/decisions", json={"approve": [dp["suggestion_id"]]})
+                        st.rerun()
+                    if b2.button("Keep both", key=f"dup-r-{dp['issue_id']}"):
+                        call("POST", f"/v1/runs/{rid}/decisions", json={"reject": [dp["suggestion_id"]]})
+                        st.rerun()
+        st.caption("To change what counts as a duplicate, set `checks: {duplicate_columns: [...], "
+                   "duplicate_match: exact}` in the rules and validate again.")
+        st.subheader("Cell corrections")
     items = call("GET", f"/v1/runs/{rid}/suggestions").json()["items"]
     if not items:
         st.info("No automatic corrections are available for this run.")
@@ -390,8 +420,10 @@ elif ss.step == STEPS[4]:
             save_decisions()
         with c2:
             thr = st.slider("Bulk approve pending fixes with confidence ≥", 0.5, 1.0, 0.9, 0.01)
+            with_rows = st.checkbox("Also remove duplicate rows (review the pairs above first)", value=False)
             if st.button("Bulk approve"):
-                r = call("POST", f"/v1/runs/{rid}/decisions", json={"approve_min_confidence": thr})
+                r = call("POST", f"/v1/runs/{rid}/decisions",
+                         json={"approve_min_confidence": thr, "include_row_deletions": with_rows})
                 if r:
                     st.success(f"Approved {r.json()['changed']} suggestions.")
                     st.rerun()
@@ -424,13 +456,36 @@ elif ss.step == STEPS[5]:
         if r:
             ss.export = r.json()
     run = call("GET", f"/v1/runs/{rid}").json()
+    if run["status"] != "exported" and run.get("exported_at"):
+        st.info("Decisions changed after the last export, so the previous files are out of date. Export again.")
     if run["status"] == "exported":
         before, after = run["summary"], run["after"]
+        if after["errors"] or after["warnings"]:
+            st.error(f"**Not fully clean:** {after['errors']} error(s) and {after['warnings']} warning(s) remain "
+                     "after cleaning. They are listed below and highlighted orange (with a comment) in the "
+                     "corrected workbook.")
+        else:
+            st.success("**Clean:** the corrected workbook passes every rule in the rule file.")
         m = st.columns(3)
         m[0].metric("Quality score", f"{after['quality_score']}%",
                     f"{after['quality_score'] - before['quality_score']:+.2f}")
-        m[1].metric("Errors", after["errors"], after["errors"] - before["errors"], delta_color="inverse")
-        m[2].metric("Warnings", after["warnings"], after["warnings"] - before["warnings"], delta_color="inverse")
+        m[1].metric("Unresolved errors", after["errors"], after["errors"] - before["errors"], delta_color="inverse")
+        m[2].metric("Unresolved warnings", after["warnings"], after["warnings"] - before["warnings"],
+                    delta_color="inverse")
+        st.caption(f"Score before: `{before['quality_calculation']}` · after: `{after['quality_calculation']}`. "
+                   f"Formula: {before['quality_formula']}.")
+        res = before.get("resolutions", {})
+        if res:
+            st.caption("Issue outcomes: " + " · ".join(f"{k} {v}" for k, v in sorted(res.items())))
+        unresolved = call("GET", f"/v1/runs/{rid}/issues", params={"kind": "error", "limit": 1000}).json()["items"]
+        unresolved = [u for u in unresolved if u["resolution"] in ("open", "pending_review", "rejected")]
+        if unresolved:
+            st.subheader("Unresolved after cleaning")
+            st.dataframe(as_text(pd.DataFrame(unresolved)[["corrected_cell_ref", "cell_ref", "rule_id", "value",
+                                                           "message", "resolution", "resolution_note"]]
+                                 .rename(columns={"corrected_cell_ref": "cell (corrected file)",
+                                                  "cell_ref": "cell (original)"})),
+                         hide_index=True, width="stretch")
         if ss.get("export") and ss.export.get("skipped"):
             st.warning("Some approved fixes were not applied:")
             st.dataframe(as_text(pd.DataFrame(ss.export["skipped"])[["cell_ref", "method", "reason"]]), hide_index=True)

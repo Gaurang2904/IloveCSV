@@ -159,7 +159,16 @@ def test_full_workflow(api, orders, rules_text):
     low = [s["id"] for s in sugs if s["confidence"] < 0.9]
     d = client.post(f"/v1/runs/{rid}/decisions", headers=alice,
                     json={"reject": low, "approve_min_confidence": 0.9}).json()
-    assert d["suggestions_by_status"]["approved"] == len(sugs) - len(low)
+    # Bulk approval never deletes rows: duplicates are approved one by one after the preview.
+    bulk = [s for s in sugs if s["confidence"] >= 0.9 and s["action"] != "delete_row"]
+    assert d["suggestions_by_status"]["approved"] == len(bulk)
+    dups = client.get(f"/v1/runs/{rid}/duplicates", headers=alice).json()["items"]
+    assert len(dups) == 1 and dups[0]["exact"] and dups[0]["row_values"] == dups[0]["duplicate_of_values"]
+    assert dups[0]["suggestion_status"] == "pending"
+    d = client.post(f"/v1/runs/{rid}/decisions", headers=alice, json={"approve": [dups[0]["suggestion_id"]]}).json()
+    assert d["suggestions_by_status"]["approved"] == len(bulk) + 1
+    pre = client.get(f"/v1/runs/{rid}/issues", headers=alice, params={"resolution": "approved"}).json()
+    assert pre["total"] >= len(bulk)
 
     assert_problem(client.get(f"/v1/runs/{rid}/corrected", headers=alice), 409, "not-exported")
     preview = client.get(f"/v1/runs/{rid}/report", headers=alice, params={"format": "json"})
@@ -171,6 +180,13 @@ def test_full_workflow(api, orders, rules_text):
     assert ex["status"] == "exported"
     assert len(ex["applied"]) + len(ex["skipped"]) == d["suggestions_by_status"]["approved"]
     assert ex["after"]["warnings"] < summary["warnings"]
+    assert "Not fully clean" in ex["notice"]
+    res = client.get(f"/v1/runs/{rid}", headers=alice).json()["summary"]["resolutions"]
+    assert res.get("resolved", 0) > 0 and res.get("open", 0) > 0 and "approved" not in res
+    unresolved = client.get(f"/v1/runs/{rid}/issues", headers=alice,
+                            params={"resolution": "open", "kind": "error"}).json()["items"]
+    assert unresolved and all(i["resolution_note"] for i in unresolved)
+    assert any(i["introduced_by_fix"] for i in unresolved)  # Shiped -> Shipped exposes a missing ship date
 
     f = client.get(f"/v1/runs/{rid}/corrected", headers=alice)
     assert f.status_code == 200 and f.content[:2] == b"PK"

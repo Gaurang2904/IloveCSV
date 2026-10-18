@@ -16,6 +16,7 @@ from __future__ import annotations
 import csv
 import difflib
 import io
+import re
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from datetime import date, datetime
@@ -55,7 +56,9 @@ _PRIORITY = [
     "canonical_spelling",
     "lowercase_email",
     "normalize_phone",
+    "phone_to_text",
     "text_to_date",
+    "text_to_date_inferred",
     "text_to_date_ambiguous",
     "serial_to_date",
     "text_to_number",
@@ -71,6 +74,7 @@ def suggest_corrections(
     by_sheet: dict[str, SheetRules] = {(s.sheet or wb.first_sheet.name): s for s in rules.sheets}
     typed: dict[str, TypedColumns] = {}
     spellings: dict[tuple[str, str | None], dict[str, str]] = {}
+    date_orders: dict[tuple[str, str | None], str | None] = {}
     out: list[Suggestion] = []
 
     for issue in issues:
@@ -140,16 +144,32 @@ def suggest_corrections(
             d, ambiguous = parse_date_text(raw, rules.dayfirst)
             if d is not None:
                 if ambiguous:
-                    sug("text_to_date_ambiguous", d, 0.5)
+                    key = (issue.sheet, issue.column)
+                    if key not in date_orders:
+                        date_orders[key] = column_date_order(sheet.df[issue.column].tolist())
+                    order = date_orders[key]
+                    if order is not None:
+                        # Other dates in this column (e.g. 15/02/2025) prove which part is the day.
+                        d, _ = parse_date_text(raw, dayfirst=(order == "dayfirst"))
+                        sug("text_to_date_inferred", d, 0.9)
+                    else:
+                        sug("text_to_date_ambiguous", d, 0.5)
                 else:
                     sug("text_to_date", d, 0.95)
         elif rid == "type.date_serial" and isinstance(raw, (int, float)):
             sug("serial_to_date", excel_serial_to_date(raw), 0.9)
+        elif rid == "format.phone_numeric" and isinstance(raw, (int, float)) and col_rule:
+            digits = str(int(raw))
+            norm = normalize_phone(digits, col_rule.phone_digits) or digits
+            sug("phone_to_text", norm, 0.95)
         elif rid == "row.duplicate" and issue.xl_row:
+            exact = bool((issue.context or {}).get("exact"))
+            # Exact copies are near-certain; records that match only after ignoring an id, case or
+            # spacing may still be different people, so they rank lower.
             out.append(Suggestion(issue_id=issue.id, sheet=issue.sheet, action="delete_row",
-                                  method="remove_duplicate_row", confidence=0.9, xl_row=issue.xl_row,
-                                  cell_ref=sheet.row_ref(issue.xl_row), old=issue.message, new=None,
-                                  rule_id=rid))
+                                  method="remove_duplicate_row", confidence=0.95 if exact else 0.85,
+                                  xl_row=issue.xl_row, cell_ref=sheet.row_ref(issue.xl_row),
+                                  old=issue.message, new=None, rule_id=rid))
         else:
             trule = next((r for r in srules.rules if r.id == rid and r.fix), None)
             if trule and trule.fix and trule.fix.column in sheet.df.columns and issue.xl_row:
@@ -172,6 +192,33 @@ def suggest_corrections(
                         v = int(v)
                 sug("rule_fix", v, 0.8, column=trule.fix.column)
     return _one_per_cell(out)
+
+
+_NUMERIC_DMY = re.compile(r"^\s*(\d{1,2})[-/.](\d{1,2})[-/.]\d{4}\s*$")
+
+
+def column_date_order(values: list[Any]) -> str | None:
+    """'dayfirst' / 'monthfirst' when the column's unambiguous numeric dates all agree, else None.
+
+    15/02/2025 can only be day-first (no month 15); 02/15/2025 only month-first.
+    """
+    day_first = month_first = 0
+    for v in values:
+        if not isinstance(v, str):
+            continue
+        m = _NUMERIC_DMY.match(v)
+        if not m:
+            continue
+        a, b = int(m.group(1)), int(m.group(2))
+        if a > 12 >= b:
+            day_first += 1
+        elif b > 12 >= a:
+            month_first += 1
+    if day_first and not month_first:
+        return "dayfirst"
+    if month_first and not day_first:
+        return "monthfirst"
+    return None
 
 
 def closest_category(value: str, allowed: list[str], cutoff: float = 0.8) -> tuple[str, float] | None:
@@ -253,6 +300,10 @@ def _apply_xlsx(wb: WorkbookData, approved: list[Suggestion], out_path: Path, an
         cell.value = s.new_raw
         if isinstance(s.new_raw, (date, datetime)):
             cell.number_format = "yyyy-mm-dd"
+        elif isinstance(s.new_raw, str) and s.new_raw.strip().isdigit():
+            # Phone numbers and codes are identifiers: Text format keeps Excel from turning them
+            # into numbers (and dropping leading zeros) when someone edits the cell.
+            cell.number_format = "@"
         if annotate:
             cell.fill = CHANGED_FILL
             cell.comment = _comment(f"IloveCSV changed this cell\nwas: {s.old!r}\nrule: {s.rule_id}\n"
@@ -280,6 +331,28 @@ def _apply_xlsx(wb: WorkbookData, approved: list[Suggestion], out_path: Path, an
     out_path.parent.mkdir(parents=True, exist_ok=True)
     book.save(out_path)
     return applied, skipped
+
+
+UNRESOLVED_FILL = PatternFill("solid", fgColor="F4B183")
+
+
+def mark_unresolved(path: Path, unresolved: list[dict[str, Any]]) -> None:
+    """Highlight cells that still fail validation after cleaning, with the reason as a comment."""
+    book = load_workbook(path)
+    for u in unresolved:
+        ref = u.get("corrected_cell_ref")
+        if not ref or "!" not in ref:
+            continue
+        sheet_name, coord = ref.split("!", 1)
+        if sheet_name not in book.sheetnames:
+            continue
+        cell = book[sheet_name][coord]
+        cell.fill = UNRESOLVED_FILL
+        note = f"IloveCSV: UNRESOLVED ({u['rule_id']}, {u.get('resolution', 'open')})\n{u['message']}"
+        if cell.comment is not None:
+            note = cell.comment.text + "\n\n" + note
+        cell.comment = _comment(note)
+    book.save(path)
 
 
 def _comment(text: str) -> Comment:

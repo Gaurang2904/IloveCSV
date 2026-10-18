@@ -5,13 +5,15 @@ from __future__ import annotations
 import uuid
 from pathlib import Path
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from ..db import IssueRow, Run, SuggestionRow, User, Workbook, utcnow
+from ..models import stable_id
 from ..pipeline import ExportResult, RunResult, export, run_on_workbook
 from ..reader import ReadError, read_workbook
 from ..report import write_reports
+from ..resolution import apply_pre_export
 from ..rules.schema import RulesError, load_rules
 from .errors import Problem
 from .settings import Settings
@@ -76,7 +78,17 @@ def rebuild(db: Session, run: Run) -> RunResult:
         row = sug_state.get(s.id)
         if row is not None:
             s.status, s.decided_by, s.decided_at = row.status, row.decided_by, row.decided_at
+    apply_pre_export(result.issues, result.suggestions)
     return result
+
+
+def refresh_resolutions(db: Session, run: Run) -> None:
+    """Recompute pre-export resolutions after a decision (works directly on the DB rows)."""
+    issues = list(db.scalars(select(IssueRow).where(IssueRow.run_id == run.id,
+                                                    IssueRow.introduced_by_fix.is_not(True))))
+    sugs = list(db.scalars(select(SuggestionRow).where(SuggestionRow.run_id == run.id)))
+    apply_pre_export(issues, sugs)
+    db.flush()
 
 
 def refresh_counts(db: Session, run: Run) -> None:
@@ -91,6 +103,10 @@ def refresh_counts(db: Session, run: Run) -> None:
     summary["anomalies_open"] = issue_status.get("open", 0)
     summary["anomalies_confirmed"] = issue_status.get("confirmed_error", 0)
     summary["suggestions_by_status"] = {k: sug_status.get(k, 0) for k in ("pending", "approved", "rejected")}
+    summary["resolutions"] = dict(db.execute(
+        select(IssueRow.resolution, func.count()).where(IssueRow.run_id == run.id,
+                                                        IssueRow.introduced_by_fix.is_not(True))
+        .group_by(IssueRow.resolution)).all())
     run.summary = summary
 
 
@@ -103,9 +119,35 @@ def export_run(db: Session, run: Run, settings: Settings, annotate: bool) -> Exp
     run.out_dir = str(out_dir)
     run.corrected_path = str(exported.corrected_path)
     run.reports = {k: str(v) for k, v in exported.reports.items()}
-    run.after = {k: v for k, v in exported.after.items() if k != "remaining_errors"}
+    run.after = {k: v for k, v in exported.after.items() if k != "unresolved"}
     run.summary = result.summary()
+    _store_final_resolutions(db, run, result, exported.after.get("unresolved", []))
     return exported
+
+
+def _store_final_resolutions(db: Session, run: Run, result: RunResult, unresolved: list[dict]) -> None:
+    db.execute(delete(IssueRow).where(IssueRow.run_id == run.id, IssueRow.introduced_by_fix.is_(True)))
+    rows = {r.id: r for r in db.scalars(select(IssueRow).where(IssueRow.run_id == run.id))}
+    for i in result.issues:
+        row = rows.get(i.id)
+        if row is not None:
+            row.resolution, row.resolution_note, row.corrected_cell_ref = i.resolution, i.resolution_note, None
+    for u in unresolved:
+        if u.get("original_issue_id") and u["original_issue_id"] in rows:
+            rows[u["original_issue_id"]].corrected_cell_ref = u["corrected_cell_ref"]
+            continue
+        # A problem that only appeared after the corrections (e.g. a fixed category triggers a rule).
+        sheet, ref = u["sheet"], u.get("original_cell_ref")
+        orig_row = int("".join(ch for ch in ref.split("!", 1)[1] if ch.isdigit())) if ref else None
+        db.add(IssueRow(
+            run_id=run.id, id=stable_id("n", sheet, orig_row, u.get("column"), u["rule_id"]), kind="error",
+            sheet=sheet, xl_row=orig_row, column=u.get("column"), cell_ref=ref, rule_id=u["rule_id"],
+            severity=u["severity"], value=u.get("value"), message=u["message"], status="open",
+            resolution=u["resolution"], resolution_note=u["resolution_note"], introduced_by_fix=True,
+            corrected_cell_ref=u["corrected_cell_ref"],
+        ))
+    db.flush()
+    refresh_counts(db, run)
 
 
 def preview_reports(db: Session, run: Run, settings: Settings) -> dict[str, Path]:

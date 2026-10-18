@@ -70,30 +70,176 @@ details summary { cursor: pointer; color: var(--text-secondary); }
 pre { white-space: pre-wrap; background: var(--surface-0); padding: 12px; border-radius: 8px; overflow-x: auto; }
 .warn { border-left: 3px solid var(--warning); padding-left: 10px; }
 .empty { color: var(--text-muted); }
+.status { margin-top: 20px; padding: 12px 16px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface-1); }
+.status.bad { border-left: 4px solid var(--critical); }
+.status.ok { border-left: 4px solid var(--good); }
+.status a { color: inherit; }
 </style>
 </head>
 <body>
 <main>
   
   <h1>Data Quality Report</h1>
-  <p class="sub">demo_orders.xlsx · rows checked: Orders 301, Customers 40 · run 730e008c1085</p>
+  <p class="sub">demo_orders.xlsx · rows checked: Orders 301, Customers 40 · run 05ee690e179f</p>
 
   
   <p class="warn">1 suggested fix(es) were still pending and were not applied.</p>
   
 
+  
+  
+  <div class="status bad"><strong>Not fully clean.</strong> After cleaning, 18 error(s) and 0 warning(s) remain.
+    They are listed under <a href="#unresolved">Unresolved after cleaning</a> and highlighted orange, with a comment, in the corrected workbook.</div>
+  
+  
+
   <section class="tiles" aria-label="Summary">
-    <div class="card tile" title="100 x (1 - (cells with errors + 0.5 x cells with only warnings) / cells checked)"><div class="label">Quality score</div><div class="value">99.09%</div>
-      <div class="delta">after fixes: 99.22%</div></div>
-    <div class="card tile"><div class="label">Errors</div><div class="value">19</div>
-      <div class="delta">remaining: 18</div></div>
-    <div class="card tile"><div class="label">Warnings</div><div class="value">7</div>
-      <div class="delta">remaining: 0</div></div>
+    <div class="card tile" title="100 x (1 - (cells with errors + 0.5 x cells with only warnings) / cells checked)"><div class="label">Quality score</div>
+      <div class="value">99.22%</div>
+      <div class="delta">before cleaning: 99.09%</div></div>
+    <div class="card tile"><div class="label">Unresolved errors</div>
+      <div class="value">18</div>
+      <div class="delta">19 found before cleaning</div></div>
+    <div class="card tile"><div class="label">Unresolved warnings</div>
+      <div class="value">0</div>
+      <div class="delta">7 found before cleaning</div></div>
     <div class="card tile"><div class="label">Anomalies</div><div class="value">5</div>
       <div class="delta">0 confirmed · 5 open</div></div>
     <div class="card tile"><div class="label">Changes applied</div><div class="value">9</div>
       <div class="delta">1 skipped · 11 suggested</div></div>
   </section>
+
+  
+  <div class="card" style="margin-top:12px">
+    <strong>How the score is calculated</strong>
+    <p class="why" style="margin:4px 0 8px">100 x (1 - (cells with errors + 0.5 x cells with only warnings) / cells checked). A duplicate row counts all its cells; anomalies count only when a reviewer confirms them.</p>
+    <div class="mono">Before cleaning: 100 x (1 - (28 + 0.5 x 7) / 3471) = 99.09</div>
+    <div class="mono">After cleaning (re-validation of the corrected file): 100 x (1 - (27 + 0.5 x 0) / 3471) = 99.22</div>
+    <p style="margin:10px 0 0">Issue outcomes:
+      <span class="chip good">resolved 9</span> <span class="chip error">open 16</span> <span class="chip warning">pending_review 6</span> </p>
+    <p class="why" style="margin:10px 0 0"><strong>Spelling not verified</strong> (no allowed list, alias list, pattern or format):
+      Orders.channel. Typos that never appear correctly elsewhere in these columns cannot be detected; add <span class="mono">aliases</span> or <span class="mono">allowed</span> to the rules.</p>
+  </div>
+
+  
+  <h2 id="unresolved">Unresolved after cleaning (18)</h2>
+  <div class="card scroll">
+    <table>
+      <thead><tr><th>Cell (corrected file)</th><th>Cell (original)</th><th>Rule</th><th>Value</th><th>Problem</th><th>Outcome</th></tr></thead>
+      <tbody>
+      
+      <tr><td class="mono">Orders!A38</td><td class="mono">Orders!A38</td>
+        <td class="mono">required <span class="chip error">error</span></td>
+        <td class="mono"></td>
+        <td>&#39;order_id&#39; is required but empty.<div class="why">No safe automatic correction exists; fix the source data by hand.</div></td>
+        <td><span class="chip error">open</span></td></tr>
+      
+      <tr><td class="mono">Orders!A156</td><td class="mono">Orders!A156</td>
+        <td class="mono">regex <span class="chip error">error</span></td>
+        <td class="mono">ORD-12A4</td>
+        <td>&#39;ORD-12A4&#39; does not match the pattern ^ORD-\d{5}$.<div class="why">No safe automatic correction exists; fix the source data by hand.</div></td>
+        <td><span class="chip error">open</span></td></tr>
+      
+      <tr><td class="mono">Orders!B20</td><td class="mono">Orders!B20</td>
+        <td class="mono">type <span class="chip error">error</span></td>
+        <td class="mono">not a date</td>
+        <td>&#39;not a date&#39; is not a date.<div class="why">No safe automatic correction exists; fix the source data by hand.</div></td>
+        <td><span class="chip error">open</span></td></tr>
+      
+      <tr><td class="mono">Orders!B62</td><td class="mono">Orders!B62</td>
+        <td class="mono">range <span class="chip error">error</span></td>
+        <td class="mono">2019-05-01T00:00:00</td>
+        <td>2019-05-01 is below the minimum 2020-01-01.<div class="why">No safe automatic correction exists; fix the source data by hand.</div></td>
+        <td><span class="chip error">open</span></td></tr>
+      
+      <tr><td class="mono">Orders!B260</td><td class="mono">Orders!B260</td>
+        <td class="mono">not_future <span class="chip error">error</span></td>
+        <td class="mono">2031-01-01T00:00:00</td>
+        <td>2031-01-01 is in the future.<div class="why">No safe automatic correction exists; fix the source data by hand.</div></td>
+        <td><span class="chip error">open</span></td></tr>
+      
+      <tr><td class="mono">Orders!D291</td><td class="mono">Orders!D291</td>
+        <td class="mono">required <span class="chip error">error</span></td>
+        <td class="mono"></td>
+        <td>&#39;customer_id&#39; is required but empty.<div class="why">No safe automatic correction exists; fix the source data by hand.</div></td>
+        <td><span class="chip error">open</span></td></tr>
+      
+      <tr><td class="mono">Orders!E131</td><td class="mono">Orders!E131</td>
+        <td class="mono">allowed <span class="chip error">error</span></td>
+        <td class="mono">Lost</td>
+        <td>&#39;Lost&#39; is not an allowed value for &#39;status&#39;.<div class="why">No safe automatic correction exists; fix the source data by hand.</div></td>
+        <td><span class="chip error">open</span></td></tr>
+      
+      <tr><td class="mono">Orders!G121</td><td class="mono">Orders!G121</td>
+        <td class="mono">type <span class="chip error">error</span></td>
+        <td class="mono">abc</td>
+        <td>&#39;abc&#39; is not a number.<div class="why">No safe automatic correction exists; fix the source data by hand.</div></td>
+        <td><span class="chip error">open</span></td></tr>
+      
+      <tr><td class="mono">Orders!G59</td><td class="mono">Orders!G59</td>
+        <td class="mono">range <span class="chip error">error</span></td>
+        <td class="mono">5000</td>
+        <td>5000 is above the maximum 1000.<div class="why">No safe automatic correction exists; fix the source data by hand.</div></td>
+        <td><span class="chip error">open</span></td></tr>
+      
+      <tr><td class="mono">Orders!G92</td><td class="mono">Orders!G92</td>
+        <td class="mono">range <span class="chip error">error</span></td>
+        <td class="mono">0</td>
+        <td>0 is below the minimum 1.<div class="why">No safe automatic correction exists; fix the source data by hand.</div></td>
+        <td><span class="chip error">open</span></td></tr>
+      
+      <tr><td class="mono">Orders!K16</td><td class="mono">Orders!K16</td>
+        <td class="mono">regex <span class="chip error">error</span></td>
+        <td class="mono">not-an-email</td>
+        <td>&#39;not-an-email&#39; does not match the pattern ^[\w.+-]+@[\w-]+\.[\w.]+$.<div class="why">No safe automatic correction exists; fix the source data by hand.</div></td>
+        <td><span class="chip error">open</span></td></tr>
+      
+      <tr><td class="mono">Orders!A302</td><td class="mono">Orders!A302</td>
+        <td class="mono">key.duplicate <span class="chip error">error</span></td>
+        <td class="mono">ORD-00128</td>
+        <td>Duplicate key (ORD-00128); first seen in row 129.<div class="why">No safe automatic correction exists; fix the source data by hand.</div></td>
+        <td><span class="chip error">open</span></td></tr>
+      
+      <tr><td class="mono">Orders!A302</td><td class="mono">Orders!A302</td>
+        <td class="mono">row.duplicate <span class="chip error">error</span></td>
+        <td class="mono"></td>
+        <td>Row repeats row 129 (ignoring order_id; case and spacing ignored).<div class="why">Approved fix not effective: workbook contains formulas; deleting rows could break references, so the row was kept and marked.</div></td>
+        <td><span class="chip error">open</span></td></tr>
+      
+      <tr><td class="mono">Orders!C278</td><td class="mono">Orders!C278</td>
+        <td class="mono">ship_after_order <span class="chip error">error</span></td>
+        <td class="mono">2024-09-21T00:00:00</td>
+        <td>Ship date is before the order date (ship_date=2024-09-21, order_date=2024-09-24)<div class="why">No safe automatic correction exists; fix the source data by hand.</div></td>
+        <td><span class="chip error">open</span></td></tr>
+      
+      <tr><td class="mono">Orders!J135</td><td class="mono">Orders!J135</td>
+        <td class="mono">total_matches <span class="chip error">error</span></td>
+        <td class="mono">19848.4</td>
+        <td>Total does not equal quantity x unit price (total=19848.4, quantity=30, unit_price=658.28)<div class="why">Suggested fix (rule_fix) was not reviewed.</div></td>
+        <td><span class="chip warning">pending_review</span></td></tr>
+      
+      <tr><td class="mono">Orders!C75</td><td class="mono">Orders!C75</td>
+        <td class="mono">shipped_needs_date <span class="chip error">error</span></td>
+        <td class="mono"></td>
+        <td>&#39;ship_date&#39; is required when status == &#39;Shipped&#39;. <span class="chip warning">appeared after a fix</span><div class="why">Appeared after corrections were applied (for example, a corrected category now triggers another rule).</div></td>
+        <td><span class="chip error">open</span></td></tr>
+      
+      <tr><td class="mono">Orders!C282</td><td class="mono">Orders!C282</td>
+        <td class="mono">shipped_needs_date <span class="chip error">error</span></td>
+        <td class="mono"></td>
+        <td>&#39;ship_date&#39; is required when status == &#39;Shipped&#39;.<div class="why">No safe automatic correction exists; fix the source data by hand.</div></td>
+        <td><span class="chip error">open</span></td></tr>
+      
+      <tr><td class="mono">Orders!D22</td><td class="mono">Orders!D22</td>
+        <td class="mono">customer_exists <span class="chip error">error</span></td>
+        <td class="mono">C999</td>
+        <td>&#39;C999&#39; was not found in Customers.customer_id.<div class="why">No safe automatic correction exists; fix the source data by hand.</div></td>
+        <td><span class="chip error">open</span></td></tr>
+      
+      </tbody>
+    </table>
+  </div>
+  
 
   <h2>Issues by rule</h2>
   <div class="card">
@@ -386,138 +532,164 @@ pre { white-space: pre-wrap; background: var(--surface-0); padding: 12px; border
   <div class="card">
     <input class="filter" type="search" placeholder="Filter by rule, cell, column or value…" data-table="issues-table" aria-label="Filter issues">
     <div class="scroll"><table id="issues-table">
-      <thead><tr><th>Cell</th><th>Rule</th><th>Severity</th><th>Value</th><th>Problem</th></tr></thead>
+      <thead><tr><th>Cell</th><th>Rule</th><th>Severity</th><th>Value</th><th>Problem</th><th>Outcome</th></tr></thead>
       <tbody>
       
       <tr><td class="mono">Orders!A38</td><td class="mono">required</td>
         <td><span class="chip error">error</span></td>
         <td class="mono"></td>
-        <td>&#39;order_id&#39; is required but empty.<div class="why">A required field is empty, so downstream reports and joins will miss this record.</div></td></tr>
+        <td>&#39;order_id&#39; is required but empty.<div class="why">A required field is empty, so downstream reports and joins will miss this record.</div></td>
+        <td><span class="chip error">open</span><div class="why">No safe automatic correction exists; fix the source data by hand.</div></td></tr>
       
       <tr><td class="mono">Orders!A156</td><td class="mono">regex</td>
         <td><span class="chip error">error</span></td>
         <td class="mono">ORD-12A4</td>
-        <td>&#39;ORD-12A4&#39; does not match the pattern ^ORD-\d{5}$.<div class="why">The value does not follow the required format.</div></td></tr>
+        <td>&#39;ORD-12A4&#39; does not match the pattern ^ORD-\d{5}$.<div class="why">The value does not follow the required format.</div></td>
+        <td><span class="chip error">open</span><div class="why">No safe automatic correction exists; fix the source data by hand.</div></td></tr>
       
       <tr><td class="mono">Orders!B20</td><td class="mono">type</td>
         <td><span class="chip error">error</span></td>
         <td class="mono">not a date</td>
-        <td>&#39;not a date&#39; is not a date.<div class="why">The value cannot be read as the expected type, so calculations or sorting on this column will fail or skip it.</div></td></tr>
+        <td>&#39;not a date&#39; is not a date.<div class="why">The value cannot be read as the expected type, so calculations or sorting on this column will fail or skip it.</div></td>
+        <td><span class="chip error">open</span><div class="why">No safe automatic correction exists; fix the source data by hand.</div></td></tr>
       
       <tr><td class="mono">Orders!B235</td><td class="mono">type.date_as_text</td>
         <td><span class="chip warning">warning</span></td>
         <td class="mono">15/03/2024</td>
-        <td>Date stored as text: &#39;15/03/2024&#39;.<div class="why">The date is stored as text, so date filters, sorting and arithmetic will treat it as a string.</div></td></tr>
+        <td>Date stored as text: &#39;15/03/2024&#39;.<div class="why">The date is stored as text, so date filters, sorting and arithmetic will treat it as a string.</div></td>
+        <td><span class="chip good">resolved</span><div class="why">Fixed by text_to_date; passes re-validation.</div></td></tr>
       
       <tr><td class="mono">Orders!B269</td><td class="mono">type.date_serial</td>
         <td><span class="chip warning">warning</span></td>
         <td class="mono">45000</td>
-        <td>Excel serial number 45000 where a date is expected.<div class="why">An Excel serial number sits where a date is expected; it is probably a date whose formatting was lost.</div></td></tr>
+        <td>Excel serial number 45000 where a date is expected.<div class="why">An Excel serial number sits where a date is expected; it is probably a date whose formatting was lost.</div></td>
+        <td><span class="chip good">resolved</span><div class="why">Fixed by serial_to_date; passes re-validation.</div></td></tr>
       
       <tr><td class="mono">Orders!B62</td><td class="mono">range</td>
         <td><span class="chip error">error</span></td>
         <td class="mono">2019-05-01T00:00:00</td>
-        <td>2019-05-01 is below the minimum 2020-01-01.<div class="why">The value is outside the range the rules allow, which usually means a typo or a unit mistake.</div></td></tr>
+        <td>2019-05-01 is below the minimum 2020-01-01.<div class="why">The value is outside the range the rules allow, which usually means a typo or a unit mistake.</div></td>
+        <td><span class="chip error">open</span><div class="why">No safe automatic correction exists; fix the source data by hand.</div></td></tr>
       
       <tr><td class="mono">Orders!B260</td><td class="mono">not_future</td>
         <td><span class="chip error">error</span></td>
         <td class="mono">2031-01-01T00:00:00</td>
-        <td>2031-01-01 is in the future.<div class="why">The date lies in the future, which is impossible for this field.</div></td></tr>
+        <td>2031-01-01 is in the future.<div class="why">The date lies in the future, which is impossible for this field.</div></td>
+        <td><span class="chip error">open</span><div class="why">No safe automatic correction exists; fix the source data by hand.</div></td></tr>
       
       <tr><td class="mono">Orders!D291</td><td class="mono">required</td>
         <td><span class="chip error">error</span></td>
         <td class="mono"></td>
-        <td>&#39;customer_id&#39; is required but empty.<div class="why">A required field is empty, so downstream reports and joins will miss this record.</div></td></tr>
+        <td>&#39;customer_id&#39; is required but empty.<div class="why">A required field is empty, so downstream reports and joins will miss this record.</div></td>
+        <td><span class="chip error">open</span><div class="why">No safe automatic correction exists; fix the source data by hand.</div></td></tr>
       
       <tr><td class="mono">Orders!E17</td><td class="mono">allowed.noncanonical</td>
         <td><span class="chip warning">warning</span></td>
         <td class="mono">delivered</td>
-        <td>&#39;delivered&#39; should be written &#39;Delivered&#39;.<div class="why">The category is valid but spelled with different case or spacing, which splits one group into several.</div></td></tr>
+        <td>&#39;delivered&#39; should be written &#39;Delivered&#39;.<div class="why">The category is valid but spelled with different case or spacing, which splits one group into several.</div></td>
+        <td><span class="chip good">resolved</span><div class="why">Fixed by canonical_category; passes re-validation.</div></td></tr>
       
       <tr><td class="mono">Orders!E75</td><td class="mono">allowed</td>
         <td><span class="chip error">error</span></td>
         <td class="mono">Shiped</td>
-        <td>&#39;Shiped&#39; is not an allowed value for &#39;status&#39;.<div class="why">The value is not in the list of allowed categories, so it will be miscounted in any grouping.</div></td></tr>
+        <td>&#39;Shiped&#39; is not an allowed value for &#39;status&#39;.<div class="why">The value is not in the list of allowed categories, so it will be miscounted in any grouping.</div></td>
+        <td><span class="chip good">resolved</span><div class="why">Fixed by fuzzy_category; passes re-validation.</div></td></tr>
       
       <tr><td class="mono">Orders!E131</td><td class="mono">allowed</td>
         <td><span class="chip error">error</span></td>
         <td class="mono">Lost</td>
-        <td>&#39;Lost&#39; is not an allowed value for &#39;status&#39;.<div class="why">The value is not in the list of allowed categories, so it will be miscounted in any grouping.</div></td></tr>
+        <td>&#39;Lost&#39; is not an allowed value for &#39;status&#39;.<div class="why">The value is not in the list of allowed categories, so it will be miscounted in any grouping.</div></td>
+        <td><span class="chip error">open</span><div class="why">No safe automatic correction exists; fix the source data by hand.</div></td></tr>
       
       <tr><td class="mono">Orders!G100</td><td class="mono">type.stored_as_text</td>
         <td><span class="chip warning">warning</span></td>
         <td class="mono">12</td>
-        <td>Number stored as text: &#39;12&#39;.<div class="why">The value is a number or boolean stored as text; Excel and most tools will not sum or compare it correctly.</div></td></tr>
+        <td>Number stored as text: &#39;12&#39;.<div class="why">The value is a number or boolean stored as text; Excel and most tools will not sum or compare it correctly.</div></td>
+        <td><span class="chip good">resolved</span><div class="why">Fixed by text_to_number; passes re-validation.</div></td></tr>
       
       <tr><td class="mono">Orders!G121</td><td class="mono">type</td>
         <td><span class="chip error">error</span></td>
         <td class="mono">abc</td>
-        <td>&#39;abc&#39; is not a number.<div class="why">The value cannot be read as the expected type, so calculations or sorting on this column will fail or skip it.</div></td></tr>
+        <td>&#39;abc&#39; is not a number.<div class="why">The value cannot be read as the expected type, so calculations or sorting on this column will fail or skip it.</div></td>
+        <td><span class="chip error">open</span><div class="why">No safe automatic correction exists; fix the source data by hand.</div></td></tr>
       
       <tr><td class="mono">Orders!G59</td><td class="mono">range</td>
         <td><span class="chip error">error</span></td>
         <td class="mono">5000</td>
-        <td>5000 is above the maximum 1000.<div class="why">The value is outside the range the rules allow, which usually means a typo or a unit mistake.</div></td></tr>
+        <td>5000 is above the maximum 1000.<div class="why">The value is outside the range the rules allow, which usually means a typo or a unit mistake.</div></td>
+        <td><span class="chip error">open</span><div class="why">No safe automatic correction exists; fix the source data by hand.</div></td></tr>
       
       <tr><td class="mono">Orders!G92</td><td class="mono">range</td>
         <td><span class="chip error">error</span></td>
         <td class="mono">0</td>
-        <td>0 is below the minimum 1.<div class="why">The value is outside the range the rules allow, which usually means a typo or a unit mistake.</div></td></tr>
+        <td>0 is below the minimum 1.<div class="why">The value is outside the range the rules allow, which usually means a typo or a unit mistake.</div></td>
+        <td><span class="chip error">open</span><div class="why">No safe automatic correction exists; fix the source data by hand.</div></td></tr>
       
       <tr><td class="mono">Orders!H166</td><td class="mono">type.stored_as_text</td>
         <td><span class="chip warning">warning</span></td>
         <td class="mono">1,200.50</td>
-        <td>Number stored as text: &#39;1,200.50&#39;.<div class="why">The value is a number or boolean stored as text; Excel and most tools will not sum or compare it correctly.</div></td></tr>
+        <td>Number stored as text: &#39;1,200.50&#39;.<div class="why">The value is a number or boolean stored as text; Excel and most tools will not sum or compare it correctly.</div></td>
+        <td><span class="chip good">resolved</span><div class="why">Fixed by text_to_number; passes re-validation.</div></td></tr>
       
       <tr><td class="mono">Orders!K16</td><td class="mono">regex</td>
         <td><span class="chip error">error</span></td>
         <td class="mono">not-an-email</td>
-        <td>&#39;not-an-email&#39; does not match the pattern ^[\w.+-]+@[\w-]+\.[\w.]+$.<div class="why">The value does not follow the required format.</div></td></tr>
+        <td>&#39;not-an-email&#39; does not match the pattern ^[\w.+-]+@[\w-]+\.[\w.]+$.<div class="why">The value does not follow the required format.</div></td>
+        <td><span class="chip error">open</span><div class="why">No safe automatic correction exists; fix the source data by hand.</div></td></tr>
       
       <tr><td class="mono">Orders!A302</td><td class="mono">key.duplicate</td>
         <td><span class="chip error">error</span></td>
         <td class="mono">ORD-00128</td>
-        <td>Duplicate key (ORD-00128); first seen in row 129.<div class="why">Two rows share the same key, so lookups on this key are ambiguous.</div></td></tr>
+        <td>Duplicate key (ORD-00128); first seen in row 129.<div class="why">Two rows share the same key, so lookups on this key are ambiguous.</div></td>
+        <td><span class="chip error">open</span><div class="why">No safe automatic correction exists; fix the source data by hand.</div></td></tr>
       
       <tr><td class="mono">Orders!E52</td><td class="mono">format.whitespace</td>
         <td><span class="chip warning">warning</span></td>
         <td class="mono">Pending </td>
-        <td>Extra spaces in &#39;Pending &#39;.<div class="why">Leading, trailing or repeated spaces make equal values look different to filters and lookups.</div></td></tr>
+        <td>Extra spaces in &#39;Pending &#39;.<div class="why">Leading, trailing or repeated spaces make equal values look different to filters and lookups.</div></td>
+        <td><span class="chip good">resolved</span><div class="why">Fixed by trim_whitespace; passes re-validation.</div></td></tr>
       
       <tr><td class="mono">Orders!A302</td><td class="mono">row.duplicate</td>
         <td><span class="chip error">error</span></td>
         <td class="mono"></td>
-        <td>Row repeats row 129 (ignoring order_id; case and spacing ignored).<div class="why">The whole row repeats an earlier row; totals that include both will double-count.</div></td></tr>
+        <td>Row repeats row 129 (ignoring order_id; case and spacing ignored).<div class="why">The whole row repeats an earlier row; totals that include both will double-count.</div></td>
+        <td><span class="chip error">open</span><div class="why">Approved fix not effective: workbook contains formulas; deleting rows could break references, so the row was kept and marked.</div></td></tr>
       
       <tr><td class="mono">Orders!C278</td><td class="mono">ship_after_order</td>
         <td><span class="chip error">error</span></td>
         <td class="mono">2024-09-21T00:00:00</td>
-        <td>Ship date is before the order date (ship_date=2024-09-21, order_date=2024-09-24)<div class="why">A cross-column business rule from the rule file was not satisfied.</div></td></tr>
+        <td>Ship date is before the order date (ship_date=2024-09-21, order_date=2024-09-24)<div class="why">A cross-column business rule from the rule file was not satisfied.</div></td>
+        <td><span class="chip error">open</span><div class="why">No safe automatic correction exists; fix the source data by hand.</div></td></tr>
       
       <tr><td class="mono">Orders!J135</td><td class="mono">total_matches</td>
         <td><span class="chip error">error</span></td>
         <td class="mono">19848.4</td>
-        <td>Total does not equal quantity x unit price (total=19848.4, quantity=30, unit_price=658.28)<div class="why">A cross-column business rule from the rule file was not satisfied.</div></td></tr>
+        <td>Total does not equal quantity x unit price (total=19848.4, quantity=30, unit_price=658.28)<div class="why">A cross-column business rule from the rule file was not satisfied.</div></td>
+        <td><span class="chip warning">pending_review</span><div class="why">Suggested fix (rule_fix) was not reviewed.</div></td></tr>
       
       <tr><td class="mono">Orders!C282</td><td class="mono">shipped_needs_date</td>
         <td><span class="chip error">error</span></td>
         <td class="mono"></td>
-        <td>&#39;ship_date&#39; is required when status == &#39;Shipped&#39;.<div class="why">A cross-column business rule from the rule file was not satisfied.</div></td></tr>
+        <td>&#39;ship_date&#39; is required when status == &#39;Shipped&#39;.<div class="why">A cross-column business rule from the rule file was not satisfied.</div></td>
+        <td><span class="chip error">open</span><div class="why">No safe automatic correction exists; fix the source data by hand.</div></td></tr>
       
       <tr><td class="mono">Orders!D22</td><td class="mono">customer_exists</td>
         <td><span class="chip error">error</span></td>
         <td class="mono">C999</td>
-        <td>&#39;C999&#39; was not found in Customers.customer_id.<div class="why">A cross-column business rule from the rule file was not satisfied.</div></td></tr>
+        <td>&#39;C999&#39; was not found in Customers.customer_id.<div class="why">A cross-column business rule from the rule file was not satisfied.</div></td>
+        <td><span class="chip error">open</span><div class="why">No safe automatic correction exists; fix the source data by hand.</div></td></tr>
       
       <tr><td class="mono">Customers!C6</td><td class="mono">allowed</td>
         <td><span class="chip error">error</span></td>
         <td class="mono">Nort</td>
-        <td>&#39;Nort&#39; is not an allowed value for &#39;region&#39;.<div class="why">The value is not in the list of allowed categories, so it will be miscounted in any grouping.</div></td></tr>
+        <td>&#39;Nort&#39; is not an allowed value for &#39;region&#39;.<div class="why">The value is not in the list of allowed categories, so it will be miscounted in any grouping.</div></td>
+        <td><span class="chip good">resolved</span><div class="why">Fixed by fuzzy_category; passes re-validation.</div></td></tr>
       
       <tr><td class="mono">Customers!C11</td><td class="mono">allowed.noncanonical</td>
         <td><span class="chip warning">warning</span></td>
         <td class="mono">south</td>
-        <td>&#39;south&#39; should be written &#39;South&#39;.<div class="why">The category is valid but spelled with different case or spacing, which splits one group into several.</div></td></tr>
+        <td>&#39;south&#39; should be written &#39;South&#39;.<div class="why">The category is valid but spelled with different case or spacing, which splits one group into several.</div></td>
+        <td><span class="chip good">resolved</span><div class="why">Fixed by canonical_category; passes re-validation.</div></td></tr>
       
       </tbody>
     </table></div>
@@ -563,39 +735,39 @@ pre { white-space: pre-wrap; background: var(--surface-0); padding: 12px; border
       
       <tr><td class="mono">Orders!B235</td><td>set</td><td class="mono">15/03/2024</td>
         <td class="mono">2024-03-15</td><td class="mono">text_to_date</td><td class="mono">type.date_as_text</td>
-        <td>demo-reviewer <span class="why">2026-10-18T05:12:18+00:00</span></td></tr>
+        <td>demo-reviewer <span class="why">2026-10-18T05:52:56+00:00</span></td></tr>
       
       <tr><td class="mono">Orders!B269</td><td>set</td><td class="mono">45000</td>
         <td class="mono">2023-03-15</td><td class="mono">serial_to_date</td><td class="mono">type.date_serial</td>
-        <td>demo-reviewer <span class="why">2026-10-18T05:12:18+00:00</span></td></tr>
+        <td>demo-reviewer <span class="why">2026-10-18T05:52:56+00:00</span></td></tr>
       
       <tr><td class="mono">Orders!E17</td><td>set</td><td class="mono">delivered</td>
         <td class="mono">Delivered</td><td class="mono">canonical_category</td><td class="mono">allowed.noncanonical</td>
-        <td>demo-reviewer <span class="why">2026-10-18T05:12:18+00:00</span></td></tr>
+        <td>demo-reviewer <span class="why">2026-10-18T05:52:56+00:00</span></td></tr>
       
       <tr><td class="mono">Orders!E75</td><td>set</td><td class="mono">Shiped</td>
         <td class="mono">Shipped</td><td class="mono">fuzzy_category</td><td class="mono">allowed</td>
-        <td>demo-reviewer <span class="why">2026-10-18T05:12:18+00:00</span></td></tr>
+        <td>demo-reviewer <span class="why">2026-10-18T05:52:56+00:00</span></td></tr>
       
       <tr><td class="mono">Orders!G100</td><td>set</td><td class="mono">12</td>
         <td class="mono">12</td><td class="mono">text_to_number</td><td class="mono">type.stored_as_text</td>
-        <td>demo-reviewer <span class="why">2026-10-18T05:12:18+00:00</span></td></tr>
+        <td>demo-reviewer <span class="why">2026-10-18T05:52:56+00:00</span></td></tr>
       
       <tr><td class="mono">Orders!H166</td><td>set</td><td class="mono">1,200.50</td>
         <td class="mono">1200.5</td><td class="mono">text_to_number</td><td class="mono">type.stored_as_text</td>
-        <td>demo-reviewer <span class="why">2026-10-18T05:12:18+00:00</span></td></tr>
+        <td>demo-reviewer <span class="why">2026-10-18T05:52:56+00:00</span></td></tr>
       
       <tr><td class="mono">Orders!E52</td><td>set</td><td class="mono">Pending </td>
         <td class="mono">Pending</td><td class="mono">trim_whitespace</td><td class="mono">format.whitespace</td>
-        <td>demo-reviewer <span class="why">2026-10-18T05:12:18+00:00</span></td></tr>
+        <td>demo-reviewer <span class="why">2026-10-18T05:52:56+00:00</span></td></tr>
       
       <tr><td class="mono">Customers!C6</td><td>set</td><td class="mono">Nort</td>
         <td class="mono">North</td><td class="mono">fuzzy_category</td><td class="mono">allowed</td>
-        <td>demo-reviewer <span class="why">2026-10-18T05:12:18+00:00</span></td></tr>
+        <td>demo-reviewer <span class="why">2026-10-18T05:52:56+00:00</span></td></tr>
       
       <tr><td class="mono">Customers!C11</td><td>set</td><td class="mono">south</td>
         <td class="mono">South</td><td class="mono">canonical_category</td><td class="mono">allowed.noncanonical</td>
-        <td>demo-reviewer <span class="why">2026-10-18T05:12:18+00:00</span></td></tr>
+        <td>demo-reviewer <span class="why">2026-10-18T05:52:56+00:00</span></td></tr>
       
       </tbody>
     </table>
@@ -611,12 +783,12 @@ pre { white-space: pre-wrap; background: var(--surface-0); padding: 12px; border
   <div class="card">
     <dl class="prov">
       <dt>Tool</dt><dd>IloveCSV 0.1.0</dd>
-      <dt>Validated</dt><dd>2026-10-18T05:12:18+00:00</dd>
-      <dt>Exported</dt><dd>2026-10-18T05:12:19+00:00</dd>
-      <dt>Input SHA-256</dt><dd class="mono">8315871dd19de1c860e0b676491c19f094b9fb139b906772c4769da3e8224269</dd>
+      <dt>Validated</dt><dd>2026-10-18T05:52:56+00:00</dd>
+      <dt>Exported</dt><dd>2026-10-18T05:52:56+00:00</dd>
+      <dt>Input SHA-256</dt><dd class="mono">146d95ec7a25a5a815efe3cfbcd4e4d7992640e67ed7615cddc97dfe3ac5de51</dd>
       <dt>Rules SHA-256</dt><dd class="mono">1f44a51bf7cf6b2a3620a24fbfb93621b64c16548dd9146108ec2277281fc85d</dd>
       <dt>Output</dt><dd>demo_orders_corrected.xlsx</dd>
-      <dt>Output SHA-256</dt><dd class="mono">6ec37fe28dd861adc08bfc03c9bbb635ae2fabd17a71994e1e8b65bcde29cdfb</dd>
+      <dt>Output SHA-256</dt><dd class="mono">d1eaa17344ad8f7eecc5922cb1ff96fc89778a6642c71f6a162aedd10f7ec0b0</dd>
     </dl>
     <details style="margin-top:12px"><summary>Rule file used</summary><pre class="mono">version: 1
 dayfirst: true

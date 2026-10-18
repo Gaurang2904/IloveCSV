@@ -22,6 +22,18 @@ APPROVED = "approved"
 REJECTED = "rejected"
 SUGGESTION_STATUSES = {PENDING, APPROVED, REJECTED}
 
+# Issue resolutions.
+#   resolved        a correction was applied and the cell/row passes re-validation
+#   open            unresolved; no automatic correction exists, so a person must fix the data
+#   pending_review  a person must decide: a suggested fix not yet approved, or an anomaly not reviewed
+#   approved        fix approved, not exported yet (becomes resolved or open after export)
+#   rejected        the suggested fix was rejected, so the issue remains
+#   dismissed       an anomaly the reviewer judged to be correct data
+RESOLVED = "resolved"
+PENDING_REVIEW = "pending_review"
+DISMISSED_RES = "dismissed"
+RESOLUTIONS = (RESOLVED, OPEN, PENDING_REVIEW, APPROVED, REJECTED, DISMISSED_RES)
+
 
 def stable_id(prefix: str, *parts: Any) -> str:
     """Deterministic id, so the same input and rules always give the same ids."""
@@ -60,7 +72,11 @@ class Issue:
     value: Any = None
     detector: str | None = None  # anomalies only
     score: float | None = None  # anomalies only
-    status: str = OPEN
+    status: str = OPEN  # anomaly review: open | confirmed_error | dismissed
+    # What happened to the issue: see RESOLUTIONS. Set from decisions, then finally from re-validation.
+    resolution: str = ""
+    resolution_note: str | None = None
+    context: dict[str, Any] | None = None  # rule-specific details, e.g. {"duplicate_of": 2}
     id: str = ""
 
     def __post_init__(self) -> None:

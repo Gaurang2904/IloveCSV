@@ -20,7 +20,7 @@ if __name__ == "__main__":
     s = run.summary()
     print(f"before: quality {s['quality_score']}%, {s['errors']} errors, {s['warnings']} warnings, "
           f"{s['anomalies']} anomalies, {s['suggestions']} suggestions")
-    decide(run, min_confidence=0.85, approver="demo-reviewer")
+    decide(run, min_confidence=0.85, approver="demo-reviewer", include_row_deletions=True)
     ex = export(run, ROOT / "reports" / "demo")
     a = ex.after
     print(f"after:  quality {a['quality_score']}%, {a['errors']} errors, {a['warnings']} warnings; "

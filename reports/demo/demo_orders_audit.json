@@ -4,14 +4,14 @@
     "version": "0.1.0"
   },
   "run": {
-    "id": "730e008c1085",
-    "created_at": "2026-10-18T05:12:18+00:00",
-    "exported_at": "2026-10-18T05:12:19+00:00"
+    "id": "05ee690e179f",
+    "created_at": "2026-10-18T05:52:56+00:00",
+    "exported_at": "2026-10-18T05:52:56+00:00"
   },
   "input": {
     "filename": "demo_orders.xlsx",
     "file_type": "xlsx",
-    "sha256": "8315871dd19de1c860e0b676491c19f094b9fb139b906772c4769da3e8224269",
+    "sha256": "146d95ec7a25a5a815efe3cfbcd4e4d7992640e67ed7615cddc97dfe3ac5de51",
     "sheets": [
       {
         "name": "Orders",
@@ -64,6 +64,12 @@
     "cells_with_warnings": 7,
     "quality_score": 99.09,
     "quality_formula": "100 x (1 - (cells with errors + 0.5 x cells with only warnings) / cells checked)",
+    "quality_calculation": "100 x (1 - (28 + 0.5 x 7) / 3471) = 99.09",
+    "resolutions": {
+      "open": 16,
+      "resolved": 9,
+      "pending_review": 6
+    },
     "by_rule": {
       "range": 3,
       "allowed": 3,
@@ -1694,6 +1700,9 @@
       "detector": null,
       "score": null,
       "status": "open",
+      "resolution": "open",
+      "resolution_note": "No safe automatic correction exists; fix the source data by hand.",
+      "context": null,
       "id": "e-2609ddfa0d66",
       "why": "A required field is empty, so downstream reports and joins will miss this record."
     },
@@ -1710,6 +1719,9 @@
       "detector": null,
       "score": null,
       "status": "open",
+      "resolution": "open",
+      "resolution_note": "No safe automatic correction exists; fix the source data by hand.",
+      "context": null,
       "id": "e-53486d12be2e",
       "why": "The value does not follow the required format."
     },
@@ -1726,6 +1738,9 @@
       "detector": null,
       "score": null,
       "status": "open",
+      "resolution": "open",
+      "resolution_note": "No safe automatic correction exists; fix the source data by hand.",
+      "context": null,
       "id": "e-3cb21eb9bb4f",
       "why": "The value cannot be read as the expected type, so calculations or sorting on this column will fail or skip it."
     },
@@ -1742,6 +1757,9 @@
       "detector": null,
       "score": null,
       "status": "open",
+      "resolution": "resolved",
+      "resolution_note": "Fixed by text_to_date; passes re-validation.",
+      "context": null,
       "id": "e-6273fb03ffb0",
       "why": "The date is stored as text, so date filters, sorting and arithmetic will treat it as a string."
     },
@@ -1758,6 +1776,9 @@
       "detector": null,
       "score": null,
       "status": "open",
+      "resolution": "resolved",
+      "resolution_note": "Fixed by serial_to_date; passes re-validation.",
+      "context": null,
       "id": "e-d022b0ae0d65",
       "why": "An Excel serial number sits where a date is expected; it is probably a date whose formatting was lost."
     },
@@ -1774,6 +1795,9 @@
       "detector": null,
       "score": null,
       "status": "open",
+      "resolution": "open",
+      "resolution_note": "No safe automatic correction exists; fix the source data by hand.",
+      "context": null,
       "id": "e-e84ae131f8a7",
       "why": "The value is outside the range the rules allow, which usually means a typo or a unit mistake."
     },
@@ -1790,6 +1814,9 @@
       "detector": null,
       "score": null,
       "status": "open",
+      "resolution": "open",
+      "resolution_note": "No safe automatic correction exists; fix the source data by hand.",
+      "context": null,
       "id": "e-fc6672253035",
       "why": "The date lies in the future, which is impossible for this field."
     },
@@ -1806,6 +1833,9 @@
       "detector": null,
       "score": null,
       "status": "open",
+      "resolution": "open",
+      "resolution_note": "No safe automatic correction exists; fix the source data by hand.",
+      "context": null,
       "id": "e-a03447eea152",
       "why": "A required field is empty, so downstream reports and joins will miss this record."
     },
@@ -1822,6 +1852,9 @@
       "detector": null,
       "score": null,
       "status": "open",
+      "resolution": "resolved",
+      "resolution_note": "Fixed by canonical_category; passes re-validation.",
+      "context": null,
       "id": "e-58e8f6e2dd30",
       "why": "The category is valid but spelled with different case or spacing, which splits one group into several."
     },
@@ -1838,6 +1871,9 @@
       "detector": null,
       "score": null,
       "status": "open",
+      "resolution": "resolved",
+      "resolution_note": "Fixed by fuzzy_category; passes re-validation.",
+      "context": null,
       "id": "e-7fb12d84731b",
       "why": "The value is not in the list of allowed categories, so it will be miscounted in any grouping."
     },
@@ -1854,6 +1890,9 @@
       "detector": null,
       "score": null,
       "status": "open",
+      "resolution": "open",
+      "resolution_note": "No safe automatic correction exists; fix the source data by hand.",
+      "context": null,
       "id": "e-42dadf89059a",
       "why": "The value is not in the list of allowed categories, so it will be miscounted in any grouping."
     },
@@ -1870,6 +1909,9 @@
       "detector": null,
       "score": null,
       "status": "open",
+      "resolution": "resolved",
+      "resolution_note": "Fixed by text_to_number; passes re-validation.",
+      "context": null,
       "id": "e-62689ddf4d00",
       "why": "The value is a number or boolean stored as text; Excel and most tools will not sum or compare it correctly."
     },
@@ -1886,6 +1928,9 @@
       "detector": null,
       "score": null,
       "status": "open",
+      "resolution": "open",
+      "resolution_note": "No safe automatic correction exists; fix the source data by hand.",
+      "context": null,
       "id": "e-e4aec2a3b1b4",
       "why": "The value cannot be read as the expected type, so calculations or sorting on this column will fail or skip it."
     },
@@ -1902,6 +1947,9 @@
       "detector": null,
       "score": null,
       "status": "open",
+      "resolution": "open",
+      "resolution_note": "No safe automatic correction exists; fix the source data by hand.",
+      "context": null,
       "id": "e-be3ba427b2b5",
       "why": "The value is outside the range the rules allow, which usually means a typo or a unit mistake."
     },
@@ -1918,6 +1966,9 @@
       "detector": null,
       "score": null,
       "status": "open",
+      "resolution": "open",
+      "resolution_note": "No safe automatic correction exists; fix the source data by hand.",
+      "context": null,
       "id": "e-4a244fbcce78",
       "why": "The value is outside the range the rules allow, which usually means a typo or a unit mistake."
     },
@@ -1934,6 +1985,9 @@
       "detector": null,
       "score": null,
       "status": "open",
+      "resolution": "resolved",
+      "resolution_note": "Fixed by text_to_number; passes re-validation.",
+      "context": null,
       "id": "e-1f06c2c21af4",
       "why": "The value is a number or boolean stored as text; Excel and most tools will not sum or compare it correctly."
     },
@@ -1950,6 +2004,9 @@
       "detector": null,
       "score": null,
       "status": "open",
+      "resolution": "open",
+      "resolution_note": "No safe automatic correction exists; fix the source data by hand.",
+      "context": null,
       "id": "e-d6a7488e0624",
       "why": "The value does not follow the required format."
     },
@@ -1966,6 +2023,9 @@
       "detector": null,
       "score": null,
       "status": "open",
+      "resolution": "open",
+      "resolution_note": "No safe automatic correction exists; fix the source data by hand.",
+      "context": null,
       "id": "e-b3c880f0ecdc",
       "why": "Two rows share the same key, so lookups on this key are ambiguous."
     },
@@ -1982,6 +2042,9 @@
       "detector": null,
       "score": null,
       "status": "open",
+      "resolution": "resolved",
+      "resolution_note": "Fixed by trim_whitespace; passes re-validation.",
+      "context": null,
       "id": "e-45eed4518f39",
       "why": "Leading, trailing or repeated spaces make equal values look different to filters and lookups."
     },
@@ -1998,6 +2061,28 @@
       "detector": null,
       "score": null,
       "status": "open",
+      "resolution": "open",
+      "resolution_note": "Approved fix not effective: workbook contains formulas; deleting rows could break references, so the row was kept and marked.",
+      "context": {
+        "duplicate_of": 129,
+        "exact": true,
+        "compared_columns": [
+          "order_date",
+          "ship_date",
+          "customer_id",
+          "status",
+          "channel",
+          "quantity",
+          "unit_price",
+          "shipping_cost",
+          "total",
+          "email"
+        ],
+        "ignored_columns": [
+          "order_id"
+        ],
+        "match": "normalized"
+      },
       "id": "e-3709bca544c2",
       "why": "The whole row repeats an earlier row; totals that include both will double-count."
     },
@@ -2014,6 +2099,9 @@
       "detector": null,
       "score": null,
       "status": "open",
+      "resolution": "open",
+      "resolution_note": "No safe automatic correction exists; fix the source data by hand.",
+      "context": null,
       "id": "e-827f24cd542c",
       "why": "A cross-column business rule from the rule file was not satisfied."
     },
@@ -2030,6 +2118,9 @@
       "detector": null,
       "score": null,
       "status": "open",
+      "resolution": "pending_review",
+      "resolution_note": "Suggested fix (rule_fix) was not reviewed.",
+      "context": null,
       "id": "e-24e27a444197",
       "why": "A cross-column business rule from the rule file was not satisfied."
     },
@@ -2046,6 +2137,9 @@
       "detector": null,
       "score": null,
       "status": "open",
+      "resolution": "open",
+      "resolution_note": "No safe automatic correction exists; fix the source data by hand.",
+      "context": null,
       "id": "e-6f1d3ce0912c",
       "why": "A cross-column business rule from the rule file was not satisfied."
     },
@@ -2062,6 +2156,9 @@
       "detector": null,
       "score": null,
       "status": "open",
+      "resolution": "open",
+      "resolution_note": "No safe automatic correction exists; fix the source data by hand.",
+      "context": null,
       "id": "e-c046faa8459f",
       "why": "A cross-column business rule from the rule file was not satisfied."
     },
@@ -2078,6 +2175,9 @@
       "detector": null,
       "score": null,
       "status": "open",
+      "resolution": "resolved",
+      "resolution_note": "Fixed by fuzzy_category; passes re-validation.",
+      "context": null,
       "id": "e-79c3092efb20",
       "why": "The value is not in the list of allowed categories, so it will be miscounted in any grouping."
     },
@@ -2094,6 +2194,9 @@
       "detector": null,
       "score": null,
       "status": "open",
+      "resolution": "resolved",
+      "resolution_note": "Fixed by canonical_category; passes re-validation.",
+      "context": null,
       "id": "e-9f6fc15209ec",
       "why": "The category is valid but spelled with different case or spacing, which splits one group into several."
     }
@@ -2112,6 +2215,9 @@
       "detector": "robust_z",
       "score": 26.489,
       "status": "open",
+      "resolution": "pending_review",
+      "resolution_note": null,
+      "context": null,
       "id": "a-fe837092cb91",
       "why": "Statistically far from the rest of the column. It may be correct, so a person should confirm or dismiss it."
     },
@@ -2128,6 +2234,9 @@
       "detector": "robust_z",
       "score": 13.933,
       "status": "open",
+      "resolution": "pending_review",
+      "resolution_note": null,
+      "context": null,
       "id": "a-d99e020aedb6",
       "why": "Statistically far from the rest of the column. It may be correct, so a person should confirm or dismiss it."
     },
@@ -2144,6 +2253,9 @@
       "detector": "rare_category",
       "score": 0.0033,
       "status": "open",
+      "resolution": "pending_review",
+      "resolution_note": null,
+      "context": null,
       "id": "a-95367718c5b9",
       "why": "This category is very rare in the column and might be a typo. Confirm or dismiss it."
     },
@@ -2160,6 +2272,9 @@
       "detector": "isolation_forest",
       "score": 9.566,
       "status": "open",
+      "resolution": "pending_review",
+      "resolution_note": null,
+      "context": null,
       "id": "a-9c35d34de715",
       "why": "The combination of values in this row is unusual compared with the other rows. Confirm or dismiss it."
     },
@@ -2176,6 +2291,9 @@
       "detector": "isolation_forest",
       "score": 8.643,
       "status": "open",
+      "resolution": "pending_review",
+      "resolution_note": null,
+      "context": null,
       "id": "a-e7743f6bdbca",
       "why": "The combination of values in this row is unusual compared with the other rows. Confirm or dismiss it."
     }
@@ -2186,7 +2304,7 @@
       "sheet": "Orders",
       "action": "delete_row",
       "method": "remove_duplicate_row",
-      "confidence": 0.9,
+      "confidence": 0.95,
       "xl_row": 302,
       "column": null,
       "cell_ref": "Orders!A302",
@@ -2195,7 +2313,7 @@
       "rule_id": "row.duplicate",
       "status": "approved",
       "decided_by": "demo-reviewer",
-      "decided_at": "2026-10-18T05:12:18+00:00",
+      "decided_at": "2026-10-18T05:52:56+00:00",
       "id": "s-7774b41ecf04"
     },
     {
@@ -2212,7 +2330,7 @@
       "rule_id": "type.date_as_text",
       "status": "approved",
       "decided_by": "demo-reviewer",
-      "decided_at": "2026-10-18T05:12:18+00:00",
+      "decided_at": "2026-10-18T05:52:56+00:00",
       "id": "s-915a62b70b3a"
     },
     {
@@ -2229,7 +2347,7 @@
       "rule_id": "type.date_serial",
       "status": "approved",
       "decided_by": "demo-reviewer",
-      "decided_at": "2026-10-18T05:12:18+00:00",
+      "decided_at": "2026-10-18T05:52:56+00:00",
       "id": "s-eea6356ac391"
     },
     {
@@ -2246,7 +2364,7 @@
       "rule_id": "allowed.noncanonical",
       "status": "approved",
       "decided_by": "demo-reviewer",
-      "decided_at": "2026-10-18T05:12:18+00:00",
+      "decided_at": "2026-10-18T05:52:56+00:00",
       "id": "s-c8ed62ac6afc"
     },
     {
@@ -2263,7 +2381,7 @@
       "rule_id": "allowed",
       "status": "approved",
       "decided_by": "demo-reviewer",
-      "decided_at": "2026-10-18T05:12:18+00:00",
+      "decided_at": "2026-10-18T05:52:56+00:00",
       "id": "s-0a91f295343f"
     },
     {
@@ -2280,7 +2398,7 @@
       "rule_id": "type.stored_as_text",
       "status": "approved",
       "decided_by": "demo-reviewer",
-      "decided_at": "2026-10-18T05:12:18+00:00",
+      "decided_at": "2026-10-18T05:52:56+00:00",
       "id": "s-0beb9ae4d8d7"
     },
     {
@@ -2297,7 +2415,7 @@
       "rule_id": "type.stored_as_text",
       "status": "approved",
       "decided_by": "demo-reviewer",
-      "decided_at": "2026-10-18T05:12:18+00:00",
+      "decided_at": "2026-10-18T05:52:56+00:00",
       "id": "s-775202917615"
     },
     {
@@ -2314,7 +2432,7 @@
       "rule_id": "format.whitespace",
       "status": "approved",
       "decided_by": "demo-reviewer",
-      "decided_at": "2026-10-18T05:12:18+00:00",
+      "decided_at": "2026-10-18T05:52:56+00:00",
       "id": "s-00786a6ea67b"
     },
     {
@@ -2348,7 +2466,7 @@
       "rule_id": "allowed",
       "status": "approved",
       "decided_by": "demo-reviewer",
-      "decided_at": "2026-10-18T05:12:18+00:00",
+      "decided_at": "2026-10-18T05:52:56+00:00",
       "id": "s-f88ea446d618"
     },
     {
@@ -2365,7 +2483,7 @@
       "rule_id": "allowed.noncanonical",
       "status": "approved",
       "decided_by": "demo-reviewer",
-      "decided_at": "2026-10-18T05:12:18+00:00",
+      "decided_at": "2026-10-18T05:52:56+00:00",
       "id": "s-dcfe22b80161"
     }
   ],
@@ -2380,7 +2498,7 @@
       "method": "text_to_date",
       "rule_id": "type.date_as_text",
       "approved_by": "demo-reviewer",
-      "approved_at": "2026-10-18T05:12:18+00:00"
+      "approved_at": "2026-10-18T05:52:56+00:00"
     },
     {
       "suggestion_id": "s-eea6356ac391",
@@ -2392,7 +2510,7 @@
       "method": "serial_to_date",
       "rule_id": "type.date_serial",
       "approved_by": "demo-reviewer",
-      "approved_at": "2026-10-18T05:12:18+00:00"
+      "approved_at": "2026-10-18T05:52:56+00:00"
     },
     {
       "suggestion_id": "s-c8ed62ac6afc",
@@ -2404,7 +2522,7 @@
       "method": "canonical_category",
       "rule_id": "allowed.noncanonical",
       "approved_by": "demo-reviewer",
-      "approved_at": "2026-10-18T05:12:18+00:00"
+      "approved_at": "2026-10-18T05:52:56+00:00"
     },
     {
       "suggestion_id": "s-0a91f295343f",
@@ -2416,7 +2534,7 @@
       "method": "fuzzy_category",
       "rule_id": "allowed",
       "approved_by": "demo-reviewer",
-      "approved_at": "2026-10-18T05:12:18+00:00"
+      "approved_at": "2026-10-18T05:52:56+00:00"
     },
     {
       "suggestion_id": "s-0beb9ae4d8d7",
@@ -2428,7 +2546,7 @@
       "method": "text_to_number",
       "rule_id": "type.stored_as_text",
       "approved_by": "demo-reviewer",
-      "approved_at": "2026-10-18T05:12:18+00:00"
+      "approved_at": "2026-10-18T05:52:56+00:00"
     },
     {
       "suggestion_id": "s-775202917615",
@@ -2440,7 +2558,7 @@
       "method": "text_to_number",
       "rule_id": "type.stored_as_text",
       "approved_by": "demo-reviewer",
-      "approved_at": "2026-10-18T05:12:18+00:00"
+      "approved_at": "2026-10-18T05:52:56+00:00"
     },
     {
       "suggestion_id": "s-00786a6ea67b",
@@ -2452,7 +2570,7 @@
       "method": "trim_whitespace",
       "rule_id": "format.whitespace",
       "approved_by": "demo-reviewer",
-      "approved_at": "2026-10-18T05:12:18+00:00"
+      "approved_at": "2026-10-18T05:52:56+00:00"
     },
     {
       "suggestion_id": "s-f88ea446d618",
@@ -2464,7 +2582,7 @@
       "method": "fuzzy_category",
       "rule_id": "allowed",
       "approved_by": "demo-reviewer",
-      "approved_at": "2026-10-18T05:12:18+00:00"
+      "approved_at": "2026-10-18T05:52:56+00:00"
     },
     {
       "suggestion_id": "s-dcfe22b80161",
@@ -2476,7 +2594,7 @@
       "method": "canonical_category",
       "rule_id": "allowed.noncanonical",
       "approved_by": "demo-reviewer",
-      "approved_at": "2026-10-18T05:12:18+00:00"
+      "approved_at": "2026-10-18T05:52:56+00:00"
     }
   ],
   "skipped_changes": [
@@ -2490,7 +2608,7 @@
       "method": "remove_duplicate_row",
       "rule_id": "row.duplicate",
       "approved_by": "demo-reviewer",
-      "approved_at": "2026-10-18T05:12:18+00:00",
+      "approved_at": "2026-10-18T05:52:56+00:00",
       "reason": "workbook contains formulas; deleting rows could break references, so the row was kept and marked"
     }
   ],
@@ -2514,6 +2632,11 @@
     "cells_with_warnings": 0,
     "quality_score": 99.22,
     "quality_formula": "100 x (1 - (cells with errors + 0.5 x cells with only warnings) / cells checked)",
+    "quality_calculation": "100 x (1 - (27 + 0.5 x 0) / 3471) = 99.22",
+    "resolutions": {
+      "open": 16,
+      "pending_review": 7
+    },
     "by_rule": {
       "range": 3,
       "required": 2,
@@ -2534,13 +2657,14 @@
       "approved": 0,
       "rejected": 0
     },
-    "rule_errors": []
+    "rule_errors": [],
+    "resolution_counts": {
+      "open": 16,
+      "resolved": 9,
+      "pending_review": 6
+    }
   },
-  "output": {
-    "filename": "demo_orders_corrected.xlsx",
-    "sha256": "6ec37fe28dd861adc08bfc03c9bbb635ae2fabd17a71994e1e8b65bcde29cdfb"
-  },
-  "remaining_issues": [
+  "unresolved": [
     {
       "kind": "error",
       "sheet": "Orders",
@@ -2554,7 +2678,14 @@
       "detector": null,
       "score": null,
       "status": "open",
-      "id": "e-2609ddfa0d66"
+      "resolution": "open",
+      "resolution_note": "No safe automatic correction exists; fix the source data by hand.",
+      "context": null,
+      "id": "e-2609ddfa0d66",
+      "corrected_cell_ref": "Orders!A38",
+      "original_cell_ref": "Orders!A38",
+      "introduced_by_fix": false,
+      "original_issue_id": "e-2609ddfa0d66"
     },
     {
       "kind": "error",
@@ -2569,7 +2700,14 @@
       "detector": null,
       "score": null,
       "status": "open",
-      "id": "e-53486d12be2e"
+      "resolution": "open",
+      "resolution_note": "No safe automatic correction exists; fix the source data by hand.",
+      "context": null,
+      "id": "e-53486d12be2e",
+      "corrected_cell_ref": "Orders!A156",
+      "original_cell_ref": "Orders!A156",
+      "introduced_by_fix": false,
+      "original_issue_id": "e-53486d12be2e"
     },
     {
       "kind": "error",
@@ -2584,7 +2722,14 @@
       "detector": null,
       "score": null,
       "status": "open",
-      "id": "e-3cb21eb9bb4f"
+      "resolution": "open",
+      "resolution_note": "No safe automatic correction exists; fix the source data by hand.",
+      "context": null,
+      "id": "e-3cb21eb9bb4f",
+      "corrected_cell_ref": "Orders!B20",
+      "original_cell_ref": "Orders!B20",
+      "introduced_by_fix": false,
+      "original_issue_id": "e-3cb21eb9bb4f"
     },
     {
       "kind": "error",
@@ -2599,7 +2744,14 @@
       "detector": null,
       "score": null,
       "status": "open",
-      "id": "e-e84ae131f8a7"
+      "resolution": "open",
+      "resolution_note": "No safe automatic correction exists; fix the source data by hand.",
+      "context": null,
+      "id": "e-e84ae131f8a7",
+      "corrected_cell_ref": "Orders!B62",
+      "original_cell_ref": "Orders!B62",
+      "introduced_by_fix": false,
+      "original_issue_id": "e-e84ae131f8a7"
     },
     {
       "kind": "error",
@@ -2614,7 +2766,14 @@
       "detector": null,
       "score": null,
       "status": "open",
-      "id": "e-fc6672253035"
+      "resolution": "open",
+      "resolution_note": "No safe automatic correction exists; fix the source data by hand.",
+      "context": null,
+      "id": "e-fc6672253035",
+      "corrected_cell_ref": "Orders!B260",
+      "original_cell_ref": "Orders!B260",
+      "introduced_by_fix": false,
+      "original_issue_id": "e-fc6672253035"
     },
     {
       "kind": "error",
@@ -2629,7 +2788,14 @@
       "detector": null,
       "score": null,
       "status": "open",
-      "id": "e-a03447eea152"
+      "resolution": "open",
+      "resolution_note": "No safe automatic correction exists; fix the source data by hand.",
+      "context": null,
+      "id": "e-a03447eea152",
+      "corrected_cell_ref": "Orders!D291",
+      "original_cell_ref": "Orders!D291",
+      "introduced_by_fix": false,
+      "original_issue_id": "e-a03447eea152"
     },
     {
       "kind": "error",
@@ -2644,7 +2810,14 @@
       "detector": null,
       "score": null,
       "status": "open",
-      "id": "e-42dadf89059a"
+      "resolution": "open",
+      "resolution_note": "No safe automatic correction exists; fix the source data by hand.",
+      "context": null,
+      "id": "e-42dadf89059a",
+      "corrected_cell_ref": "Orders!E131",
+      "original_cell_ref": "Orders!E131",
+      "introduced_by_fix": false,
+      "original_issue_id": "e-42dadf89059a"
     },
     {
       "kind": "error",
@@ -2659,7 +2832,14 @@
       "detector": null,
       "score": null,
       "status": "open",
-      "id": "e-e4aec2a3b1b4"
+      "resolution": "open",
+      "resolution_note": "No safe automatic correction exists; fix the source data by hand.",
+      "context": null,
+      "id": "e-e4aec2a3b1b4",
+      "corrected_cell_ref": "Orders!G121",
+      "original_cell_ref": "Orders!G121",
+      "introduced_by_fix": false,
+      "original_issue_id": "e-e4aec2a3b1b4"
     },
     {
       "kind": "error",
@@ -2674,7 +2854,14 @@
       "detector": null,
       "score": null,
       "status": "open",
-      "id": "e-be3ba427b2b5"
+      "resolution": "open",
+      "resolution_note": "No safe automatic correction exists; fix the source data by hand.",
+      "context": null,
+      "id": "e-be3ba427b2b5",
+      "corrected_cell_ref": "Orders!G59",
+      "original_cell_ref": "Orders!G59",
+      "introduced_by_fix": false,
+      "original_issue_id": "e-be3ba427b2b5"
     },
     {
       "kind": "error",
@@ -2689,7 +2876,14 @@
       "detector": null,
       "score": null,
       "status": "open",
-      "id": "e-4a244fbcce78"
+      "resolution": "open",
+      "resolution_note": "No safe automatic correction exists; fix the source data by hand.",
+      "context": null,
+      "id": "e-4a244fbcce78",
+      "corrected_cell_ref": "Orders!G92",
+      "original_cell_ref": "Orders!G92",
+      "introduced_by_fix": false,
+      "original_issue_id": "e-4a244fbcce78"
     },
     {
       "kind": "error",
@@ -2704,7 +2898,14 @@
       "detector": null,
       "score": null,
       "status": "open",
-      "id": "e-d6a7488e0624"
+      "resolution": "open",
+      "resolution_note": "No safe automatic correction exists; fix the source data by hand.",
+      "context": null,
+      "id": "e-d6a7488e0624",
+      "corrected_cell_ref": "Orders!K16",
+      "original_cell_ref": "Orders!K16",
+      "introduced_by_fix": false,
+      "original_issue_id": "e-d6a7488e0624"
     },
     {
       "kind": "error",
@@ -2719,7 +2920,14 @@
       "detector": null,
       "score": null,
       "status": "open",
-      "id": "e-b3c880f0ecdc"
+      "resolution": "open",
+      "resolution_note": "No safe automatic correction exists; fix the source data by hand.",
+      "context": null,
+      "id": "e-b3c880f0ecdc",
+      "corrected_cell_ref": "Orders!A302",
+      "original_cell_ref": "Orders!A302",
+      "introduced_by_fix": false,
+      "original_issue_id": "e-b3c880f0ecdc"
     },
     {
       "kind": "error",
@@ -2734,7 +2942,33 @@
       "detector": null,
       "score": null,
       "status": "open",
-      "id": "e-3709bca544c2"
+      "resolution": "open",
+      "resolution_note": "Approved fix not effective: workbook contains formulas; deleting rows could break references, so the row was kept and marked.",
+      "context": {
+        "duplicate_of": 129,
+        "exact": true,
+        "compared_columns": [
+          "order_date",
+          "ship_date",
+          "customer_id",
+          "status",
+          "channel",
+          "quantity",
+          "unit_price",
+          "shipping_cost",
+          "total",
+          "email"
+        ],
+        "ignored_columns": [
+          "order_id"
+        ],
+        "match": "normalized"
+      },
+      "id": "e-3709bca544c2",
+      "corrected_cell_ref": "Orders!A302",
+      "original_cell_ref": "Orders!A302",
+      "introduced_by_fix": false,
+      "original_issue_id": "e-3709bca544c2"
     },
     {
       "kind": "error",
@@ -2749,7 +2983,14 @@
       "detector": null,
       "score": null,
       "status": "open",
-      "id": "e-827f24cd542c"
+      "resolution": "open",
+      "resolution_note": "No safe automatic correction exists; fix the source data by hand.",
+      "context": null,
+      "id": "e-827f24cd542c",
+      "corrected_cell_ref": "Orders!C278",
+      "original_cell_ref": "Orders!C278",
+      "introduced_by_fix": false,
+      "original_issue_id": "e-827f24cd542c"
     },
     {
       "kind": "error",
@@ -2764,7 +3005,14 @@
       "detector": null,
       "score": null,
       "status": "open",
-      "id": "e-24e27a444197"
+      "resolution": "pending_review",
+      "resolution_note": "Suggested fix (rule_fix) was not reviewed.",
+      "context": null,
+      "id": "e-24e27a444197",
+      "corrected_cell_ref": "Orders!J135",
+      "original_cell_ref": "Orders!J135",
+      "introduced_by_fix": false,
+      "original_issue_id": "e-24e27a444197"
     },
     {
       "kind": "error",
@@ -2779,7 +3027,14 @@
       "detector": null,
       "score": null,
       "status": "open",
-      "id": "e-3b3b08d27565"
+      "resolution": "open",
+      "resolution_note": "Appeared after corrections were applied (for example, a corrected category now triggers another rule).",
+      "context": null,
+      "id": "e-3b3b08d27565",
+      "corrected_cell_ref": "Orders!C75",
+      "original_cell_ref": "Orders!C75",
+      "introduced_by_fix": true,
+      "original_issue_id": null
     },
     {
       "kind": "error",
@@ -2794,7 +3049,14 @@
       "detector": null,
       "score": null,
       "status": "open",
-      "id": "e-6f1d3ce0912c"
+      "resolution": "open",
+      "resolution_note": "No safe automatic correction exists; fix the source data by hand.",
+      "context": null,
+      "id": "e-6f1d3ce0912c",
+      "corrected_cell_ref": "Orders!C282",
+      "original_cell_ref": "Orders!C282",
+      "introduced_by_fix": false,
+      "original_issue_id": "e-6f1d3ce0912c"
     },
     {
       "kind": "error",
@@ -2809,7 +3071,24 @@
       "detector": null,
       "score": null,
       "status": "open",
-      "id": "e-c046faa8459f"
+      "resolution": "open",
+      "resolution_note": "No safe automatic correction exists; fix the source data by hand.",
+      "context": null,
+      "id": "e-c046faa8459f",
+      "corrected_cell_ref": "Orders!D22",
+      "original_cell_ref": "Orders!D22",
+      "introduced_by_fix": false,
+      "original_issue_id": "e-c046faa8459f"
+    }
+  ],
+  "output": {
+    "filename": "demo_orders_corrected.xlsx",
+    "sha256": "d1eaa17344ad8f7eecc5922cb1ff96fc89778a6642c71f6a162aedd10f7ec0b0"
+  },
+  "not_verified": [
+    {
+      "sheet": "Orders",
+      "column": "channel"
     }
   ]
 }

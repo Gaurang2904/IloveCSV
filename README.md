@@ -54,7 +54,7 @@ python -m venv .venv && .venv\Scripts\activate        # Windows (source .venv/bi
 pip install -e ".[ui,dev]"
 
 python scripts/make_demo.py      # builds examples/demo_orders.xlsx + rules, writes reports/demo/
-pytest                           # 112 tests
+pytest                           # 116 tests
 ```
 
 ### CLI
@@ -133,7 +133,30 @@ More column options:
 * email and phone columns get format rules;
 * documentation sheets are skipped.
 
-**Quality score** = 100 × (1 − (cells with errors + 0.5 × cells with only warnings) / cells checked). A duplicate row counts all of its cells, and anomalies a reviewer confirmed count as errors. The score is floored, so it never shows 100% while an issue remains.
+**Quality score** = 100 × (1 − (cells with errors + 0.5 × cells with only warnings) / cells checked).
+* A duplicate row counts all of its cells.
+* Anomalies a reviewer confirmed count as errors.
+* The "after" score comes from re-validating the corrected file, so it is calculated from the issues that are actually left.
+* Reports print the calculation with its numbers, next to the unresolved error and warning counts.
+* The score is floored, so it never shows 100% while an issue remains.
+
+**Issue outcomes.** Every issue gets one:
+
+| Outcome | Meaning |
+|---|---|
+| `resolved` | A fix was applied and the cell or row passes re-validation |
+| `open` | No safe automatic fix exists; correct the data |
+| `pending_review` | A suggested fix or an anomaly awaits a decision |
+| `approved` | Approved, applied on the next export |
+| `rejected` | The fix was declined |
+| `dismissed` | An anomaly judged to be correct data |
+
+After export, outcomes come from re-validating the corrected file, with deleted rows mapped back to the original row numbers. The **Unresolved** sheet and the report list what is left, with cell references in both the corrected and the original file. Those cells are highlighted orange, with a comment, in the corrected workbook. Problems that only appear after a fix are flagged as such.
+
+**Duplicates.** By default, rows are compared on every column except one surrogate id (a sequential counter such as `C001, C002…`), ignoring case and spacing. Change this with `checks: {duplicate_columns: [Full Name, Email], duplicate_match: exact}`.
+* The UI and `GET /v1/runs/{id}/duplicates` show both rows of each pair.
+* Bulk approval never deletes rows unless you ask for it explicitly (`include_row_deletions`, `--approve-deletions`).
+* Exact copies get confidence 0.95; matches that ignore an id, case or spacing get 0.85.
 
 A single-sheet layout (`sheet`, `columns` and `rules` at the top level) also works. Expressions support column names (use backticks for names with spaces), numbers, strings, `+ - * / %`, comparisons, `in [...]`, `and/or/not`, `is null`, and `abs round len lower upper strip is_null not_null today date days_between coalesce`. Date minus date gives days.
 
@@ -148,11 +171,12 @@ A single-sheet layout (`sheet`, `columns` and `rules` at the top level) also wor
 | POST | `/v1/rules/validate` | Check a rule file |
 | POST | `/v1/workbooks/{id}/runs` | Validate (YAML in the body, or omit it to use suggested rules) |
 | GET | `/v1/runs/{id}` | Summary, plus before/after counts once exported |
-| GET | `/v1/runs/{id}/issues` | Filter by kind, severity, rule, column, sheet, status and `q`; paginated |
+| GET | `/v1/runs/{id}/issues` | Filter by kind, severity, rule, column, sheet, status, resolution and `q`; paginated |
 | GET | `/v1/runs/{id}/stats` | SQL `GROUP BY` counts by rule and by column |
 | GET | `/v1/runs/{id}/issues/{issue_id}` | Issue, explanation, suggestions, full row |
 | PATCH | `/v1/runs/{id}/issues/{issue_id}` | Confirm or dismiss an **anomaly** (409 for rule errors) |
 | GET | `/v1/runs/{id}/suggestions` | Suggested corrections |
+| GET | `/v1/runs/{id}/duplicates` | Duplicate pairs with both rows, for review before removal |
 | POST | `/v1/runs/{id}/decisions` | Approve/reject by id, or bulk-approve by confidence, rule or method |
 | POST | `/v1/runs/{id}/export` | Write corrected file and reports, then re-validate |
 | GET | `/v1/runs/{id}/report?format=html\|xlsx\|json` | Report (a preview before export) |
@@ -192,26 +216,37 @@ An external test workbook: 30 customer records plus a Readme sheet, with planted
 * the Readme sheet was counted as data;
 * exporting with zero approved fixes silently produced a copy.
 
-All of these are fixed, and `tests/test_customer_workbook.py` locks them in. Current result with suggested rules, after approving fixes with confidence ≥ 0.9 (`python scripts/eval_sheetsense.py <file>`):
+A second review found that the output still read as "cleaned":
+* every issue stayed `open` even after 58 fixes;
+* nothing in the corrected file marked the values left unresolved;
+* duplicates were removed by bulk approval without anyone seeing both rows;
+* the score was not shown with its inputs.
+
+All of these are fixed, and `tests/test_customer_workbook.py` locks them in. Current result with suggested rules (`python scripts/eval_sheetsense.py <file>`): fixes with confidence ≥ 0.9 approved in bulk, and the two duplicate deletions approved one by one after the preview.
 
 | Planted problem | Result |
 |---|---|
-| 2 duplicate customers (different `Customer ID`) | `row.duplicate` errors; rows removed on approval (30 → 28) |
-| Missing email, 3 missing ages | `required` errors |
-| `arjun.patel.example.com` | `format.email` error |
-| Ages -4, 151 | `range` errors; age 0 is an anomaly for review |
-| Monthly spend 3999 | Anomaly for review (it could be a real "Gold" plan) |
-| `2025-06-31`, `2025-13-04` | `type` errors; valid text dates get a conversion fix |
-| mumbai / MUMBAI / PUNE, basic, ACTIVE | Normalised to the dominant spelling |
-| Extra spaces, uppercase emails, `+91-…` / `98765 43211` phones | Normalised |
-| `Hydrabad`, `bangalore` | Fixed **only with an alias list** in the rules (see above) |
+| 2 duplicate customers (different `Customer ID`) | `row.duplicate` errors; shown side by side, removed only when approved (30 → 28 rows) |
+| Missing email, 3 missing ages | `required` errors, **open** |
+| `arjun.patel.example.com` | `format.email` error, **open** (never guessed) |
+| Ages -4, 151 | `range` errors, **open**; age 0 is an anomaly for review |
+| Monthly spend 3999 | Anomaly, **pending_review** (it could be a real "Gold" plan) |
+| `2025-06-31`, `2025-13-04` | `type` errors, **open**; valid text dates are converted |
+| `04-03-2025` | Read as 4 March: `15/02/2025` in the same column proves day-first order |
+| mumbai / MUMBAI / PUNE, basic, ACTIVE | Normalised to the dominant spelling, **resolved** |
+| Extra spaces, uppercase emails, `+91-…` / `98765 43211` phones | Normalised, **resolved**; phones written as text cells |
+| `Hydrabad`, `bangalore` | Fixed **only with an alias list**. Without one, the report lists City under "spelling not verified" |
 
 | | Before | After |
 |---|---|---|
-| Errors | 11 | 9 (missing values, impossible ages and dates, a broken email: all need a human) |
-| Warnings | 60 | 1 (an ambiguous date, `04-03-2025`, left for review) |
-| Quality score | 82.33% | 96.6% |
+| Result | | **Not fully clean**: 9 unresolved errors, listed in the report and highlighted orange in the corrected workbook |
+| Issue outcomes | | 62 resolved · 9 open · 2 anomalies pending review |
+| Errors | 11 | 9 |
+| Warnings | 60 | 0 |
+| Quality score | `100 × (1 − (29 + 0.5 × 48) / 300) = 82.33` | `100 × (1 − (9 + 0.5 × 0) / 280) = 96.78` |
 | Rows checked | Customers 30 (Readme skipped) | Customers 28 |
+
+The score rises much more than the error count falls because 48 warning cells were fixed. That is why the report shows the calculation and the unresolved counts next to the score.
 
 ## Results on real data
 
@@ -248,7 +283,7 @@ I also ran it on the public [BODMAS](https://whyisyoung.github.io/BODMAS/) malwa
 ```
 src/ilovecsv/        core engine, API (api/), report template (templates/)
 app/                 Streamlit UI
-tests/               112 tests: per-rule ground truth, anomalies, corrections, audit, API, CLI
+tests/               116 tests: per-rule ground truth, anomalies, corrections, audit, API, CLI
 scripts/             make_demo.py, create_api_key.py
 examples/            demo workbook + rule file (synthetic)
 reports/demo/        demo outputs: corrected workbook, HTML/Excel/JSON audit

@@ -14,7 +14,7 @@ import pandas as pd
 from jinja2 import Environment, PackageLoader, select_autoescape
 
 from .explain import explain_issue
-from .models import ANOMALY, ERROR
+from .models import ANOMALY, ERROR, RESOLUTIONS
 from .pipeline import now_iso, tool_info
 
 if TYPE_CHECKING:
@@ -47,15 +47,40 @@ def build_audit(run: RunResult, exported: ExportResult | None = None) -> dict[st
         "changes": [],
         "skipped_changes": [],
         "after": None,
+        "unresolved": [],
         "output": None,
+        "not_verified": not_verified_columns(run),
     }
     if exported:
         audit["changes"] = exported.apply.applied
         audit["skipped_changes"] = exported.apply.skipped
-        audit["after"] = {k: v for k, v in exported.after.items() if k != "remaining_errors"}
-        audit["remaining_issues"] = exported.after.get("remaining_errors", [])
+        audit["after"] = {k: v for k, v in exported.after.items() if k != "unresolved"}
+        audit["unresolved"] = exported.after.get("unresolved", [])
         audit["output"] = {"filename": exported.corrected_path.name, "sha256": exported.apply.sha256}
     return audit
+
+
+def not_verified_columns(run: RunResult) -> list[dict[str, str]]:
+    """Free-text columns whose *spelling* nothing checks: no allowed list, aliases, regex or format.
+
+    Typos there (a city written 'Hydrabad') cannot be detected without a reference, so the report
+    says so instead of implying the column was cleaned.
+    """
+    out = []
+    for srules in run.rules.sheets:
+        name = srules.sheet or run.wb.first_sheet.name
+        prof = run.profiles.get(name)
+        if prof is None:
+            continue
+        looked_up = {r.lookup.column for r in srules.rules if r.lookup}  # checked against another sheet
+        for col, c in prof.columns.items():
+            rule = srules.columns.get(col)
+            if c.inferred_type not in ("text", "category") or c.is_identifier or c.semantic or col in looked_up:
+                continue
+            if rule and (rule.allowed or rule.aliases or rule.regex or rule.format):
+                continue
+            out.append({"sheet": name, "column": str(col)})
+    return out
 
 
 def write_reports(run: RunResult, exported: ExportResult | None, out_dir: Path) -> dict[str, Path]:
@@ -82,7 +107,16 @@ def write_json(audit: dict[str, Any], path: Path) -> None:
 def write_xlsx(audit: dict[str, Any], path: Path) -> None:
     s = audit["summary"]
     after = audit.get("after") or {}
+    if audit.get("output"):
+        left_e, left_w = after.get("errors", 0), after.get("warnings", 0)
+        state = (f"NOT FULLY CLEAN: {left_e} error(s) and {left_w} warning(s) remain; see the Unresolved sheet"
+                 if left_e or left_w else "Clean: no rule violations remain")
+    else:
+        state = "Validated, not exported yet"
+    resolutions = s.get("resolutions", {})
+    not_verified = ", ".join(f"{c['sheet']}.{c['column']}" for c in audit.get("not_verified", []))
     summary_rows = [
+        ("Result", state),
         ("Tool", f"{audit['tool']['name']} {audit['tool']['version']}"),
         ("Run id", audit["run"]["id"]),
         ("Validated at", audit["run"]["created_at"]),
@@ -94,17 +128,19 @@ def write_xlsx(audit: dict[str, Any], path: Path) -> None:
         ("Output SHA-256", (audit.get("output") or {}).get("sha256")),
         *[(f"Rows checked: {name}", n) for name, n in s["rows_by_sheet"].items()],
         ("Quality score formula", s["quality_formula"]),
-        ("Quality score (before)", s["quality_score"]),
-        ("Quality score (after)", after.get("quality_score")),
+        ("Quality score (before)", s["quality_calculation"]),
+        ("Quality score (after, from re-validating the corrected file)", after.get("quality_calculation")),
         ("Errors (before)", s["errors"]),
-        ("Errors (after)", after.get("errors")),
+        ("Errors unresolved (after)", after.get("errors")),
         ("Warnings (before)", s["warnings"]),
-        ("Warnings (after)", after.get("warnings")),
+        ("Warnings unresolved (after)", after.get("warnings")),
         ("Anomalies", s["anomalies"]),
+        *[(f"Issues {k}", resolutions.get(k, 0)) for k in RESOLUTIONS if resolutions.get(k)],
         ("Changes applied", len(audit["changes"])),
         ("Changes skipped", len(audit["skipped_changes"])),
         ("Suggestions still pending (not applied)", s["suggestions_by_status"]["pending"]),
         ("Suggestions rejected", s["suggestions_by_status"]["rejected"]),
+        ("Spelling not verified (no reference list)", not_verified or "-"),
     ]
     profile_rows = []
     for sheet in audit["profiles"]:
@@ -120,11 +156,17 @@ def write_xlsx(audit: dict[str, Any], path: Path) -> None:
                 "numbers_as_text": c["n_numeric_text"], "dates_as_text": c["n_date_text"],
                 "top_values": ", ".join(f"{t['value']} ({t['count']})" for t in c["top_values"][:5]),
             })
-    issue_cols = ["id", "sheet", "cell_ref", "column", "rule_id", "severity", "value", "message", "why", "status"]
-    anomaly_cols = ["id", "sheet", "cell_ref", "column", "detector", "score", "value", "message", "status"]
+    issue_cols = ["id", "sheet", "cell_ref", "column", "rule_id", "severity", "value", "message", "resolution",
+                  "resolution_note", "why"]
+    anomaly_cols = ["id", "sheet", "cell_ref", "column", "detector", "score", "value", "message", "status",
+                    "resolution"]
+    unresolved_cols = ["corrected_cell_ref", "original_cell_ref", "rule_id", "severity", "value", "message",
+                       "resolution", "resolution_note", "introduced_by_fix"]
     change_cols = ["suggestion_id", "cell_ref", "action", "old", "new", "method", "rule_id", "approved_by", "approved_at"]
     with pd.ExcelWriter(path, engine="openpyxl") as xw:
         pd.DataFrame(summary_rows, columns=["item", "value"]).to_excel(xw, sheet_name="Summary", index=False)
+        pd.DataFrame(audit.get("unresolved", []), columns=unresolved_cols).to_excel(
+            xw, sheet_name="Unresolved", index=False)
         pd.DataFrame(profile_rows).to_excel(xw, sheet_name="Profile", index=False)
         pd.DataFrame(audit["issues"], columns=issue_cols).to_excel(xw, sheet_name="Issues", index=False)
         pd.DataFrame(audit["anomalies"], columns=anomaly_cols).to_excel(xw, sheet_name="Anomalies", index=False)

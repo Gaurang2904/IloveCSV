@@ -24,6 +24,11 @@ class DecisionIn(BaseModel):
     )
     rule_id: str | None = Field(default=None, description="Limit approve_min_confidence to one rule.")
     method: str | None = Field(default=None, description="Limit approve_min_confidence to one method.")
+    include_row_deletions: bool = Field(
+        default=False,
+        description="Let approve_min_confidence also approve duplicate-row deletions. Off by default: "
+                    "review the pairs at /duplicates and approve deletions by id.",
+    )
 
 
 class IssuePatch(BaseModel):
@@ -43,6 +48,8 @@ def issue_out(r: IssueRow) -> dict[str, Any]:
         "cell_ref": r.cell_ref, "rule_id": r.rule_id, "severity": r.severity, "value": r.value,
         "message": r.message, "detector": r.detector, "score": r.score, "status": r.status,
         "decided_by": r.decided_by, "decided_at": r.decided_at, "note": r.note,
+        "resolution": r.resolution, "resolution_note": r.resolution_note, "context": r.context,
+        "introduced_by_fix": bool(r.introduced_by_fix), "corrected_cell_ref": r.corrected_cell_ref,
     }
 
 

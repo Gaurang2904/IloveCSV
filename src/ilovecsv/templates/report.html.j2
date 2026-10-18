@@ -70,6 +70,10 @@ details summary { cursor: pointer; color: var(--text-secondary); }
 pre { white-space: pre-wrap; background: var(--surface-0); padding: 12px; border-radius: 8px; overflow-x: auto; }
 .warn { border-left: 3px solid var(--warning); padding-left: 10px; }
 .empty { color: var(--text-muted); }
+.status { margin-top: 20px; padding: 12px 16px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface-1); }
+.status.bad { border-left: 4px solid var(--critical); }
+.status.ok { border-left: 4px solid var(--good); }
+.status a { color: inherit; }
 </style>
 </head>
 <body>
@@ -84,18 +88,60 @@ pre { white-space: pre-wrap; background: var(--surface-0); padding: 12px; border
   {% if s.rule_errors %}<div class="warn"><strong>Rules that could not be evaluated:</strong>
     <ul>{% for e in s.rule_errors %}<li><span class="mono">{{ e.rule_id }}</span> on {{ e.sheet }}: {{ e.error }}</li>{% endfor %}</ul></div>{% endif %}
 
+  {% if a.output %}
+  {% if af.errors or af.warnings %}
+  <div class="status bad"><strong>Not fully clean.</strong> After cleaning, {{ af.errors }} error(s) and {{ af.warnings }} warning(s) remain.
+    They are listed under <a href="#unresolved">Unresolved after cleaning</a> and highlighted orange, with a comment, in the corrected workbook.</div>
+  {% else %}
+  <div class="status ok"><strong>Clean.</strong> The corrected workbook passes every rule in the rule file.</div>
+  {% endif %}
+  {% endif %}
+
   <section class="tiles" aria-label="Summary">
-    <div class="card tile" title="{{ s.quality_formula }}"><div class="label">Quality score</div><div class="value">{{ s.quality_score }}%</div>
-      <div class="delta">{% if af %}after fixes: {{ af.quality_score }}%{% else %}errors count 1, warnings 0.5{% endif %}</div></div>
-    <div class="card tile"><div class="label">Errors</div><div class="value">{{ s.errors }}</div>
-      <div class="delta">{% if af %}remaining: {{ af.errors }}{% else %}rule violations{% endif %}</div></div>
-    <div class="card tile"><div class="label">Warnings</div><div class="value">{{ s.warnings }}</div>
-      <div class="delta">{% if af %}remaining: {{ af.warnings }}{% else %}format problems{% endif %}</div></div>
+    <div class="card tile" title="{{ s.quality_formula }}"><div class="label">Quality score</div>
+      <div class="value">{% if af %}{{ af.quality_score }}%{% else %}{{ s.quality_score }}%{% endif %}</div>
+      <div class="delta">{% if af %}before cleaning: {{ s.quality_score }}%{% else %}errors count 1, warnings 0.5{% endif %}</div></div>
+    <div class="card tile"><div class="label">{% if af %}Unresolved errors{% else %}Errors{% endif %}</div>
+      <div class="value">{% if af %}{{ af.errors }}{% else %}{{ s.errors }}{% endif %}</div>
+      <div class="delta">{% if af %}{{ s.errors }} found before cleaning{% else %}rule violations{% endif %}</div></div>
+    <div class="card tile"><div class="label">{% if af %}Unresolved warnings{% else %}Warnings{% endif %}</div>
+      <div class="value">{% if af %}{{ af.warnings }}{% else %}{{ s.warnings }}{% endif %}</div>
+      <div class="delta">{% if af %}{{ s.warnings }} found before cleaning{% else %}format problems{% endif %}</div></div>
     <div class="card tile"><div class="label">Anomalies</div><div class="value">{{ s.anomalies }}</div>
       <div class="delta">{{ s.anomalies_confirmed }} confirmed · {{ s.anomalies_open }} open</div></div>
     <div class="card tile"><div class="label">Changes applied</div><div class="value">{{ a.changes | length }}</div>
       <div class="delta">{{ a.skipped_changes | length }} skipped · {{ s.suggestions }} suggested</div></div>
   </section>
+
+  {% set chip_for = {"resolved": "good", "open": "error", "pending_review": "warning", "approved": "info", "rejected": "info", "dismissed": "good"} %}
+  <div class="card" style="margin-top:12px">
+    <strong>How the score is calculated</strong>
+    <p class="why" style="margin:4px 0 8px">{{ s.quality_formula }}. A duplicate row counts all its cells; anomalies count only when a reviewer confirms them.</p>
+    <div class="mono">Before cleaning: {{ s.quality_calculation }}</div>
+    {% if af %}<div class="mono">After cleaning (re-validation of the corrected file): {{ af.quality_calculation }}</div>{% endif %}
+    {% if s.resolutions %}<p style="margin:10px 0 0">Issue outcomes:
+      {% for k in ["resolved", "open", "pending_review", "approved", "rejected", "dismissed"] %}{% if s.resolutions.get(k) %}<span class="chip {{ chip_for[k] }}">{{ k }} {{ s.resolutions[k] }}</span> {% endif %}{% endfor %}</p>{% endif %}
+    {% if a.not_verified %}<p class="why" style="margin:10px 0 0"><strong>Spelling not verified</strong> (no allowed list, alias list, pattern or format):
+      {% for c in a.not_verified %}{{ c.sheet }}.{{ c.column }}{% if not loop.last %}, {% endif %}{% endfor %}. Typos that never appear correctly elsewhere in these columns cannot be detected; add <span class="mono">aliases</span> or <span class="mono">allowed</span> to the rules.</p>{% endif %}
+  </div>
+
+  {% if a.output %}
+  <h2 id="unresolved">Unresolved after cleaning ({{ a.unresolved | length }})</h2>
+  <div class="card scroll">
+    <table>
+      <thead><tr><th>Cell (corrected file)</th><th>Cell (original)</th><th>Rule</th><th>Value</th><th>Problem</th><th>Outcome</th></tr></thead>
+      <tbody>
+      {% for u in a.unresolved %}
+      <tr><td class="mono">{{ u.corrected_cell_ref or u.sheet }}</td><td class="mono">{{ u.original_cell_ref or "" }}</td>
+        <td class="mono">{{ u.rule_id }} <span class="chip {{ u.severity }}">{{ u.severity }}</span></td>
+        <td class="mono">{{ u.value if u.value is not none else "" }}</td>
+        <td>{{ u.message }}{% if u.introduced_by_fix %} <span class="chip warning">appeared after a fix</span>{% endif %}<div class="why">{{ u.resolution_note }}</div></td>
+        <td><span class="chip {{ chip_for.get(u.resolution, 'error') }}">{{ u.resolution }}</span></td></tr>
+      {% else %}<tr><td colspan="6" class="empty">Nothing left: the corrected workbook passes every rule.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
 
   <h2>Issues by rule</h2>
   <div class="card">
@@ -139,14 +185,15 @@ pre { white-space: pre-wrap; background: var(--surface-0); padding: 12px; border
   <div class="card">
     <input class="filter" type="search" placeholder="Filter by rule, cell, column or value…" data-table="issues-table" aria-label="Filter issues">
     <div class="scroll"><table id="issues-table">
-      <thead><tr><th>Cell</th><th>Rule</th><th>Severity</th><th>Value</th><th>Problem</th></tr></thead>
+      <thead><tr><th>Cell</th><th>Rule</th><th>Severity</th><th>Value</th><th>Problem</th><th>Outcome</th></tr></thead>
       <tbody>
       {% for i in issues %}
       <tr><td class="mono">{{ i.cell_ref or i.sheet }}</td><td class="mono">{{ i.rule_id }}</td>
         <td><span class="chip {{ i.severity }}">{{ i.severity }}</span></td>
         <td class="mono">{{ i.value if i.value is not none else "" }}</td>
-        <td>{{ i.message }}<div class="why">{{ i.why }}</div></td></tr>
-      {% else %}<tr><td colspan="5" class="empty">No errors or warnings.</td></tr>{% endfor %}
+        <td>{{ i.message }}<div class="why">{{ i.why }}</div></td>
+        <td><span class="chip {{ chip_for.get(i.resolution, 'error') }}">{{ i.resolution }}</span><div class="why">{{ i.resolution_note or "" }}</div></td></tr>
+      {% else %}<tr><td colspan="6" class="empty">No errors or warnings.</td></tr>{% endfor %}
       </tbody>
     </table></div>
     {% if truncated %}<p class="why">Showing the first 1,000. The complete list is in the JSON and Excel reports.</p>{% endif %}

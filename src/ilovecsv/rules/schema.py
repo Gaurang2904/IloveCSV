@@ -165,6 +165,10 @@ class Checks(_Strict):
     # Columns left out when comparing rows for duplicates. Default (None): the key columns and
     # id-like columns, so two records that differ only in their generated id still count.
     duplicate_ignore: list[str] | None = None
+    # Compare only these columns (e.g. [Full Name, Email]); overrides duplicate_ignore.
+    duplicate_columns: list[str] | None = None
+    # "normalized": ignore case and extra spaces; "exact": values must match exactly.
+    duplicate_match: Literal["normalized", "exact"] = "normalized"
     # Flag values that are spelled with different capitalisation elsewhere in the same column.
     case_variants: bool = True
 

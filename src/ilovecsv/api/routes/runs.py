@@ -14,7 +14,14 @@ from ...models import ANOMALY, Issue, jsonable
 from ..deps import audit, current_user, get_db
 from ..errors import Problem
 from ..schemas import DecisionIn, ExportIn, IssuePatch, issue_out, suggestion_out
-from ..service import export_run, get_run, load_wb, preview_reports, refresh_counts
+from ..service import (
+    export_run,
+    get_run,
+    load_wb,
+    preview_reports,
+    refresh_counts,
+    refresh_resolutions,
+)
 
 router = APIRouter(prefix="/v1/runs", tags=["runs"])
 
@@ -29,6 +36,7 @@ MEDIA = {
 def run_out(r: Run) -> dict:
     base = f"/v1/runs/{r.id}"
     links = {"issues": f"{base}/issues", "suggestions": f"{base}/suggestions", "stats": f"{base}/stats",
+             "duplicates": f"{base}/duplicates",
              "decisions": f"{base}/decisions", "export": f"{base}/export", "report": f"{base}/report?format=html"}
     if r.status == "exported":
         links["corrected"] = f"{base}/corrected"
@@ -57,6 +65,7 @@ def list_issues(
     column: str | None = None,
     sheet: str | None = None,
     status: Literal["open", "confirmed_error", "dismissed"] | None = None,
+    resolution: Literal["resolved", "open", "pending_review", "approved", "rejected", "dismissed"] | None = None,
     q: str | None = Query(default=None, max_length=200, description="Search message, cell and value"),
     limit: int = Query(default=100, ge=1, le=1000),
     offset: int = Query(default=0, ge=0),
@@ -66,7 +75,8 @@ def list_issues(
     get_run(db, user, run_id)
     stmt = select(IssueRow).where(IssueRow.run_id == run_id)
     for col, val in ((IssueRow.kind, kind), (IssueRow.severity, severity), (IssueRow.rule_id, rule_id),
-                     (IssueRow.column, column), (IssueRow.sheet, sheet), (IssueRow.status, status)):
+                     (IssueRow.column, column), (IssueRow.sheet, sheet), (IssueRow.status, status),
+                     (IssueRow.resolution, resolution)):
         if val is not None:
             stmt = stmt.where(col == val)
     if q:
@@ -131,7 +141,7 @@ def patch_issue(run_id: str, issue_id: str, body: IssuePatch, user: User = Depen
     row.status, row.note = body.status, body.note
     row.decided_by, row.decided_at = user.name, utcnow()
     db.flush()
-    refresh_counts(db, run)
+    _decisions_changed(db, run)
     audit(db, user, "issue.status_changed", run_id=run_id,
           detail={"issue_id": issue_id, "from": before, "to": body.status, "note": body.note})
     db.commit()
@@ -172,6 +182,7 @@ def decide(run_id: str, body: DecisionIn, user: User = Depends(current_user), db
     if body.approve_min_confidence is not None:
         for r in rows.values():
             if (r.status == "pending" and r.id not in targets and r.confidence >= body.approve_min_confidence
+                    and (body.include_row_deletions or r.action != "delete_row")
                     and (body.rule_id is None or r.rule_id == body.rule_id)
                     and (body.method is None or r.method == body.method)):
                 targets[r.id] = "approved"
@@ -183,11 +194,54 @@ def decide(run_id: str, body: DecisionIn, user: User = Depends(current_user), db
             changed.append({"id": sid, "from": r.status, "to": status})
             r.status, r.decided_by, r.decided_at = status, user.name, now
     db.flush()
-    refresh_counts(db, run)
+    if changed:
+        _decisions_changed(db, run)
+    else:
+        refresh_counts(db, run)
     if changed:
         audit(db, user, "suggestions.decided", run_id=run_id, detail={"changes": changed})
     db.commit()
     return {"changed": len(changed), "suggestions_by_status": run.summary["suggestions_by_status"]}
+
+
+def _decisions_changed(db: Session, run: Run) -> None:
+    """A decision invalidates a previous export: resolutions go back to the review state."""
+    if run.status == "exported":
+        run.status = "validated"  # the corrected file no longer matches the decisions; export again
+    refresh_resolutions(db, run)
+    refresh_counts(db, run)
+
+
+@router.get("/{run_id}/duplicates", summary="Preview duplicate rows before approving their removal")
+def duplicates(run_id: str, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    run = get_run(db, user, run_id)
+    issues = list(db.scalars(select(IssueRow).where(IssueRow.run_id == run_id, IssueRow.rule_id == "row.duplicate")))
+    if not issues:
+        return {"items": []}
+    sugs = {s.issue_id: s for s in db.scalars(select(SuggestionRow).where(
+        SuggestionRow.run_id == run_id, SuggestionRow.action == "delete_row"))}
+    wb = load_wb(db.get(Workbook, run.workbook_id))
+    items = []
+    for i in issues:
+        ctx = i.context or {}
+        sheet = wb.sheets.get(i.sheet)
+        first = ctx.get("duplicate_of")
+
+        def row_values(r: int | None, sheet=sheet) -> dict | None:
+            if sheet is None or r is None or r not in sheet.df.index:
+                return None
+            return {str(c): jsonable(v) for c, v in sheet.df.loc[r].items()}
+
+        s = sugs.get(i.id)
+        items.append({
+            "issue_id": i.id, "sheet": i.sheet, "row": i.xl_row, "duplicate_of": first,
+            "exact": bool(ctx.get("exact")), "compared_columns": ctx.get("compared_columns"),
+            "ignored_columns": ctx.get("ignored_columns"), "match": ctx.get("match"),
+            "row_values": row_values(i.xl_row), "duplicate_of_values": row_values(first),
+            "suggestion_id": s.id if s else None, "suggestion_status": s.status if s else None,
+            "confidence": s.confidence if s else None,
+        })
+    return {"items": items}
 
 
 @router.post("/{run_id}/export", summary="Write the corrected workbook and audit reports")
@@ -205,9 +259,16 @@ def do_export(run_id: str, request: Request, body: ExportIn | None = None,
     out["applied"] = exported.apply.applied
     out["skipped"] = exported.apply.skipped
     pending = run.summary["suggestions_by_status"]["pending"]
+    notices = []
     if not exported.apply.applied:
-        out["notice"] = (f"No changes were applied: the corrected file is an unchanged copy. "
-                         f"{pending} suggestion(s) are still pending; approve them via /decisions first.")
+        notices.append(f"No changes were applied: the corrected file is an unchanged copy. "
+                       f"{pending} suggestion(s) are still pending; approve them via /decisions first.")
+    left_e, left_w = exported.after["errors"], exported.after["warnings"]
+    if left_e or left_w:
+        notices.append(f"Not fully clean: {left_e} error(s) and {left_w} warning(s) remain. They are listed "
+                       "with resolution open/pending_review/rejected and highlighted in the corrected workbook.")
+    if notices:
+        out["notice"] = " ".join(notices)
     return out
 
 

@@ -31,6 +31,9 @@ for a in run.anomalies:
     print(f"  anomaly {a.detector:22} {a.cell_ref:16} {a.value!r:32} {a.message[:70]}")
 print(f"\n{len(run.suggestions)} suggestions:", dict(Counter(x.method for x in run.suggestions)))
 decide(run, min_confidence=0.9, approver="eval")
+dups = [x.id for x in run.suggestions if x.action == "delete_row"]
+print(f"approving {len(dups)} duplicate deletion(s) explicitly")
+decide(run, approve=dups, approver="eval")
 ex = export(run, out)
 a = ex.after
 print(f"applied {len(ex.apply.applied)}  skipped {len(ex.apply.skipped)}")

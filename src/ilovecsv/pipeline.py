@@ -18,10 +18,11 @@ from typing import Any
 
 from . import __version__
 from .anomalies import detect_anomalies
-from .corrections import ApplyResult, apply_corrections, suggest_corrections
+from .corrections import ApplyResult, apply_corrections, mark_unresolved, suggest_corrections
 from .models import ANOMALY, APPROVED, ERROR, PENDING, REJECTED, Issue, Suggestion
 from .profiling import SheetProfile, profile_workbook
-from .reader import WorkbookData, read_workbook
+from .reader import WorkbookData, read_workbook, sha256_file
+from .resolution import apply_pre_export, finalize
 from .rules.engine import ValidationResult, validate
 from .rules.schema import RuleSet, load_rules, rules_sha256
 from .values import normalise_nulls
@@ -78,6 +79,7 @@ def run_on_workbook(wb: WorkbookData, rules: RuleSet, rules_text: str, run_id: s
     validation = validate(wb, rules, profiles)
     anomalies = detect_anomalies(wb, rules, profiles, validation.issues)
     suggestions = suggest_corrections(wb, rules, validation.issues, profiles)
+    apply_pre_export(validation.issues + anomalies, suggestions)
     return RunResult(
         run_id=run_id or uuid.uuid4().hex[:12],
         created_at=now_iso(),
@@ -98,19 +100,26 @@ def decide(
     reject: Iterable[str] = (),
     approver: str = "cli",
     min_confidence: float | None = None,
+    include_row_deletions: bool = False,
 ) -> int:
-    """Approve/reject suggestions by id, or approve all at or above min_confidence."""
+    """Approve/reject suggestions by id, or approve all at or above min_confidence.
+
+    Bulk approval by confidence never deletes rows unless include_row_deletions is set:
+    duplicate removal should be approved after looking at both rows.
+    """
     approve, reject = set(approve), set(reject)
     changed = 0
     for s in run.suggestions:
         target = None
+        bulk_ok = include_row_deletions or s.action != "delete_row"
         if s.id in reject:
             target = REJECTED
-        elif s.id in approve or (min_confidence is not None and s.confidence >= min_confidence):
+        elif s.id in approve or (min_confidence is not None and s.confidence >= min_confidence and bulk_ok):
             target = APPROVED
         if target and s.status != target:
             s.status, s.decided_by, s.decided_at = target, approver, now_iso()
             changed += 1
+    apply_pre_export(run.issues, run.suggestions)
     return changed
 
 
@@ -128,8 +137,13 @@ def export(run: RunResult, out_dir: str | Path, annotate: bool = True, write_rep
     # Read it under the original filename: a CSV's sheet name comes from its file name.
     wb2 = read_workbook(corrected, run.wb.filename)
     after_run = run_on_workbook(wb2, run.rules, run.rules_text, run_id=run.run_id + "-after")
+    resolution = finalize(run, applied, after_run.validation.issues, wb2.sheets)
+    if annotate and run.wb.file_type == "xlsx" and resolution.unresolved:
+        mark_unresolved(corrected, resolution.unresolved)  # visible in the file, not only in the report
+        applied.sha256 = sha256_file(corrected)
     after = after_run.summary()
-    after["remaining_errors"] = [i.to_dict() for i in after_run.validation.issues]
+    after["unresolved"] = resolution.unresolved
+    after["resolution_counts"] = resolution.counts
 
     result = ExportResult(corrected, applied, after)
     if write_reports:
@@ -166,6 +180,7 @@ def summarise(
 
     by_rule = Counter(i.rule_id for i in errors)
     status = Counter(s.status for s in suggestions)
+    score = max(0.0, math.floor(10000 * (1 - penalty / cells)) / 100) if cells else 100.0
     return {
         "sheets_checked": checked_sheets,
         "rows_by_sheet": rows_by_sheet,
@@ -179,8 +194,11 @@ def summarise(
         "cells_with_errors": len(error_cells),
         "cells_with_warnings": len(warning_cells),
         # Floored, so a sheet with any issue never displays as 100%.
-        "quality_score": max(0.0, math.floor(10000 * (1 - penalty / cells)) / 100) if cells else 100.0,
+        "quality_score": score,
         "quality_formula": "100 x (1 - (cells with errors + 0.5 x cells with only warnings) / cells checked)",
+        "quality_calculation": (f"100 x (1 - ({len(error_cells)} + 0.5 x {len(warning_cells)}) / {cells}) = {score}"
+                                if cells else "no cells checked"),
+        "resolutions": dict(Counter(i.resolution for i in errors + anomalies if i.resolution)),
         "by_rule": dict(by_rule.most_common()),
         "suggestions": len(suggestions),
         "suggestions_by_status": {k: status.get(k, 0) for k in (PENDING, APPROVED, REJECTED)},
