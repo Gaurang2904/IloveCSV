@@ -5,6 +5,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from ..db import IssueRow, SuggestionRow
+from ..sources import SourceOptions
 
 
 class RulesIn(BaseModel):
@@ -56,6 +57,9 @@ class PrepareIn(BaseModel):
     remove_exact_duplicates: bool = Field(
         default=False, description="Let Safe Auto-Clean delete rows identical in every column (ids too).")
     formats: list[Literal["csv", "parquet"]] = Field(default_factory=lambda: ["csv"])
+    source: SourceOptions | None = Field(
+        default=None, description="Which part of the file to prepare: sheets, tables, JSON records path, "
+                                  "max_rows sample, delimiter, encoding, MATLAB layout.")
     rules_yaml: str | None = Field(default=None, max_length=200_000,
                                    description="A saved prepare config to reuse instead of suggested rules.")
 

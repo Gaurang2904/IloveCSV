@@ -6,10 +6,12 @@ from fastapi import APIRouter, Depends, File, Request, UploadFile
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from ...adapters import inspect_file
 from ...db import User, Workbook
 from ...profiling import profile_workbook
-from ...reader import ReadError, read_workbook
+from ...reader import ReadError, sha256_file
 from ...rules.suggest import suggest_rules
+from ...sources import SourceOptions
 from ..deps import audit, current_user, get_db
 from ..errors import Problem
 from ..schemas import PrepareIn, RulesIn
@@ -23,27 +25,34 @@ def workbook_out(w: Workbook) -> dict:
     return {
         "id": w.id, "filename": w.filename, "file_type": w.file_type, "sha256": w.sha256,
         "size_bytes": w.size_bytes, "uploaded_at": w.uploaded_at, "sheets": w.sheets, "warnings": w.warnings,
-        "links": {"profile": f"/v1/workbooks/{w.id}/profile",
+        "links": {"inspect": f"/v1/workbooks/{w.id}/inspect", "profile": f"/v1/workbooks/{w.id}/profile",
                   "suggested_rules": f"/v1/workbooks/{w.id}/rules/suggested",
                   "runs": f"/v1/workbooks/{w.id}/runs"},
     }
 
 
-@router.post("/workbooks", status_code=201, summary="Upload an .xlsx or .csv file")
+def _file_type(ext: str) -> str:
+    if ext in (".xlsx", ".xlsm"):
+        return "xlsx"
+    return "csv" if ext in (".csv", ".tsv", ".txt") else "frames"
+
+
+@router.post("/workbooks", status_code=201,
+             summary="Upload a dataset (CSV/TSV, Excel, JSON/JSONL, Parquet, Feather, ARFF, ZIP, MAT, NPY/NPZ, HDF5)")
 async def upload(request: Request, file: UploadFile = File(...), user: User = Depends(current_user),
                  db: Session = Depends(get_db)):
     settings = request.app.state.settings
     path, size, ext = await save_upload(file, settings)
     try:
-        wb = read_workbook(path, file.filename)
+        insp = inspect_file(path, file.filename)  # structure only: cheap even for large files
     except ReadError as e:
         path.unlink(missing_ok=True)
         raise Problem(422, "unreadable-workbook", str(e)) from e
     row = Workbook(
         id=uuid.uuid4().hex, owner_id=user.id, filename=(file.filename or "upload")[:255], stored_path=str(path),
-        file_type=wb.file_type, sha256=wb.sha256, size_bytes=size, warnings=wb.warnings,
-        sheets=[{"name": s.name, "rows": len(s.df), "columns": list(s.df.columns), "header_row": s.header_row}
-                for s in wb.sheets.values()],
+        file_type=_file_type(ext), sha256=sha256_file(path), size_bytes=size, warnings=insp.warnings,
+        sheets=[{"name": t.name, "rows": t.rows, "rows_exact": t.rows_exact,
+                 "columns": [c["name"] for c in t.columns], "header_row": 1} for t in insp.tables],
     )
     db.add(row)
     audit(db, user, "workbook.uploaded", workbook_id=row.id,
@@ -61,6 +70,20 @@ def list_workbooks(user: User = Depends(current_user), db: Session = Depends(get
 @router.get("/workbooks/{workbook_id}", summary="Workbook metadata")
 def get_one(workbook_id: str, user: User = Depends(current_user), db: Session = Depends(get_db)):
     return workbook_out(get_workbook(db, user, workbook_id))
+
+
+@router.get("/workbooks/{workbook_id}/inspect", summary="Structure first: tables, rows, columns, samples, docs")
+def inspect(workbook_id: str, sheets: str | None = None, tables: str | None = None, json_records: str | None = None,
+            mat_layout: str | None = None, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    row = get_workbook(db, user, workbook_id)
+    split = lambda v: [x.strip() for x in v.split(",") if x.strip()] if v else None  # noqa: E731
+    try:
+        options = SourceOptions(sheets=split(sheets), tables=split(tables), json_records=json_records,
+                                **({"mat_layout": mat_layout} if mat_layout else {}))
+        insp = inspect_file(row.stored_path, row.filename, options)
+    except (ReadError, ValueError) as e:
+        raise Problem(422, "unreadable-workbook", str(e)) from e
+    return {"workbook_id": workbook_id, **insp.to_dict()}
 
 
 @router.get("/workbooks/{workbook_id}/profile", summary="Column profiles for every sheet")
@@ -107,7 +130,7 @@ def prepare(workbook_id: str, request: Request, body: PrepareIn | None = None, u
     wb_row = get_workbook(db, user, workbook_id)
     run, exported, applied = prepare_run(db, user, wb_row, request.app.state.settings, body.target,
                                          body.remove_exact_duplicates, list(body.formats), body.rules_yaml,
-                                         body.target_labels)
+                                         body.target_labels, body.source)
     audit(db, user, "run.prepared", workbook_id=wb_row.id, run_id=run.id, detail={
         "target": body.target, "remove_exact_duplicates": body.remove_exact_duplicates,
         "safe_fixes_approved": applied, "applied": len(exported.apply.applied),

@@ -1,10 +1,31 @@
-# IloveCSV: Automated Dataset Quality and Preparation for Machine Learning
+# IloveCSV: Universal Dataset Inspection and Safe Preparation for Machine Learning
 
-One command takes a raw CSV or Excel file and returns a **cleaned dataset** plus a **machine-readable cleaning report**, ready for your own feature-engineering and training code. It replaces inspecting every new dataset and rewriting the same basic cleaning code.
+One command takes a raw dataset (CSV, Excel, JSON, Parquet, a ZIP of files, a MATLAB `.mat`, NumPy or HDF5) and returns a **cleaned dataset** plus a **machine-readable cleaning report**, ready for your own feature-engineering and training code. It replaces inspecting every new dataset and rewriting the same basic cleaning code.
 
 ```bash
+ilovecsv inspect B0005.mat                 # structure first: tables, rows, columns, samples, docs
 ilovecsv prepare customers.xlsx --target churn
 ```
+
+## Supported formats
+
+Every format is read by an **adapter** that turns it into clearly defined tables. One shared quality engine then profiles, validates, safely cleans and re-validates them, whatever they came from.
+
+| Tier | Formats | How they become tables |
+|---|---|---|
+| 1 | `.csv` `.tsv` `.txt` | Delimiter and encoding detected (or `--delimiter`, `--encoding`); streamed when sampling |
+| 1 | `.xlsx` `.xlsm` `.xls` | One table per sheet (`--sheet`). Macros are never run; `.xls` needs `xlrd` |
+| 1 | `.json` `.jsonl` `.ndjson` | Records found automatically or by dot path (`--json-records data.items`); nested objects flattened to `customer.city`; lists kept as JSON text |
+| 1 | `.parquet` `.feather` `.arrow` | Read from metadata first; row-group sampling for large files |
+| 1 | `.zip` | Every supported member becomes a table; same-named tables with identical columns are merged with a `source_file` column. README / data-dictionary members are read as **documentation** (e.g. "missing values are coded as -999"). Unsafe paths, too many members and zip bombs are refused |
+| 2 | `.mat` (v4–v7.2 via SciPy, v7.3 via h5py) | Known layouts (NASA battery aging: `cycles`, `measurements`, `impedance`) or generic rules: 2-D arrays, struct arrays, equal-length fields |
+| 2 | `.npy` `.npz` | 1-D and 2-D arrays; pickled objects are never loaded |
+| 2 | `.h5` `.hdf5` | Every 1-D/2-D dataset in the tree becomes a table |
+| 2 | `.arff` | Via SciPy; `?` is missing |
+
+**Nothing is guessed.** A structure with no single obvious table form (a 3-D array, a cell array of mixed content, variable-length struct fields) is listed under `unsupported` with the reason, and nothing about it is invented. Optional extras: `pip install ilovecsv[all-formats]` (or `parquet`, `scientific`, `legacy-excel`).
+
+**Large files.** `inspect` reads structure only (metadata, line counts, a 1,000-row sample) and estimates memory use. Above `row_limit` (default 1,000,000 rows per table) a full prepare is refused unless you choose a sample (`--max-rows N`). The output of a sampled run is then labelled **PARTIAL** everywhere.
 
 It handles the generic data-quality stage only. Changes are **reproducible and auditable**: every change, removal and remaining problem is recorded with its reason. Anything task-dependent stays in your ML pipeline.
 
@@ -69,8 +90,14 @@ It stays in the dataset; you decide.
 | `{name}_cleaned.xlsx` | Excel input: the **cleaned workbook**, same sheets and formatting as the upload, with changed cells (yellow) and unresolved cells (orange) marked and commented |
 | `{name}_cleaning_report.json` | Machine-readable: `schema_version`, config, dataset rows before/after, feature schema, ML checks, every change and removed row (with original and cleaned row numbers), the review queue, unresolved issues |
 | `{name}_cleaning_report.xlsx` / `.html` | Human-readable audit: summary, unresolved, review required, dataset for ML, changes, removed rows |
-| `{name}_prepare_config.yaml` | The exact rules and policy, to clean new batches the same way |
+| `{name}_prepare_config.yaml` | The **recipe**: source options (sheets, tables, JSON path, sample), rules, policy, roles and your review decisions, to prepare new batches the same way |
+| `{name}_manifest.json` | Handoff manifest: source format and hash, how each table was formed (conversion notes), rows read and exported, file hashes, documentation found, unsupported parts, split hints (group / time columns), the transformations deliberately *not* done, and the verification result |
+| `{name}_feature_schema.json` | Column roles and dtypes per table, for your pipeline |
+| `prepare_dataset.py` | A script that re-runs this exact preparation (`python prepare_dataset.py new_file.mat`) |
+| `{name}_cleaned_tables.zip` | Non-spreadsheet sources: every corrected table as CSV |
 | `original/{file}` | Untouched copy of the input (its SHA-256 is in the report) |
+
+**Post-export verification.** After writing, IloveCSV reopens every dataset it exported. It checks columns and row counts against the run, confirms each applied fix is present, and re-validates the files themselves. The result is in the report and the manifest; the CLI prints it.
 
 A column whose values can't all be parsed (e.g. `"about a year"` in a numeric column) stays text in the typed outputs. The report says so; nothing is silently set to NaN.
 
@@ -103,14 +130,16 @@ ilovecsv prepare train.csv --target churn --out prepared/
 ilovecsv prepare next_month.csv --config prepared/train_prepare_config.yaml --out prepared_next/
 ```
 
-The second run reuses the same rules instead of re-suggesting them from the new data, so training data and later scoring data are cleaned identically.
+The second run reuses the same rules instead of re-suggesting them from the new data, so training data and later scoring data are cleaned identically. Review decisions recorded in the recipe (approved or rejected fixes, dismissed anomalies) are re-applied where they still match, and the report counts how many did.
+
+Recipes are plain YAML you can write by hand. [`examples/recipes/nasa_battery.yaml`](examples/recipes/nasa_battery.yaml) holds domain bounds for the NASA battery aging files (capacity 0–2.5 Ah, temperature, resistances), with `battery` as the group and `start_time` as the time column for splitting. It prepares B0005, B0006 and B0018 with 0 errors and passing verification.
 
 ### Entry points
 
-* **CLI:** `ilovecsv prepare FILE [--target COL] [--labels No,Yes] [--out DIR] [--config CFG] [--remove-exact-duplicates] [--format csv --format parquet]`. Exits with code 1 while unresolved errors remain, so it can gate a data pipeline in CI.
+* **CLI:** `ilovecsv inspect FILE [--json]`, and `ilovecsv prepare FILE [--target COL] [--labels No,Yes] [--out DIR] [--config CFG] [--remove-exact-duplicates] [--format csv --format parquet]`. Source options: `--sheet`, `--table`, `--json-records`, `--max-rows`, `--delimiter`, `--encoding`, `--mat-layout`. Exits with code 1 while unresolved errors remain, so it can gate a data pipeline in CI.
 * **Python:** `from ilovecsv.pipeline import prepare; res = prepare("data.csv", target="churn")`, then `res.dataset_path()`, `res.report` and `res.unresolved`.
-* **API:** `POST /v1/workbooks/{id}/prepare`, then `GET /v1/runs/{id}/dataset`, `/report` and `/config`.
-* **UI:** the first page, **★ One-click prepare**: upload, pick the target (auto-guessed), Prepare, then download. The numbered pages are the advanced review flow for working through the review queue.
+* **API:** `POST /v1/workbooks` (any supported format), `GET /v1/workbooks/{id}/inspect`, `POST /v1/workbooks/{id}/prepare` (with optional `source` options), then `GET /v1/runs/{id}/dataset`, `/report`, `/config` and `/handoff/{manifest|feature_schema|script}`.
+* **UI:** the first page, **★ One-click prepare**: upload, inspect (tables, sample rows, documentation, unsupported parts), choose tables or a sample, pick the target (auto-guessed), Prepare, then download. The numbered pages are the advanced review flow for working through the review queue.
 
 On the demo churn table (`python scripts/make_demo.py`: 403 rows, planted problems), one click:
 * applies 9 safe fixes: 4 placeholders emptied, 3 label case variants, 2 currency strings converted to numbers;
@@ -127,7 +156,7 @@ On the demo churn table (`python scripts/make_demo.py`: 403 rows, planted proble
 | **Anomaly detection** | Robust z-score (median/MAD) per numeric column, an IQR fallback, rare categories, and a row-level **Isolation Forest** after PCA whitening, which catches combinations that are each normal on their own. Anomalies are **kept separate from errors**: never auto-fixed, never deleted; a reviewer confirms or dismisses each one. |
 | **Review workflow** | Each issue's outcome is decided by re-validating the cleaned output: resolved, open, pending_review, approved, rejected or dismissed. Duplicate pairs are shown side by side before removal. Unresolved cells are marked in the cleaned workbook. |
 | **API engineering** | FastAPI with API-key auth (keys stored as SHA-256 hashes), per-user isolation, a streaming body-size limit, extension and magic-byte checks, zip-bomb and macro rejection, RFC 9457 `application/problem+json` errors, and a SQL-backed audit log. |
-| **Testing** | 140 tests. Seeded synthetic datasets carry **known planted problems and a ground-truth manifest**. Tests check that each rule catches *exactly* the cells it should, across several seeds; that a clean file produces zero issues; that Safe Auto-Clean changes only safe things; and the report contract. |
+| **Testing** | 166 tests, including every format adapter and the ZIP safety limits. Seeded synthetic datasets carry **known planted problems and a ground-truth manifest**. Tests check that each rule catches *exactly* the cells it should, across several seeds; that a clean file produces zero issues; that Safe Auto-Clean changes only safe things; and the report contract. |
 
 ## Architecture
 
@@ -166,7 +195,7 @@ pip install -e ".[ui,dev,parquet]"
 
 python scripts/make_demo.py      # builds examples/churn_demo.xlsx + the orders demo, writes reports/
 ilovecsv prepare examples/churn_demo.xlsx --target churn --out prepared/
-pytest                           # 140 tests
+pytest                           # 166 tests
 ```
 
 ### CLI: rule-file workflow
@@ -307,6 +336,26 @@ Every error is `application/problem+json`:
  "detail": "The upload exceeds the 25 MB limit.", "instance": "/v1/workbooks"}
 ```
 
+## Benchmark: the same problems in every format
+
+`python benchmarks/run_benchmark.py` builds one clean synthetic customer table (2,000 rows) and plants 280 problems: whitespace, case variants, placeholders, impossible ages, malformed emails, missing or unrecognised labels, unparseable dates, exact duplicates. It writes the table as CSV, TSV, XLSX, JSON, JSONL, Parquet and a ZIP, runs `prepare` on each with no manual decisions, and scores the result against the ground truth ([full results](reports/benchmark/results.md)).
+
+| run | precision | recall | repair accuracy | untouched cells unchanged | valid rows kept | reproducible | verified | review items | representation fixes | seconds |
+|---|---|---|---|---|---|---|---|---|---|---|
+| csv | 1.000 | 0.879 | 1.000 | 1.0000 | 1.000 | yes | yes | 22 | 0 | 1.14 |
+| tsv | 1.000 | 0.879 | 1.000 | 1.0000 | 1.000 | yes | yes | 22 | 0 | 1.06 |
+| xlsx | 1.000 | 0.879 | 1.000 | 1.0000 | 1.000 | yes | yes | 22 | 2000 | 3.1 |
+| json | 1.000 | 0.879 | 1.000 | 1.0000 | 1.000 | yes | yes | 22 | 0 | 1.02 |
+| jsonl | 1.000 | 0.879 | 1.000 | 1.0000 | 1.000 | yes | yes | 22 | 0 | 1.05 |
+| parquet | 1.000 | 0.879 | 1.000 | 1.0000 | 1.000 | yes | yes | 21 | 3980 | 2.49 |
+| zip | 1.000 | 0.879 | 1.000 | 1.0000 | 1.000 | yes | yes | 22 | 0 | 1.1 |
+| csv + domain rule | 1.000 | 1.000 | 1.000 | 1.0000 | 1.000 | yes | yes | 20 | 0 | 1.1 |
+
+* **The same answer in every format.** Detection, repairs and outputs are identical. Formats differ only in *representation fixes*: ISO dates that an Excel sheet holds as text, or numbers in a text-typed Parquet column. These are real findings with a safe fix, counted separately.
+* **Untouched cells unchanged: 100%.** Every cell without a planted problem comes out exactly as it went in. No valid row is lost.
+* **Recall 0.88 with suggested rules only.** Impossible ages are the gap. With ~2% of the column bad, a bound inferred from the data would be broken too often, so it is deliberately not suggested. One line of domain knowledge in the recipe (`age: {type: int, min: 18, max: 120}`) gives recall 1.0.
+* **Reproducible:** re-running with the saved recipe gives byte-identical datasets.
+
 ## Results on the demo workbook
 
 The demo has 301 order rows and 40 customer rows. Problems were injected on purpose: 26 rule violations (19 errors and 7 warnings) across 17 rule types, and 5 anomalies.
@@ -392,7 +441,10 @@ I also ran it on the public [BODMAS](https://whyisyoung.github.io/BODMAS/) malwa
 * openpyxl does not preserve charts or images when re-saving a workbook. The tool warns when the input contains them.
 * Row deletion is skipped in workbooks that contain formulas or merged body cells. The row is marked instead.
 * Validation is synchronous: about 10 s for 134k rows × 3 columns. Much larger files would need a background job queue.
-* `.xls` and `.xlsm` files are rejected by design.
+* `.xlsm` is read without running macros (macros hidden in a file named `.xlsx` are refused at upload). `.xls` needs `xlrd`.
+* Non-spreadsheet sources (JSON, Parquet, MATLAB, archives) and sampled runs come back as corrected CSV tables, not in their original format.
+* Generic MATLAB/HDF5 rules only tabulate structures with one obvious table form; other layouts need a layout-specific adapter (NASA battery is built in).
+* The benchmark is synthetic and covers the problem types IloveCSV is built for; it shows consistency across formats, not performance on unknown kinds of dirt.
 * The leakage check looks at one column at a time, for classification targets with up to 20 classes. It cannot see leaks that only appear in combinations of columns or through time ordering.
 * Column roles are heuristics from the profile; the report lists them so you can override them in your own code.
 * `explain.py` uses fixed templates. It is the single place to plug in an LLM later for context-specific explanations.
@@ -400,11 +452,13 @@ I also ran it on the public [BODMAS](https://whyisyoung.github.io/BODMAS/) malwa
 ## Project layout
 
 ```
-src/ilovecsv/        core engine, API (api/), report template (templates/)
+src/ilovecsv/        core engine, format adapters (adapters/), API (api/), report template (templates/)
 app/                 Streamlit UI
-tests/               140 tests: per-rule ground truth, anomalies, corrections, prepare, ML checks, audit, API, CLI
+tests/               166 tests: per-rule ground truth, adapters, anomalies, corrections, prepare, ML checks, audit, API, CLI
 scripts/             make_demo.py, create_api_key.py
+benchmarks/          run_benchmark.py: planted problems in 7 formats, precision/recall, reproducibility
 examples/            churn_demo.xlsx (ML demo), demo_orders.xlsx + rule file (rule-engine demo); all synthetic
+examples/recipes/    nasa_battery.yaml: a hand-written recipe for the NASA battery aging .mat files
 reports/demo_churn/  one-click prepare output: cleaned CSV, annotated XLSX, cleaning report, config
 reports/demo/        rule-engine demo output
 ```

@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ilovecsv"
-version = "0.1.0"
-description = "Automated dataset quality and preparation for machine learning: one-click safe cleaning, review queue, auditable reports"
+version = "0.2.0"
+description = "Universal dataset inspection and safe preparation for machine learning: CSV, Excel, JSON, Parquet, ZIP, MATLAB, NumPy, HDF5"
 requires-python = ">=3.11"
 dependencies = [
   "pandas>=2.2",
@@ -25,7 +25,10 @@ dependencies = [
 [project.optional-dependencies]
 ui = ["streamlit>=1.35"]
 parquet = ["pyarrow>=14"]
-dev = ["pytest>=8", "pytest-cov>=5", "ruff>=0.4", "pyarrow>=14"]
+scientific = ["scipy>=1.11", "h5py>=3.10"]
+legacy-excel = ["xlrd>=2.0"]
+all-formats = ["pyarrow>=14", "scipy>=1.11", "h5py>=3.10", "xlrd>=2.0"]
+dev = ["pytest>=8", "pytest-cov>=5", "ruff>=0.4", "pyarrow>=14", "scipy>=1.11", "h5py>=3.10", "xlrd>=2.0"]
 
 [project.scripts]
 ilovecsv = "ilovecsv.cli:main"

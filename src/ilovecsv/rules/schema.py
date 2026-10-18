@@ -19,6 +19,7 @@ from typing import Any, Literal
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
+from ..sources import SourceOptions
 from ..values import DEFAULT_NULLS, DEFAULT_TYPED_NULLS
 from .expr import ExprError, compile_expr
 
@@ -202,6 +203,9 @@ class SheetRules(_Strict):
     # The valid labels, e.g. [No, Yes]. Case/spacing variants are normalised to these exact
     # spellings; any other value is flagged as an unrecognised label and never guessed.
     target_labels: list[str] | None = None
+    # Your column roles, overriding the suggestions: identifier, group (e.g. battery or patient id:
+    # keep its rows in one split), timestamp (split chronologically), pii, sensitive, feature, ignore.
+    roles: dict[str, str] = Field(default_factory=dict)
     duplicates: DuplicatePolicy = Field(default_factory=DuplicatePolicy)
     checks: Checks = Field(default_factory=Checks)
     columns: dict[str, ColumnRule] = Field(default_factory=dict)
@@ -219,6 +223,10 @@ class SheetRules(_Strict):
         # A label identifies the outcome, not the observation; keying on it hides label conflicts.
         if self.target and self.key and self.target in self.key:
             raise ValueError("the target column cannot be part of the key")
+        allowed_roles = {"identifier", "group", "timestamp", "pii", "sensitive", "feature", "ignore"}
+        bad = {c: r for c, r in self.roles.items() if r not in allowed_roles}
+        if bad:
+            raise ValueError(f"unknown role(s) {bad}; use one of {sorted(allowed_roles)}")
         if self.target_labels is not None:
             if not self.target:
                 raise ValueError("target_labels needs a target column")
@@ -236,6 +244,19 @@ class SheetRules(_Strict):
         return self
 
 
+class Decisions(_Strict):
+    """Review decisions saved in a recipe. Ids are stable for the same data (sheet, row, column,
+    rule), so re-running on the same file reproduces them; on new data most will not apply, and
+    the report says how many did."""
+
+    approve: list[str] = Field(default_factory=list)
+    reject: list[str] = Field(default_factory=list)
+    anomalies: dict[str, Literal["open", "confirmed_error", "dismissed"]] = Field(default_factory=dict)
+
+
+
+
+
 class RuleSet(_Strict):
     version: Literal[1] = 1
     null_values: list[str] = Field(default_factory=lambda: list(DEFAULT_NULLS))
@@ -243,13 +264,18 @@ class RuleSet(_Strict):
     typed_null_values: list[str] = Field(default_factory=lambda: list(DEFAULT_TYPED_NULLS))
     dayfirst: bool = True
     anomalies: AnomalyConfig = Field(default_factory=AnomalyConfig)
+    # How the source file becomes tables (sheet, JSON records, archive members, sample size, ...).
+    source: SourceOptions = Field(default_factory=SourceOptions)
+    # Review decisions recorded by a previous run; re-applied when the ids match (same data).
+    decisions: Decisions = Field(default_factory=lambda: Decisions())
     sheets: list[SheetRules] = Field(default_factory=lambda: [SheetRules()])
 
     @model_validator(mode="before")
     @classmethod
     def _single_sheet_layout(cls, data: Any) -> Any:
         if isinstance(data, dict) and "sheets" not in data:
-            sheet_keys = {"sheet", "key", "target", "target_labels", "duplicates", "checks", "columns", "rules"}
+            sheet_keys = {"sheet", "key", "target", "target_labels", "roles", "duplicates", "checks", "columns",
+                          "rules"}
             sheet = {k: data[k] for k in sheet_keys if k in data}
             rest = {k: v for k, v in data.items() if k not in sheet_keys}
             rest["sheets"] = [sheet]

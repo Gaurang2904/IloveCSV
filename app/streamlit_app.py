@@ -22,6 +22,8 @@ STEPS = ["1 · Upload", "2 · Profile", "3 · Rules", "4 · Issues", "5 · Revie
 ONE_CLICK = "★ One-click prepare"
 PAGES = [ONE_CLICK, *STEPS]  # the numbered steps are the advanced review flow
 DEMO_CHURN = ROOT / "examples" / "churn_demo.xlsx"
+DATA_TYPES = ["csv", "tsv", "txt", "xlsx", "xlsm", "xls", "json", "jsonl", "ndjson", "parquet", "feather", "arrow",
+              "arff", "zip", "mat", "npy", "npz", "h5", "hdf5"]
 
 st.set_page_config(page_title="IloveCSV", page_icon="🧹", layout="wide")
 ss = st.session_state
@@ -126,18 +128,64 @@ def need(key: str, message: str) -> None:
 def _upload(name: str, content: bytes) -> None:
     r = call("POST", "/v1/workbooks", files={"file": (name, content)})
     if r:
-        ss.workbook, ss.run, ss.prepared = r.json(), None, None
+        ss.workbook, ss.run, ss.prepared, ss.inspection = r.json(), None, None, None
         ss.rules_yaml = ""
+
+
+def _inspection_panel(w: dict) -> dict:
+    """Structure first: what is inside the file, and which part to prepare. Returns source options."""
+    if (ss.get("inspection") or {}).get("workbook_id") != w["id"]:
+        r = call("GET", f"/v1/workbooks/{w['id']}/inspect")
+        ss.inspection = r.json() if r else {"workbook_id": w["id"], "tables": []}
+    insp = ss.inspection
+    tables = insp.get("tables", [])
+    rows = sum(t["rows"] or 0 for t in tables)
+    st.caption(f"**{w['filename']}** · format **{insp.get('format', '?')}** · {len(tables)} table(s) · "
+               f"{rows:,} rows · ~{insp.get('memory_estimate_mb', 0)} MB in memory")
+    with st.expander("Inspect: tables, columns, documentation", expanded=len(tables) > 1 or bool(insp.get("unsupported"))):
+        st.dataframe(pd.DataFrame([{
+            "table": t["name"], "rows": f"{t['rows']:,}" + ("" if t["rows_exact"] else " (est.)"),
+            "columns": len(t["columns"]), "source": t.get("source", ""), "notes": "; ".join(t.get("notes", []))}
+            for t in tables]), hide_index=True, width="stretch")
+        if tables:
+            pick = st.selectbox("Preview table", [t["name"] for t in tables], key="insp_preview")
+            t = next(t for t in tables if t["name"] == pick)
+            st.dataframe(as_text(pd.DataFrame(t["sample"])), hide_index=True, width="stretch")
+            st.caption("Columns: " + ", ".join(f"`{c['name']}` ({c['kind']})" for c in t["columns"][:40]))
+        for d in insp.get("docs", []):
+            hints = ", ".join(map(str, d.get("missing_value_hints", [])))
+            st.info(f"Documentation **{d.get('name')}** ({d.get('kind')})"
+                    + (f": mentions missing-value codes {hints}" if hints else "")
+                    + (f"; describes {len(d['columns_mentioned'])} column(s)" if d.get("columns_mentioned") else ""))
+        for u in insp.get("unsupported", []):
+            st.warning(f"Not tabulated: **{u.get('path') or u.get('name')}**: {u.get('reason')}")
+        for warn in insp.get("warnings", []):
+            st.warning(warn)
+    source: dict = {}
+    if len(tables) > 1:
+        chosen = st.multiselect("Tables to prepare (default: all)", [t["name"] for t in tables], key="oc_tables")
+        if chosen:
+            source["sheets" if w["file_type"] == "xlsx" else "tables"] = chosen
+    big = not insp.get("full_processing_ok", True)
+    if big:
+        st.warning(f"Over the full-processing limit ({insp.get('row_limit', 0):,} rows per table). "
+                   "Prepare a sample (the output is marked PARTIAL), or pick fewer tables.")
+    sample = st.number_input("Process only the first N rows of each table (0 = all)", min_value=0,
+                             value=min(100_000, insp.get("row_limit", 0)) if big else 0, step=10_000, key="oc_max_rows")
+    if sample:
+        source["max_rows"] = int(sample)
+    return source
 
 
 if ss.step == ONE_CLICK:
     st.header("One-click dataset preparation")
-    st.write("Upload a CSV or Excel file. IloveCSV applies only **safe** fixes (formatting, placeholders, "
+    st.write("Upload a dataset: CSV/TSV, Excel, JSON/JSONL, Parquet, Feather, ARFF, ZIP, MATLAB `.mat`, NumPy or "
+             "HDF5. IloveCSV shows what is inside, applies only **safe** fixes (formatting, placeholders, "
              "unambiguous conversions), flags everything else for review, re-validates, and exports a cleaned "
              "dataset with a machine-readable report.")
     st.caption("It never imputes, scales, encodes, drops columns or deletes outliers: fit those steps in your ML "
                "pipeline, on the training split only, to avoid data leakage.")
-    f = st.file_uploader("Dataset", type=["csv", "xlsx"], key="oc_file")
+    f = st.file_uploader("Dataset", type=DATA_TYPES, key="oc_file")
     if f is not None and ss.get("oc_uploaded") != (f.name, f.size):
         _upload(f.name, f.getvalue())
         ss.oc_uploaded = (f.name, f.size)
@@ -146,8 +194,10 @@ if ss.step == ONE_CLICK:
         ss.oc_uploaded = None
     if ss.get("workbook"):
         w = ss.workbook
-        st.caption(f"**{w['filename']}** · " + " · ".join(f"{s['name']}: {s['rows']} rows" for s in w["sheets"]))
-        columns = list(dict.fromkeys(c for s in w["sheets"] for c in s["columns"]))
+        source = _inspection_panel(w)
+        chosen = source.get("sheets") or source.get("tables")
+        columns = list(dict.fromkeys(c for s in w["sheets"] if not chosen or s["name"] in chosen
+                                     for c in s["columns"]))
         guess = next((c for c in columns if str(c).strip().lower() in ("churn", "target", "label", "y", "class")), None)
         c1, c2, c3 = st.columns([2, 2, 1])
         target = c1.selectbox("Target column (optional)", ["(none)", *columns],
@@ -167,7 +217,8 @@ if ss.step == ONE_CLICK:
         if st.button("Prepare dataset", type="primary"):
             body = {"target": None if target == "(none)" else target, "remove_exact_duplicates": remove_exact,
                     "formats": ["csv", "parquet"] if parquet else ["csv"],
-                    "target_labels": [x.strip() for x in labels.split(",") if x.strip()] or None}
+                    "target_labels": [x.strip() for x in labels.split(",") if x.strip()] or None,
+                    "source": source or None}
             with st.spinner("Profiling, validating, applying safe fixes, re-validating, exporting…"):
                 r = call("POST", f"/v1/workbooks/{w['id']}/prepare", json=body)
             if r:
@@ -229,13 +280,14 @@ if ss.step == ONE_CLICK:
         is_xlsx = ss.workbook["file_type"] == "xlsx"
         a1, a2, a3 = st.columns(3)
         with a1:
-            st.markdown("**Cleaned file**  \n<small>Same format as your upload, all approved fixes applied.</small>",
-                        unsafe_allow_html=True)
+            st.markdown("**Cleaned file**  \n<small>Your upload with all approved fixes applied (Excel and CSV keep "
+                        "their format; other formats come back as CSV tables).</small>", unsafe_allow_html=True)
             d = call("GET", f"/v1/runs/{rid}/corrected")
             if d:
-                label = "Cleaned workbook (.xlsx, changes highlighted)" if is_xlsx else "Cleaned file (.csv)"
-                st.download_button(label, d.content, f"{stem}_cleaned.{'xlsx' if is_xlsx else 'csv'}",
-                                   key="dl-cleaned")
+                fname = (d.headers.get("content-disposition", "").split("filename=")[-1].strip('"; ')
+                         or f"{stem}_cleaned.{'xlsx' if is_xlsx else 'csv'}")
+                label = "Cleaned workbook (.xlsx, changes highlighted)" if is_xlsx else f"Cleaned file ({fname})"
+                st.download_button(label, d.content, fname, key="dl-cleaned")
         with a2:
             st.markdown("**ML-ready dataset**  \n<small>One table per sheet: ISO dates, plain numbers, empty cells "
                         "for missing values.</small>", unsafe_allow_html=True)
@@ -254,16 +306,34 @@ if ss.step == ONE_CLICK:
                                        key=f"dl-rep-{fmt}")
             d = call("GET", f"/v1/runs/{rid}/config")
             if d:
-                st.download_button("Prepare config (.yaml)", d.content, f"{stem}_prepare_config.yaml",
+                st.download_button("Recipe: prepare config (.yaml)", d.content, f"{stem}_prepare_config.yaml",
                                    key="dl-config")
+            for kind, label, fname in (("manifest", "Manifest (.json)", "manifest.json"),
+                                       ("feature_schema", "Feature schema (.json)", "feature_schema.json"),
+                                       ("script", "Reproduce script (prepare_dataset.py)", "prepare_dataset.py")):
+                d = call("GET", f"/v1/runs/{rid}/handoff/{kind}")
+                if d:
+                    st.download_button(label, d.content, fname, key=f"dl-{kind}")
+        ver = (report.get("verification") or {})
+        if ver:
+            checks = ver.get("checks", [])
+            failed = [c for c in checks if not c["passed"]]
+            if failed:
+                st.error("Post-export verification FAILED: " + "; ".join(f"{c['check']}: {c['detail']}" for c in failed))
+            else:
+                st.success(f"Post-export verification passed ({len(checks)} checks: outputs reopened, columns and "
+                           "row counts match, applied fixes present, re-validated).")
+        if (report.get("source") or {}).get("partial"):
+            st.warning("PARTIAL: only a sample of rows was processed (max_rows). Re-run without it for the full data.")
         if p["review_required"] and st.button(f"Review the {p['review_required']} item(s) →"):
             go(STEPS[4])
 
 # ----------------------------------------------------------------------------- 1 upload
 elif ss.step == STEPS[0]:
     st.header("Upload a workbook")
-    st.write("Upload an `.xlsx` or `.csv` file. Macro-enabled and legacy `.xls` files are rejected.")
-    f = st.file_uploader("Workbook", type=["xlsx", "csv"])
+    st.write("Upload any supported dataset (CSV/TSV, Excel incl. .xls/.xlsm, JSON, Parquet, ZIP, .mat, NumPy, HDF5). "
+             "Macros are never run.")
+    f = st.file_uploader("Workbook", type=DATA_TYPES)
     c1, c2 = st.columns(2)
     if c1.button("Upload", type="primary", disabled=f is None):
         r = call("POST", "/v1/workbooks", files={"file": (f.name, f.getvalue())})

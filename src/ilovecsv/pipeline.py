@@ -19,14 +19,22 @@ from typing import Any
 
 from . import __version__
 from .anomalies import detect_anomalies
-from .corrections import ApplyResult, apply_corrections, mark_unresolved, suggest_corrections
+from .corrections import (
+    ApplyResult,
+    apply_corrections,
+    apply_to_tables,
+    cell_writeback,
+    mark_unresolved,
+    suggest_corrections,
+)
 from .models import ANOMALY, APPROVED, ERROR, PENDING, REJECTED, Issue, Suggestion
 from .profiling import SheetProfile, profile_workbook
-from .reader import WorkbookData, read_workbook, sha256_file
+from .reader import WorkbookData, read_table_csvs, read_workbook, sha256_file
 from .resolution import apply_pre_export, finalize, row_maps
 from .rules.engine import ValidationResult, validate
 from .rules.schema import RuleSet, load_rules, rules_sha256
 from .rules.suggest import suggest_rules, with_prepare_options
+from .sources import SourceOptions
 from .values import normalise_nulls
 
 
@@ -47,6 +55,7 @@ class RunResult:
     anomalies: list[Issue]
     suggestions: list[Suggestion]
     auto_cleaned: bool = False  # Safe Auto-Clean was applied (decide(mode="safe"))
+    recipe_decisions: dict[str, int] | None = None  # decisions re-applied from a saved recipe
 
     @property
     def issues(self) -> list[Issue]:
@@ -70,6 +79,10 @@ class ExportResult:
     original_copy: Path | None = None
     config_path: Path | None = None
     out_dir: Path | None = None
+    verification: dict[str, Any] | None = None  # checks run on the exported files
+    manifest_path: Path | None = None
+    schema_path: Path | None = None
+    script_path: Path | None = None
 
 
 @dataclass
@@ -98,13 +111,15 @@ def run_checks(
     run_id: str | None = None,
 ) -> RunResult:
     rules = load_rules(rules_text)
-    wb = read_workbook(path, filename)
+    wb = read_workbook(path, filename, rules.source)
     return run_on_workbook(wb, rules, rules_text, run_id)
 
 
-def run_on_workbook(wb: WorkbookData, rules: RuleSet, rules_text: str, run_id: str | None = None) -> RunResult:
+def run_on_workbook(wb: WorkbookData, rules: RuleSet, rules_text: str, run_id: str | None = None,
+                    profiles: dict[str, SheetProfile] | None = None) -> RunResult:
+    """`profiles`: reuse a profile computed with the same null tokens (profiling is the slow part)."""
     nulls = normalise_nulls(rules.null_values)
-    profiles = profile_workbook(wb, nulls)
+    profiles = profiles or profile_workbook(wb, nulls)
     validation = validate(wb, rules, profiles)
     anomalies = detect_anomalies(wb, rules, profiles, validation.issues)
     suggestions = suggest_corrections(wb, rules, validation.issues, profiles)
@@ -173,19 +188,39 @@ def export(run: RunResult, out_dir: str | Path, annotate: bool = True, write_rep
       {stem}_prepare_config.yaml          the exact rules + policy, to clean new batches the same way
       original/{input file}               an untouched copy of the input
     """
-    from .dataset import write_datasets
+    from .dataset import dataset_stem, write_datasets
+    from .handoff import build_manifest, recipe_text, reproduce_script, split_hints, verify_outputs
+    from .handoff import write_json as handoff_json
+    from .report import build_audit
     from .report import write_reports as _write_reports  # local import: jinja2 only needed here
 
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     stem = Path(run.wb.filename).stem
-    suffix = ".csv" if run.wb.file_type == "csv" else ".xlsx"
-    corrected = out_dir / f"{stem}_cleaned{suffix}"
-    applied = apply_corrections(run.wb, run.suggestions, corrected, annotate=annotate)
-
-    # Re-validate the corrected file with the same rules: proves what the fixes achieved.
-    # Read it under the original filename: a CSV's sheet name comes from its file name.
-    wb2 = read_workbook(corrected, run.wb.filename)
+    existing: dict[str, Path] | None = None
+    # The cleaned file keeps the upload's format (a .tsv stays tab-separated); the ML-ready dataset
+    # is always a comma CSV, so it can only *be* the cleaned file for a comma-separated .csv.
+    text_suffix = Path(run.wb.filename).suffix.lower() if run.wb.file_type == "csv" else ""
+    comma_csv = text_suffix == ".csv" and (run.wb.csv_delimiter or ",") == ","
+    if cell_writeback(run.wb):
+        if run.wb.file_type != "csv":
+            name = f"{stem}_cleaned.xlsx"
+        elif comma_csv or text_suffix != ".csv":
+            name = f"{stem}_cleaned{text_suffix or '.csv'}"
+        else:  # e.g. semicolon-separated .csv: keep its delimiter, free the dataset name
+            name = f"{stem}_cleaned_as_uploaded.csv"
+        corrected = out_dir / name
+        applied = apply_corrections(run.wb, run.suggestions, corrected, annotate=annotate)
+        # Re-validate the corrected file with the same rules: proves what the fixes achieved.
+        # Read it under the original filename: a CSV's sheet name comes from its file name.
+        wb2 = read_workbook(corrected, run.wb.filename, run.rules.source)
+    else:
+        # JSON, Parquet, MATLAB, archives, samples: correct the tables, export them as CSV, and
+        # re-validate those exported files.
+        names = {t: dataset_stem(stem, t, len(run.wb.sheets)) for t in run.wb.sheets}
+        applied, existing = apply_to_tables(run.wb, run.suggestions, out_dir, names, stem)
+        corrected = applied.out_path
+        wb2 = read_table_csvs(existing, run.wb)
     after_run = run_on_workbook(wb2, run.rules, run.rules_text, run_id=run.run_id + "-after")
     resolution = finalize(run, applied, after_run.validation.issues, wb2.sheets)
     if annotate and run.wb.file_type == "xlsx" and resolution.unresolved:
@@ -198,18 +233,31 @@ def export(run: RunResult, out_dir: str | Path, annotate: bool = True, write_rep
     _, to_original = row_maps(run, applied)
     to_cleaned = {sheet: {o: c for c, o in m.items()} for sheet, m in to_original.items()}
     datasets, kept = write_datasets(after_run, out_dir, stem, formats,
-                                    corrected_csv=corrected if run.wb.file_type == "csv" else None)
+                                    corrected_csv=corrected if comma_csv and existing is None else None,
+                                    existing_csv=existing)
     result = ExportResult(corrected, applied, after, after_run=after_run, datasets=datasets, kept_as_text=kept,
                           to_cleaned_row=to_cleaned, out_dir=out_dir)
+    result.verification = verify_outputs(run, result)
     if preserve_original:
         (out_dir / "original").mkdir(exist_ok=True)
         result.original_copy = out_dir / "original" / run.wb.filename
         shutil.copyfile(run.wb.path, result.original_copy)
     if save_config:
         result.config_path = out_dir / f"{stem}_prepare_config.yaml"
-        result.config_path.write_text(run.rules_text, encoding="utf-8")
+        result.config_path.write_text(recipe_text(run), encoding="utf-8")
     if write_reports:
-        result.reports = _write_reports(run, result, out_dir)
+        audit = build_audit(run, result)
+        result.reports = _write_reports(run, result, out_dir, audit)
+        result.schema_path = handoff_json({"schema_version": "1.0", "source": run.wb.filename,
+                                           "tables": audit["columns"], "split_hints": split_hints(run)},
+                                          out_dir / f"{stem}_feature_schema.json")
+        if result.config_path:
+            result.script_path = out_dir / "prepare_dataset.py"
+            result.script_path.write_text(reproduce_script(run, result.config_path.name, formats), encoding="utf-8")
+        files = {"corrected": corrected, "config": result.config_path, "feature_schema": result.schema_path,
+                 "script": result.script_path, **{f"report_{k}": p for k, p in result.reports.items()}}
+        result.manifest_path = handoff_json(build_manifest(run, result, audit, files),
+                                            out_dir / f"{stem}_manifest.json")
     return result
 
 
@@ -223,24 +271,56 @@ def prepare(
     formats: tuple[str, ...] = ("csv",),
     filename: str | None = None,
     approver: str = "safe-auto-clean",
+    source: SourceOptions | dict | None = None,
 ) -> PreparedResult:
-    """One click: profile, validate, apply Safe Auto-Clean, re-validate and export.
+    """One click: read (any supported format), profile, validate, apply Safe Auto-Clean,
+    re-validate and export.
 
     Review-required items (ambiguous dates, fuzzy matches, near-duplicates, anomalies, ...) are
     left pending and listed in the report; nothing is imputed, scaled, dropped or deleted unless it
-    is safe. `config` re-uses a saved {stem}_prepare_config.yaml instead of suggesting new rules.
+    is safe. `config` re-uses a saved recipe ({stem}_prepare_config.yaml): its source options,
+    rules, policy and recorded review decisions. `source` chooses sheets, tables, JSON records,
+    a row sample, ... (saved into the recipe).
     """
-    wb = read_workbook(path, filename)
+    src = SourceOptions.model_validate(source) if isinstance(source, dict) else source
+    recipe = None
     if config is not None:
         rules_text = Path(config).read_text(encoding="utf-8")
-    else:
-        rules_text = suggest_rules(profile_workbook(wb), for_ml=True)
-    if target is not None or remove_exact_duplicates is not None or target_labels:
-        columns = {name: [str(c) for c in s.df.columns] for name, s in wb.sheets.items()}
-        rules_text = with_prepare_options(rules_text, columns, target, remove_exact_duplicates, target_labels)
-    run = run_on_workbook(wb, load_rules(rules_text), rules_text)
+        recipe = load_rules(rules_text)
+        src = recipe.source.model_copy(update=src.model_dump(exclude_unset=True)) if src else recipe.source
+    src = src or SourceOptions()
+    wb = read_workbook(path, filename, src)
+    profiles = None
+    if config is None:
+        profiles = profile_workbook(wb)
+        rules_text = suggest_rules(profiles, for_ml=True)
+    columns = {name: [str(c) for c in s.df.columns] for name, s in wb.sheets.items()}
+    rules_text = with_prepare_options(rules_text, columns, target, remove_exact_duplicates, target_labels, source=src)
+    rules = load_rules(rules_text)
+    same_nulls = normalise_nulls(rules.null_values) == normalise_nulls(None)
+    run = run_on_workbook(wb, rules, rules_text, profiles=profiles if same_nulls else None)
     decide(run, mode="safe", approver=approver)
+    if recipe is not None:
+        run.recipe_decisions = apply_recipe_decisions(run, recipe)
     return PreparedResult(run, export(run, out_dir, formats=formats))
+
+
+def apply_recipe_decisions(run: RunResult, recipe: RuleSet) -> dict[str, int]:
+    """Re-apply review decisions saved in a recipe; count how many still matched this data."""
+    ids = {s.id for s in run.suggestions}
+    approve = [i for i in recipe.decisions.approve if i in ids]
+    reject = [i for i in recipe.decisions.reject if i in ids]
+    decide(run, approve=approve, reject=reject, approver="recipe")
+    anomalies = {a.id: a for a in run.anomalies}
+    applied_anomalies = 0
+    for aid, status in recipe.decisions.anomalies.items():
+        if aid in anomalies:
+            anomalies[aid].status = status
+            applied_anomalies += 1
+    apply_pre_export(run.issues, run.suggestions)
+    total = len(recipe.decisions.approve) + len(recipe.decisions.reject) + len(recipe.decisions.anomalies)
+    applied = len(approve) + len(reject) + applied_anomalies
+    return {"recorded": total, "applied": applied, "not_applicable": total - applied}
 
 
 def summarise(

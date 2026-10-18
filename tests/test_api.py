@@ -71,19 +71,66 @@ def test_too_large(api, tmp_path):
 
 def test_wrong_types(api, tmp_path):
     client, alice, _ = api
-    txt = tmp_path / "notes.txt"
-    txt.write_text("hello")
-    assert_problem(upload(client, alice, txt, ctype="text/plain"), 415, "unsupported-media-type")
+    doc = tmp_path / "notes.docx"
+    doc.write_text("hello")
+    assert_problem(upload(client, alice, doc, ctype="text/plain"), 415, "unsupported-media-type")
     fake = tmp_path / "renamed.xlsx"
     fake.write_text("this is not a workbook")
     assert_problem(upload(client, alice, fake), 415, "content-mismatch")
     xlsm = tmp_path / "macro.xlsm"
     xlsm.write_bytes(b"PK\x03\x04")
-    assert_problem(upload(client, alice, xlsm), 415, "unsupported-media-type")
+    assert_problem(upload(client, alice, xlsm), 415, "content-mismatch")  # not a readable zip
+    parquet = tmp_path / "fake.parquet"
+    parquet.write_text("a,b\n1,2\n")
+    assert_problem(upload(client, alice, parquet), 415, "content-mismatch")
     z = tmp_path / "zip.xlsx"
     with zipfile.ZipFile(z, "w") as zf:
         zf.writestr("hello.txt", "hi")
     assert_problem(upload(client, alice, z), 415, "content-mismatch")
+
+
+def test_macro_workbooks(api, tmp_path):
+    """.xlsm is accepted (macros are never run); macros hidden in an .xlsx are refused."""
+    from openpyxl import Workbook as XL
+
+    client, alice, _ = api
+    good = tmp_path / "plain.xlsx"
+    wb = XL()
+    wb.active.append(["id", "score"])
+    wb.active.append([1, 2.5])
+    wb.save(good)
+    disguised = tmp_path / "disguised.xlsx"
+    with zipfile.ZipFile(good) as src, zipfile.ZipFile(disguised, "w") as dst:
+        for item in src.infolist():
+            dst.writestr(item, src.read(item.filename))
+        dst.writestr("xl/vbaProject.bin", b"fake macro project")
+    assert_problem(upload(client, alice, disguised), 415, "unsupported-media-type")
+    xlsm = tmp_path / "macro.xlsm"
+    xlsm.write_bytes(disguised.read_bytes())
+    r = upload(client, alice, xlsm)
+    assert r.status_code == 201, r.text
+    assert any("macro" in w.lower() for w in r.json()["warnings"])
+
+
+def test_upload_other_formats_and_inspect(api, tmp_path):
+    import json
+
+    client, alice, _ = api
+    data = tmp_path / "orders.json"
+    data.write_text(json.dumps({"meta": {"n": 2}, "items": [
+        {"id": 1, "customer": {"name": "Ann", "city": "Pune"}, "amount": "10.5"},
+        {"id": 2, "customer": {"name": "Raj", "city": "Mumbai"}, "amount": "N/A"}]}))
+    r = upload(client, alice, data, ctype="application/json")
+    assert r.status_code == 201, r.text
+    wid = r.json()["id"]
+    assert r.json()["file_type"] == "frames"
+    insp = client.get(f"/v1/workbooks/{wid}/inspect", headers=alice).json()
+    assert insp["format"] == "json"
+    cols = [c["name"] for c in insp["tables"][0]["columns"]]
+    assert "customer.city" in cols and insp["tables"][0]["rows"] == 2
+    prep = client.post(f"/v1/workbooks/{wid}/prepare", headers=alice, json={"source": {"max_rows": 10}})
+    assert prep.status_code == 201, prep.text
+    assert prep.json()["datasets"]
 
 
 def test_zip_bomb_guard(api, tmp_path):

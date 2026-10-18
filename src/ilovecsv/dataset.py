@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from .ml import sheet_schema, typed_frame
-from .values import is_null, normalise_nulls
+from .values import normalise_nulls
 
 if TYPE_CHECKING:
     from .pipeline import RunResult
@@ -29,8 +29,10 @@ def dataset_stem(stem: str, sheet: str, n_sheets: int) -> str:
     return f"{stem}_{safe}_cleaned"
 
 
-def csv_cell(v: Any, nulls) -> str:
-    if v is None or is_null(v, nulls):
+def csv_cell(v: Any) -> str:
+    """Only real missing values become empty fields: placeholder text such as 'N/A' is written as it
+    is unless its fix was approved, so the file shows exactly what was (and was not) cleaned."""
+    if v is None or (isinstance(v, float) and v != v):
         return ""
     if isinstance(v, bool):
         return "true" if v else "false"
@@ -43,9 +45,21 @@ def csv_cell(v: Any, nulls) -> str:
     return str(v)
 
 
+def write_table_csv(df, path: Path) -> None:
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f, lineterminator="\n")
+        w.writerow([str(c) for c in df.columns])
+        for row in df.itertuples(index=False):
+            w.writerow([csv_cell(v) for v in row])
+
+
 def write_datasets(after: RunResult, out_dir: Path, stem: str, formats: tuple[str, ...],
-                   corrected_csv: Path | None = None) -> tuple[dict[str, dict[str, str]], list[dict[str, Any]]]:
-    """Write one dataset per validated sheet. Returns ({sheet: {format: file name}}, kept_as_text)."""
+                   corrected_csv: Path | None = None, existing_csv: dict[str, Path] | None = None
+                   ) -> tuple[dict[str, dict[str, str]], list[dict[str, Any]]]:
+    """Write one dataset per validated sheet. Returns ({sheet: {format: file name}}, kept_as_text).
+
+    corrected_csv: CSV input, where the corrected file already is the dataset.
+    existing_csv: tables already written as cleaned CSVs (non-spreadsheet sources)."""
     unknown = set(formats) - set(FORMATS)
     if unknown:
         raise ValueError(f"unknown dataset format(s): {sorted(unknown)}; use {list(FORMATS)}")
@@ -60,15 +74,13 @@ def write_datasets(after: RunResult, out_dir: Path, stem: str, formats: tuple[st
         base = dataset_stem(stem, name, len(sheets))
         entry: dict[str, str] = {}
         if "csv" in formats or not formats:
-            if corrected_csv is not None:
+            if existing_csv and name in existing_csv:
+                entry["csv"] = existing_csv[name].name
+            elif corrected_csv is not None:
                 entry["csv"] = corrected_csv.name  # CSV input: the corrected file is the dataset
             else:
                 path = out_dir / f"{base}.csv"
-                with open(path, "w", newline="", encoding="utf-8") as f:
-                    w = csv.writer(f)
-                    w.writerow([str(c) for c in sheet.df.columns])
-                    for row in sheet.df.itertuples(index=False):
-                        w.writerow([csv_cell(v, nulls) for v in row])
+                write_table_csv(sheet.df, path)
                 entry["csv"] = path.name
         schema = sheet_schema(after.profiles[name], by_name.get(name))
         frame, kept = typed_frame(sheet, schema, nulls)

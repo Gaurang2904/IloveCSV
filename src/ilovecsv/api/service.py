@@ -17,13 +17,14 @@ from ..report import write_reports
 from ..resolution import apply_pre_export
 from ..rules.schema import RulesError, load_rules
 from ..rules.suggest import suggest_rules, with_prepare_options
+from ..sources import SourceOptions
 from .errors import Problem
 from .settings import Settings
 
 
-def load_wb(row: Workbook):
+def load_wb(row: Workbook, source: SourceOptions | None = None):
     try:
-        return read_workbook(row.stored_path, row.filename)
+        return read_workbook(row.stored_path, row.filename, source)
     except ReadError as e:
         raise Problem(422, "unreadable-workbook", str(e)) from e
 
@@ -52,7 +53,7 @@ def get_run(db: Session, user: User, run_id: str) -> Run:
 
 def create_run(db: Session, user: User, wb_row: Workbook, rules_text: str) -> tuple[Run, RunResult]:
     rules = parse_rules(rules_text)
-    wb = load_wb(wb_row)
+    wb = load_wb(wb_row, rules.source)
     result = run_on_workbook(wb, rules, rules_text, run_id=uuid.uuid4().hex[:16])
     run = Run(id=result.run_id, workbook_id=wb_row.id, owner_id=user.id, rules_text=rules_text,
               rules_sha256=result.rules_sha256, created_at=result.created_at, summary=result.summary())
@@ -69,7 +70,8 @@ def rebuild(db: Session, run: Run) -> RunResult:
     """Re-run the deterministic pipeline and overlay the decisions stored in the DB."""
     wb_row = db.get(Workbook, run.workbook_id)
     assert wb_row is not None
-    result = run_on_workbook(load_wb(wb_row), parse_rules(run.rules_text), run.rules_text, run_id=run.id)
+    rules = parse_rules(run.rules_text)
+    result = run_on_workbook(load_wb(wb_row, rules.source), rules, run.rules_text, run_id=run.id)
     result.created_at = run.created_at
     result.auto_cleaned = run.mode == "safe_auto_clean"
     issue_state = {r.id: r for r in db.scalars(select(IssueRow).where(IssueRow.run_id == run.id))}
@@ -127,13 +129,17 @@ def approve_safe(db: Session, run: Run, approver: str) -> int:
 
 def prepare_run(db: Session, user: User, wb_row: Workbook, settings: Settings, target: str | None,
                 remove_exact_duplicates: bool, formats: list[str], rules_yaml: str | None = None,
-                target_labels: list[str] | None = None) -> tuple[Run, ExportResult, int]:
+                target_labels: list[str] | None = None,
+                source: SourceOptions | None = None) -> tuple[Run, ExportResult, int]:
     """One click: suggested (or saved) rules + options, validate, Safe Auto-Clean, export."""
-    wb = load_wb(wb_row)
+    if rules_yaml:
+        saved = parse_rules(rules_yaml).source
+        source = saved.model_copy(update=source.model_dump(exclude_unset=True)) if source else saved
+    wb = load_wb(wb_row, source)
     text = rules_yaml or suggest_rules(profile_workbook(wb), for_ml=True)
     columns = {name: [str(c) for c in s.df.columns] for name, s in wb.sheets.items()}
     try:
-        text = with_prepare_options(text, columns, target, remove_exact_duplicates, target_labels)
+        text = with_prepare_options(text, columns, target, remove_exact_duplicates, target_labels, source=source)
     except ValueError as e:
         raise Problem(422, "invalid-target", str(e)) from e
     run, _ = create_run(db, user, wb_row, text)
@@ -158,6 +164,8 @@ def export_run(db: Session, run: Run, settings: Settings, annotate: bool,
         "datasets": {sheet: {fmt: str(out_dir / name) for fmt, name in files.items()}
                      for sheet, files in exported.datasets.items()},
         "config": str(exported.config_path) if exported.config_path else None,
+        **{k: str(v) for k, v in (("manifest", exported.manifest_path), ("feature_schema", exported.schema_path),
+                                  ("script", exported.script_path)) if v},
     }
     run.after = {k: v for k, v in exported.after.items() if k != "unresolved"}
     run.summary = result.summary()

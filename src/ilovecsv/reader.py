@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import csv
 import hashlib
-import io
 import zipfile
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -21,13 +20,16 @@ import pandas as pd
 from openpyxl import load_workbook
 from openpyxl.utils import get_column_letter
 
-SUPPORTED = {".xlsx", ".csv"}
+NATIVE = {".xlsx", ".xlsm", ".csv", ".tsv", ".txt"}  # read here; other formats go through adapters
 HEADER_SCAN_ROWS = 30
-MAX_ROWS = 250_000
 
 
 class ReadError(Exception):
-    """The file cannot be read as a workbook."""
+    """The file cannot be read as a dataset."""
+
+
+class LargeDatasetError(ReadError):
+    """The table is larger than the full-processing limit; inspect it, or process a sample."""
 
 
 @dataclass
@@ -56,17 +58,74 @@ class SheetData:
 
 @dataclass
 class WorkbookData:
+    """A source file as one or more named tables ("sheets"), whatever its original format."""
+
     filename: str
     path: Path
-    file_type: str  # "xlsx" | "csv"
+    file_type: str  # "xlsx" | "csv" (cell-level write-back) | "frames" (any other adapter)
     sha256: str
     sheets: dict[str, SheetData]
     warnings: list[str] = field(default_factory=list)
     csv_delimiter: str | None = None
+    source_format: str = ""  # e.g. "xlsx", "csv", "jsonl", "parquet", "zip", "mat", "nasa_battery_mat"
+    tables_meta: dict[str, dict[str, Any]] = field(default_factory=dict)  # per table: source, conversion notes
+    docs: list[dict[str, Any]] = field(default_factory=list)  # documentation found next to the data
+    unsupported: list[dict[str, Any]] = field(default_factory=list)  # readable parts with no safe table form
+    partial: dict[str, Any] | None = None  # set when only a sample of rows was processed
+    encoding: str | None = None  # text sources
+    tree: list[dict[str, Any]] = field(default_factory=list)  # hierarchical sources: what is inside
 
     @property
     def first_sheet(self) -> SheetData:
         return next(iter(self.sheets.values()))
+
+
+def native(v: Any) -> Any:
+    """Plain Python value for the engine: numpy scalars, Timestamps, NaN/NaT, bytes, nested data."""
+    if v is None or v is pd.NaT:
+        return None
+    if isinstance(v, float):
+        return None if v != v else v
+    if isinstance(v, pd.Timestamp):
+        return v.to_pydatetime().replace(tzinfo=None) if v.tzinfo else v.to_pydatetime()
+    if isinstance(v, (bytes, bytearray)):
+        return v.decode("utf-8", errors="replace")
+    if hasattr(v, "dtype") and hasattr(v, "item") and getattr(v, "ndim", 0) == 0:  # numpy scalar
+        if str(v.dtype).startswith("datetime64"):
+            ts = pd.Timestamp(v)
+            return None if ts is pd.NaT else ts.to_pydatetime()
+        return native(v.item())
+    if isinstance(v, (list, tuple, dict)) or (hasattr(v, "tolist") and getattr(v, "ndim", 0) > 0):
+        import json
+
+        data = v.tolist() if hasattr(v, "tolist") else v
+        return json.dumps(data, ensure_ascii=False, default=str)
+    return v
+
+
+def sheet_from_frame(name: str, df: pd.DataFrame) -> SheetData:
+    """Build a table from a DataFrame, numbered like a sheet (header row 1, data from row 2)."""
+    names: list[str] = []
+    seen: dict[str, int] = {}
+    for c in df.columns:
+        base = str(c).strip() or "column"
+        if base in seen:
+            seen[base] += 1
+            base = f"{base}.{seen[base]}"
+        else:
+            seen[base] = 0
+        names.append(base)
+    data: dict[str, list[Any]] = {}
+    for new, col in zip(names, df.columns, strict=True):
+        s = df[col]
+        if pd.api.types.is_datetime64_any_dtype(s):
+            data[new] = [None if pd.isna(x) else native(pd.Timestamp(x)) for x in s]
+        else:
+            data[new] = [native(x) for x in s.astype(object).tolist()]
+    out = pd.DataFrame(data, columns=names, dtype=object)
+    out.index = pd.Index(range(2, len(out) + 2), name="xl_row")
+    letters = {n: get_column_letter(i + 1) for i, n in enumerate(names)}
+    return SheetData(name=name[:100], df=out, header_row=1, col_letters=letters)
 
 
 def sha256_file(path: Path) -> str:
@@ -77,17 +136,70 @@ def sha256_file(path: Path) -> str:
     return h.hexdigest()
 
 
-def read_workbook(path: str | Path, filename: str | None = None) -> WorkbookData:
+def read_workbook(path: str | Path, filename: str | None = None, options: Any = None) -> WorkbookData:
+    """Read any supported file into tables. `options` is a sources.SourceOptions (or None)."""
+    from .sources import SourceOptions
+
+    options = options or SourceOptions()
     path = Path(path)
     filename = filename or path.name
     suffix = Path(filename).suffix.lower()
-    if suffix not in SUPPORTED:
-        raise ReadError(f"Unsupported file type '{suffix}'. Use .xlsx or .csv.")
+    if suffix not in NATIVE:
+        from .adapters import load_dataset  # JSON, Parquet, ZIP, MATLAB, NumPy, HDF5, ...
+
+        return load_dataset(path, filename, options)
     digest = sha256_file(path)
-    if suffix == ".csv":
-        sheet, delimiter = _read_csv(path, Path(filename).stem)
-        return WorkbookData(filename, path, "csv", digest, {sheet.name: sheet}, csv_delimiter=delimiter)
-    return _read_xlsx(path, filename, digest)
+    if suffix in (".csv", ".tsv", ".txt"):
+        sheet, delimiter, partial, encoding = _read_csv(path, Path(filename).stem, options)
+        wb = WorkbookData(filename, path, "csv", digest, {sheet.name: sheet}, csv_delimiter=delimiter,
+                          source_format=suffix.lstrip("."), partial=partial, encoding=encoding)
+        if partial:
+            wb.warnings.append(f"Only the first {partial['rows']} rows were processed (max_rows).")
+        return wb
+    wb = _read_xlsx(path, filename, digest)
+    wb.source_format = suffix.lstrip(".")
+    if suffix == ".xlsm":
+        wb.warnings.append("Macro-enabled workbook: macros were not run, and the cleaned copy is saved as .xlsx "
+                           "without them.")
+    if options.sheets:
+        missing = [s for s in options.sheets if s not in wb.sheets]
+        if missing:
+            raise ReadError(f"Sheet(s) not found: {missing}. Available: {list(wb.sheets)}")
+        wb.sheets = {k: v for k, v in wb.sheets.items() if k in options.sheets}
+    for name, sheet in wb.sheets.items():
+        enforce_row_limit(name, len(sheet.df), options)
+    return wb
+
+
+def read_table_csvs(files: dict[str, Path], original: WorkbookData) -> WorkbookData:
+    """Re-read cleaned per-table CSVs (non-spreadsheet sources) under their table names, so the
+    exported files themselves are what gets re-validated."""
+    from .sources import SourceOptions
+
+    opts = SourceOptions(delimiter=",", encoding="utf-8", row_limit=10**12)
+    sheets: dict[str, SheetData] = {}
+    for table, path in files.items():
+        sheet, _, _, _ = _read_csv(Path(path), table, opts)
+        sheet.name = table
+        sheets[table] = sheet
+    return WorkbookData(original.filename, Path(next(iter(files.values()))), "csv",
+                        sha256_file(next(iter(files.values()))), sheets, csv_delimiter=",",
+                        source_format="csv", encoding="utf-8")
+
+
+def text_values(wb: WorkbookData, table: str) -> str | None:
+    """Which values a table's source can only hold as text, so text there is not a problem:
+    "all" (CSV/TSV, also inside archives), "dates" (JSON has no date type), or None (typed formats)."""
+    if wb.file_type == "csv":
+        return "all"
+    return (wb.tables_meta.get(table) or {}).get("text_values")
+
+
+def enforce_row_limit(table: str, rows: int, options: Any) -> None:
+    if options.max_rows is None and rows > options.row_limit:
+        raise LargeDatasetError(
+            f"Table '{table}' has {rows:,} rows, above the full-processing limit of {options.row_limit:,}. "
+            "Inspect it first (ilovecsv inspect), or process a sample with max_rows.")
 
 
 # --------------------------------------------------------------------------- xlsx
@@ -134,32 +246,66 @@ def _read_xlsx(path: Path, filename: str, digest: str) -> WorkbookData:
 # --------------------------------------------------------------------------- csv
 
 
-def _read_csv(path: Path, stem: str) -> tuple[SheetData, str]:
-    raw = path.read_bytes()
-    if b"\x00" in raw[:4096]:
-        raise ReadError("The CSV file contains binary data.")
-    for enc in ("utf-8-sig", "cp1252"):
+def detect_text_encoding(head: bytes, preferred: str | None = None) -> str:
+    candidates = [preferred] if preferred else ["utf-8-sig", "cp1252"]
+    for enc in candidates:
         try:
-            text = raw.decode(enc)
-            break
+            head.decode(enc)
+            return enc
         except UnicodeDecodeError:
             continue
-    else:  # pragma: no cover - cp1252 decodes almost anything
-        raise ReadError("Could not decode the CSV file.")
-    try:
-        dialect = csv.Sniffer().sniff(text[:8192], delimiters=",;\t|")
-        delimiter = dialect.delimiter
-    except csv.Error:
-        delimiter = ","
-    grid: list[list[Any]] = [
-        [None if c == "" else c for c in row]
-        for row in csv.reader(io.StringIO(text), delimiter=delimiter)
-    ]
+        except LookupError as e:
+            raise ReadError(f"Unknown encoding '{enc}'.") from e
+    if preferred:
+        raise ReadError(f"The file is not valid {preferred} text.")
+    return "cp1252"  # pragma: no cover - cp1252 decodes almost anything
+
+
+def count_lines(path: Path) -> int:
+    """Physical line count without decoding (fast, for size estimates)."""
+    n, last = 0, b""
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 22), b""):
+            n += chunk.count(b"\n")
+            last = chunk[-1:]
+    return n + (1 if last and last != b"\n" else 0)
+
+
+def _read_csv(path: Path, stem: str, options: Any = None) -> tuple[SheetData, str, dict[str, Any] | None, str]:
+    from .sources import SourceOptions
+
+    options = options or SourceOptions()
+    with open(path, "rb") as f:
+        head = f.read(1 << 16)
+    if b"\x00" in head[:4096]:
+        raise ReadError("The CSV file contains binary data.")
+    encoding = detect_text_encoding(head, options.encoding)
+    sample = head.decode(encoding, errors="replace")
+    delimiter = options.delimiter
+    if delimiter is None:
+        try:
+            delimiter = csv.Sniffer().sniff(sample[:8192], delimiters=",;\t|").delimiter
+        except csv.Error:
+            delimiter = "\t" if path.suffix.lower() == ".tsv" else ","
+    lines = count_lines(path)
+    if options.max_rows is None:
+        enforce_row_limit(stem, max(0, lines - 1), options)
+    limit = None if options.max_rows is None else options.max_rows + HEADER_SCAN_ROWS
+    grid: list[list[Any]] = []
+    with open(path, encoding=encoding, newline="", errors="strict" if options.encoding else "replace") as f:
+        for row in csv.reader(f, delimiter=delimiter):
+            grid.append([None if c == "" else c for c in row])
+            if limit is not None and len(grid) >= limit:
+                break
     name = (stem or "data")[:31]
     sheet = _grid_to_sheet(name, grid, [], set())
     if sheet is None:
         raise ReadError("The CSV file has no data.")
-    return sheet, delimiter
+    partial = None
+    if options.max_rows is not None and (len(sheet.df) > options.max_rows or limit and len(grid) >= limit):
+        sheet.df = sheet.df.iloc[: options.max_rows]
+        partial = {"rows": len(sheet.df), "estimated_total_rows": max(0, lines - sheet.header_row)}
+    return sheet, delimiter, partial, encoding
 
 
 # --------------------------------------------------------------------------- shared
@@ -191,8 +337,6 @@ def _grid_to_sheet(
     merged: list[tuple[int, int, int, int]],
     formula_cells: set[str],
 ) -> SheetData | None:
-    if len(grid) > MAX_ROWS:
-        raise ReadError(f"Sheet '{name}' has more than {MAX_ROWS} rows.")
     width = max((len(r) for r in grid), default=0)
     grid = [r + [None] * (width - len(r)) for r in grid]
     h = _detect_header(grid)

@@ -33,6 +33,8 @@ from .rules.schema import AnomalyConfig, RuleSet, SheetRules
 from .values import normalise_nulls, to_number, to_text
 
 NUMERIC = ("int", "float")
+MAX_FLAG_SHARE = 0.01  # more than 1% of a column flagged -> report the distribution, not each value
+MAX_FLAGS_ABS = 5
 
 
 def detect_anomalies(
@@ -62,10 +64,21 @@ def detect_anomalies(
         flagged: set[str] = set()
 
         for col, s in numeric.items():
-            for xl_row, score, detector, msg in _univariate(s, cfg):
+            hits = [h for h in _univariate(s, cfg) if sheet.cell_ref(h[0], col) not in error_cells]
+            n = int(s.notna().sum())
+            if len(hits) > max(MAX_FLAGS_ABS, MAX_FLAG_SHARE * n):
+                # Anomalies are rare by definition. When many values cross the threshold the column is
+                # heavy-tailed or multi-modal (common in measurement signals), and per-value flags would
+                # be noise: report the distribution once instead.
+                out.append(Issue(ANOMALY, name, "anomaly.distribution", "info",
+                                 f"'{col}': {len(hits):,} of {n:,} values ({len(hits) / n:.1%}) are far from the "
+                                 "median by the robust z rule; the distribution is heavy-tailed or multi-modal, "
+                                 "so per-value outlier flags are suppressed. Check its units and expected "
+                                 "range in the documentation.", column=col, detector="distribution",
+                                 score=round(len(hits) / n, 4)))
+                continue
+            for xl_row, score, detector, msg in hits:
                 ref = sheet.cell_ref(xl_row, col)
-                if ref in error_cells:
-                    continue
                 flagged.add(ref)
                 out.append(Issue(ANOMALY, name, f"anomaly.{detector}", "info", msg, xl_row=xl_row,
                                  column=col, cell_ref=ref, value=sheet.df.at[xl_row, col],
@@ -92,12 +105,23 @@ def detect_anomalies(
                                      detector="rare_category", score=round(share, 4)))
 
         if cfg.isolation_forest and len(numeric) >= 2 and len(sheet.df) >= cfg.if_min_rows:
+            rows = []
             for xl_row, score, top_col, z in _isolation_forest(numeric, cfg):
                 ref = sheet.cell_ref(xl_row, top_col)
                 if ref in error_cells or ref in flagged or (name, xl_row) in error_rows:
                     continue
                 if any(sheet.cell_ref(xl_row, c) in error_cells for c in numeric):
                     continue  # the row already has a confirmed numeric error
+                rows.append((xl_row, score, top_col, z, ref))
+            if len(rows) > max(MAX_FLAGS_ABS, MAX_FLAG_SHARE * len(sheet.df)):
+                out.append(Issue(ANOMALY, name, "anomaly.distribution", "info",
+                                 f"{len(rows):,} rows ({len(rows) / len(sheet.df):.1%}) stand out to the Isolation "
+                                 "Forest: the numeric columns form several regimes (e.g. different experiments, "
+                                 "cycle types or units), so per-row flags are suppressed. Consider preparing each "
+                                 "regime separately.", detector="isolation_forest_distribution",
+                                 score=round(len(rows) / len(sheet.df), 4)))
+                rows = []
+            for xl_row, score, top_col, z, ref in rows:
                 ctx = ", ".join(f"{c}={_fmt(numeric[c].loc[xl_row])}" for c in numeric)
                 out.append(Issue(ANOMALY, name, "anomaly.isolation_forest", "info",
                                  f"Unusual combination of values ({ctx}); isolation score "

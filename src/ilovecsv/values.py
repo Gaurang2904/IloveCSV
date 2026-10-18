@@ -20,7 +20,8 @@ DEFAULT_NULLS = ("", "na", "n/a", "-", "null", "none", "nan", "#n/a", "?")
 # columns. In a text or category column "Unknown" can be a deliberate category, so it stays.
 DEFAULT_TYPED_NULLS = ("unknown", "unk", "missing", "not available", "not applicable", "not known", "tbd", "n.a.")
 
-_NUMERIC_TEXT = re.compile(r"^[+-]?[₹$€£]?\s?(\d{1,3}(,\d{3})+|\d+)(\.\d+)?$|^[+-]?\.\d+$")
+# 1,299 · ₹1,299.50 · -3 · .5 · 1.5e-07 · 2E5 (scientific notation is common in measurement data)
+_NUMERIC_TEXT = re.compile(r"^[+-]?[₹$€£]?\s?((\d{1,3}(,\d{3})+|\d+)(\.\d+)?|\.\d+)([eE][+-]?\d+)?$")
 _LEADING_ZERO_ID = re.compile(r"^0\d+$")
 _BOOL_TEXT = {"true": True, "false": False, "yes": True, "no": False}  # accepted when type: bool is declared
 # Only true/false text is *inferred* as boolean: Yes/No columns are usually labels or categories
@@ -50,6 +51,18 @@ _HAS_MONTH_NAME = re.compile(r"(?i)\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|no
 _MONTHFIRST = ("%m/%d/%Y", "%m-%d-%Y", "%m.%d.%Y")
 
 
+class NullSet(frozenset):
+    """Placeholder tokens. Numeric tokens such as '-999' also match numeric cells (-999, -999.0),
+    which scientific data often uses for missing measurements."""
+
+    numeric: frozenset = frozenset()
+
+    def __or__(self, other):  # keep numeric codes when sets are combined
+        merged = NullSet(frozenset.__or__(self, other))
+        merged.numeric = self.numeric | getattr(other, "numeric", frozenset())
+        return merged
+
+
 def is_null(v: Any, nulls: tuple[str, ...] | frozenset[str] = DEFAULT_NULLS) -> bool:
     if v is None:
         return True
@@ -57,13 +70,24 @@ def is_null(v: Any, nulls: tuple[str, ...] | frozenset[str] = DEFAULT_NULLS) -> 
         return True
     if isinstance(v, str):
         return v.strip().lower() in nulls
+    numeric = getattr(nulls, "numeric", None)
+    if numeric and isinstance(v, (int, float)) and not isinstance(v, bool):
+        return float(v) in numeric
     return False
 
 
 def normalise_nulls(values: list[str] | None) -> frozenset[str]:
-    if values is None:
-        return frozenset(DEFAULT_NULLS)
-    return frozenset(s.strip().lower() for s in values)
+    tokens = DEFAULT_NULLS if values is None else values
+    out = NullSet(str(s).strip().lower() for s in tokens)
+    codes = set()
+    for s in out:
+        try:
+            if s and s not in ("nan", "inf", "-inf", "infinity"):
+                codes.add(float(s))
+        except ValueError:
+            continue
+    out.numeric = frozenset(codes)
+    return out
 
 
 def parse_number_text(s: str) -> float | None:

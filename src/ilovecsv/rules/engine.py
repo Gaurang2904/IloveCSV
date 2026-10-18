@@ -24,7 +24,7 @@ from ..profiling import (
     pick_spelling,
     profile_workbook,
 )
-from ..reader import SheetData, WorkbookData
+from ..reader import SheetData, WorkbookData, text_values
 from ..values import (
     is_email,
     is_null,
@@ -43,7 +43,7 @@ from .schema import ColumnRule, RuleSet, SheetRules, TableRule
 
 NUMERIC_TYPES = {"int", "float", "number"}
 # CSV has no cell types, so plain numbers and ISO dates are already canonical there.
-_CANONICAL_NUMBER = re.compile(r"^-?\d+(\.\d+)?$")
+_CANONICAL_NUMBER = re.compile(r"^-?(\d+(\.\d+)?|\.\d+)([eE][+-]?\d+)?$")
 _CANONICAL_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}([ T]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?)?$")
 
 
@@ -306,17 +306,18 @@ class SheetValidator:
 
     def _type(self, col: str, rule: ColumnRule, present: list[tuple[int, Any]]) -> None:
         t, sev, msg = rule.type, rule.severity, rule.message
-        csv = self.wb.file_type == "csv"
+        tv = text_values(self.wb, self.sheet.name)
+        csv, text_dates = tv == "all", tv in ("all", "dates")
         for xl_row, v in present:
             k = value_kind(v, self.nulls)
             if t == "text":
                 continue
-            if csv and isinstance(v, str):
-                if k == "numeric_text" and _CANONICAL_NUMBER.match(v.strip()):
+            if text_dates and isinstance(v, str):
+                if csv and k == "numeric_text" and _CANONICAL_NUMBER.match(v.strip()):
                     k = "float" if "." in v and not float(v).is_integer() else "int"
                 elif k == "date_text" and _CANONICAL_DATE.match(v.strip()):
                     k = "date"
-                elif k == "bool_text" and v.strip().upper() in ("TRUE", "FALSE"):
+                elif csv and k == "bool_text" and v.strip().upper() in ("TRUE", "FALSE"):
                     k = "bool"
             if t in NUMERIC_TYPES:
                 if k == "int" or (k == "float" and t != "int"):
@@ -433,8 +434,10 @@ class SheetValidator:
         for col in self.sheet.df.columns:
             nulls = self.col_nulls(col)
             for xl_row, v in self.sheet.df[col].items():
-                if isinstance(v, str) and is_null(v, nulls) and not self.sheet.is_formula(int(xl_row), col):
-                    shown = v.strip() if v.strip() else "(spaces only)"
+                if v is None or (isinstance(v, float) and v != v):
+                    continue
+                if is_null(v, nulls) and not self.sheet.is_formula(int(xl_row), col):
+                    shown = (v.strip() or "(spaces only)") if isinstance(v, str) else to_text(v, frozenset())
                     self.emit("format.null_token", "warning",
                               f"Placeholder '{shown}' stands for a missing value.", int(xl_row), col, v)
 

@@ -1,0 +1,48 @@
+# IloveCSV recipe for the NASA Ames Li-ion battery aging files (B0005.mat, B0006.mat, ...).
+#
+#   ilovecsv prepare B0006.mat --config examples/recipes/nasa_battery.yaml --out prepared/B0006
+#
+# The MATLAB adapter turns each file into three tables (layout auto-detected):
+#   cycles        one row per charge / discharge / impedance cycle (capacity on discharge cycles,
+#                 re / rct on impedance cycles)
+#   measurements  the charge and discharge time series in long format (one row per sample)
+#   impedance     impedance spectra, complex values split into _re / _im
+# Rules below are domain bounds a person wrote, not suggestions from one file, so the same recipe
+# validates every battery identically. Impedance real/imaginary parts are left unbounded: sensor
+# noise legitimately crosses zero.
+version: 1
+source:
+  tables: [cycles, impedance]   # add measurements (~590k rows per battery) when you need the series
+sheets:
+- sheet: cycles
+  key: [battery, cycle_index]
+  columns:
+    battery: {required: true, type: text}
+    cycle_index: {required: true, type: int, min: 1}
+    type:
+      required: true
+      type: text
+      allowed: [charge, discharge, impedance]
+    ambient_temperature: {type: int, min: -10, max: 60}   # degrees C
+    start_time: {type: date, not_future: true}
+    n_samples: {type: int, min: 0}
+    capacity: {type: float, min: 0, max: 2.5}             # Ah; 2 Ah rated cells
+    re: {type: float, min: 0, max: 1}                     # ohm, electrolyte resistance
+    rct: {type: float, min: 0, max: 1}                    # ohm, charge-transfer resistance
+  roles: {battery: group, start_time: timestamp}   # split by battery, order by time
+- sheet: impedance
+  columns:
+    battery: {required: true, type: text}
+    cycle_index: {required: true, type: int, min: 1}
+    sample_index: {required: true, type: int, min: 0}
+    sense_current_re: {type: float}
+    sense_current_im: {type: float}
+    battery_current_re: {type: float}
+    battery_current_im: {type: float}
+    current_ratio_re: {type: float}
+    current_ratio_im: {type: float}
+    battery_impedance_re: {type: float}
+    battery_impedance_im: {type: float}
+    rectified_impedance_re: {type: float}
+    rectified_impedance_im: {type: float}
+  roles: {battery: group}

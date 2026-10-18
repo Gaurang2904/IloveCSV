@@ -1,0 +1,1109 @@
+{
+  "rows": 2000,
+  "seed": 7,
+  "results": [
+    {
+      "format": "csv",
+      "rows": 2020,
+      "planted": 280,
+      "found": 246,
+      "false_positive_cells": 0,
+      "precision": 1.0,
+      "recall": 0.8786,
+      "fixable": 120,
+      "repaired_correctly": 120,
+      "repair_accuracy": 1.0,
+      "untouched_cells_unchanged": 1.0,
+      "valid_rows_preserved": 1.0,
+      "rows_out": 2020,
+      "reproducible": true,
+      "verification_passed": true,
+      "review_items": 22,
+      "representation_fixes": 0,
+      "seconds": 1.14,
+      "recall_by_kind": {
+        "whitespace": "40/40",
+        "case_variant": "40/40",
+        "placeholder": "40/40",
+        "out_of_range": "6/40",
+        "invalid_email": "40/40",
+        "bad_label": "40/40",
+        "invalid_date": "20/20",
+        "exact_duplicate": "20/20"
+      },
+      "missed": [
+        {
+          "row": 1602,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "999"
+        },
+        {
+          "row": 1211,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "999"
+        },
+        {
+          "row": 900,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "230"
+        },
+        {
+          "row": 494,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "230"
+        },
+        {
+          "row": 392,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "0"
+        },
+        {
+          "row": 902,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "999"
+        },
+        {
+          "row": 412,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "999"
+        },
+        {
+          "row": 1435,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "230"
+        },
+        {
+          "row": 1485,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "0"
+        },
+        {
+          "row": 1425,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "0"
+        },
+        {
+          "row": 1512,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "999"
+        },
+        {
+          "row": 1560,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "999"
+        },
+        {
+          "row": 1407,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "0"
+        },
+        {
+          "row": 140,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "230"
+        },
+        {
+          "row": 277,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "999"
+        },
+        {
+          "row": 98,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "230"
+        },
+        {
+          "row": 1195,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "230"
+        },
+        {
+          "row": 1294,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "0"
+        },
+        {
+          "row": 168,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "230"
+        },
+        {
+          "row": 288,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "999"
+        }
+      ],
+      "false_positives": []
+    },
+    {
+      "format": "tsv",
+      "rows": 2020,
+      "planted": 280,
+      "found": 246,
+      "false_positive_cells": 0,
+      "precision": 1.0,
+      "recall": 0.8786,
+      "fixable": 120,
+      "repaired_correctly": 120,
+      "repair_accuracy": 1.0,
+      "untouched_cells_unchanged": 1.0,
+      "valid_rows_preserved": 1.0,
+      "rows_out": 2020,
+      "reproducible": true,
+      "verification_passed": true,
+      "review_items": 22,
+      "representation_fixes": 0,
+      "seconds": 1.06,
+      "recall_by_kind": {
+        "whitespace": "40/40",
+        "case_variant": "40/40",
+        "placeholder": "40/40",
+        "out_of_range": "6/40",
+        "invalid_email": "40/40",
+        "bad_label": "40/40",
+        "invalid_date": "20/20",
+        "exact_duplicate": "20/20"
+      },
+      "missed": [
+        {
+          "row": 1602,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "999"
+        },
+        {
+          "row": 1211,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "999"
+        },
+        {
+          "row": 900,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "230"
+        },
+        {
+          "row": 494,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "230"
+        },
+        {
+          "row": 392,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "0"
+        },
+        {
+          "row": 902,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "999"
+        },
+        {
+          "row": 412,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "999"
+        },
+        {
+          "row": 1435,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "230"
+        },
+        {
+          "row": 1485,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "0"
+        },
+        {
+          "row": 1425,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "0"
+        },
+        {
+          "row": 1512,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "999"
+        },
+        {
+          "row": 1560,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "999"
+        },
+        {
+          "row": 1407,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "0"
+        },
+        {
+          "row": 140,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "230"
+        },
+        {
+          "row": 277,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "999"
+        },
+        {
+          "row": 98,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "230"
+        },
+        {
+          "row": 1195,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "230"
+        },
+        {
+          "row": 1294,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "0"
+        },
+        {
+          "row": 168,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "230"
+        },
+        {
+          "row": 288,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "999"
+        }
+      ],
+      "false_positives": []
+    },
+    {
+      "format": "xlsx",
+      "rows": 2020,
+      "planted": 280,
+      "found": 246,
+      "false_positive_cells": 0,
+      "precision": 1.0,
+      "recall": 0.8786,
+      "fixable": 120,
+      "repaired_correctly": 120,
+      "repair_accuracy": 1.0,
+      "untouched_cells_unchanged": 1.0,
+      "valid_rows_preserved": 1.0,
+      "rows_out": 2020,
+      "reproducible": true,
+      "verification_passed": true,
+      "review_items": 22,
+      "representation_fixes": 2000,
+      "seconds": 3.1,
+      "recall_by_kind": {
+        "whitespace": "40/40",
+        "case_variant": "40/40",
+        "placeholder": "40/40",
+        "out_of_range": "6/40",
+        "invalid_email": "40/40",
+        "bad_label": "40/40",
+        "invalid_date": "20/20",
+        "exact_duplicate": "20/20"
+      },
+      "missed": [
+        {
+          "row": 1602,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "999"
+        },
+        {
+          "row": 1211,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "999"
+        },
+        {
+          "row": 900,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "230"
+        },
+        {
+          "row": 494,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "230"
+        },
+        {
+          "row": 392,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "0"
+        },
+        {
+          "row": 902,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "999"
+        },
+        {
+          "row": 412,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "999"
+        },
+        {
+          "row": 1435,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "230"
+        },
+        {
+          "row": 1485,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "0"
+        },
+        {
+          "row": 1425,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "0"
+        },
+        {
+          "row": 1512,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "999"
+        },
+        {
+          "row": 1560,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "999"
+        },
+        {
+          "row": 1407,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "0"
+        },
+        {
+          "row": 140,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "230"
+        },
+        {
+          "row": 277,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "999"
+        },
+        {
+          "row": 98,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "230"
+        },
+        {
+          "row": 1195,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "230"
+        },
+        {
+          "row": 1294,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "0"
+        },
+        {
+          "row": 168,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "230"
+        },
+        {
+          "row": 288,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "999"
+        }
+      ],
+      "false_positives": []
+    },
+    {
+      "format": "json",
+      "rows": 2020,
+      "planted": 280,
+      "found": 246,
+      "false_positive_cells": 0,
+      "precision": 1.0,
+      "recall": 0.8786,
+      "fixable": 120,
+      "repaired_correctly": 120,
+      "repair_accuracy": 1.0,
+      "untouched_cells_unchanged": 1.0,
+      "valid_rows_preserved": 1.0,
+      "rows_out": 2020,
+      "reproducible": true,
+      "verification_passed": true,
+      "review_items": 22,
+      "representation_fixes": 0,
+      "seconds": 1.02,
+      "recall_by_kind": {
+        "whitespace": "40/40",
+        "case_variant": "40/40",
+        "placeholder": "40/40",
+        "out_of_range": "6/40",
+        "invalid_email": "40/40",
+        "bad_label": "40/40",
+        "invalid_date": "20/20",
+        "exact_duplicate": "20/20"
+      },
+      "missed": [
+        {
+          "row": 1602,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "999"
+        },
+        {
+          "row": 1211,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "999"
+        },
+        {
+          "row": 900,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "230"
+        },
+        {
+          "row": 494,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "230"
+        },
+        {
+          "row": 392,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "0"
+        },
+        {
+          "row": 902,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "999"
+        },
+        {
+          "row": 412,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "999"
+        },
+        {
+          "row": 1435,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "230"
+        },
+        {
+          "row": 1485,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "0"
+        },
+        {
+          "row": 1425,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "0"
+        },
+        {
+          "row": 1512,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "999"
+        },
+        {
+          "row": 1560,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "999"
+        },
+        {
+          "row": 1407,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "0"
+        },
+        {
+          "row": 140,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "230"
+        },
+        {
+          "row": 277,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "999"
+        },
+        {
+          "row": 98,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "230"
+        },
+        {
+          "row": 1195,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "230"
+        },
+        {
+          "row": 1294,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "0"
+        },
+        {
+          "row": 168,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "230"
+        },
+        {
+          "row": 288,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "999"
+        }
+      ],
+      "false_positives": []
+    },
+    {
+      "format": "jsonl",
+      "rows": 2020,
+      "planted": 280,
+      "found": 246,
+      "false_positive_cells": 0,
+      "precision": 1.0,
+      "recall": 0.8786,
+      "fixable": 120,
+      "repaired_correctly": 120,
+      "repair_accuracy": 1.0,
+      "untouched_cells_unchanged": 1.0,
+      "valid_rows_preserved": 1.0,
+      "rows_out": 2020,
+      "reproducible": true,
+      "verification_passed": true,
+      "review_items": 22,
+      "representation_fixes": 0,
+      "seconds": 1.05,
+      "recall_by_kind": {
+        "whitespace": "40/40",
+        "case_variant": "40/40",
+        "placeholder": "40/40",
+        "out_of_range": "6/40",
+        "invalid_email": "40/40",
+        "bad_label": "40/40",
+        "invalid_date": "20/20",
+        "exact_duplicate": "20/20"
+      },
+      "missed": [
+        {
+          "row": 1602,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "999"
+        },
+        {
+          "row": 1211,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "999"
+        },
+        {
+          "row": 900,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "230"
+        },
+        {
+          "row": 494,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "230"
+        },
+        {
+          "row": 392,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "0"
+        },
+        {
+          "row": 902,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "999"
+        },
+        {
+          "row": 412,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "999"
+        },
+        {
+          "row": 1435,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "230"
+        },
+        {
+          "row": 1485,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "0"
+        },
+        {
+          "row": 1425,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "0"
+        },
+        {
+          "row": 1512,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "999"
+        },
+        {
+          "row": 1560,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "999"
+        },
+        {
+          "row": 1407,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "0"
+        },
+        {
+          "row": 140,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "230"
+        },
+        {
+          "row": 277,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "999"
+        },
+        {
+          "row": 98,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "230"
+        },
+        {
+          "row": 1195,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "230"
+        },
+        {
+          "row": 1294,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "0"
+        },
+        {
+          "row": 168,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "230"
+        },
+        {
+          "row": 288,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "999"
+        }
+      ],
+      "false_positives": []
+    },
+    {
+      "format": "parquet",
+      "rows": 2020,
+      "planted": 280,
+      "found": 246,
+      "false_positive_cells": 0,
+      "precision": 1.0,
+      "recall": 0.8786,
+      "fixable": 120,
+      "repaired_correctly": 120,
+      "repair_accuracy": 1.0,
+      "untouched_cells_unchanged": 1.0,
+      "valid_rows_preserved": 1.0,
+      "rows_out": 2020,
+      "reproducible": true,
+      "verification_passed": true,
+      "review_items": 21,
+      "representation_fixes": 3980,
+      "seconds": 2.49,
+      "recall_by_kind": {
+        "whitespace": "40/40",
+        "case_variant": "40/40",
+        "placeholder": "40/40",
+        "out_of_range": "6/40",
+        "invalid_email": "40/40",
+        "bad_label": "40/40",
+        "invalid_date": "20/20",
+        "exact_duplicate": "20/20"
+      },
+      "missed": [
+        {
+          "row": 1602,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "999"
+        },
+        {
+          "row": 1211,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "999"
+        },
+        {
+          "row": 900,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "230"
+        },
+        {
+          "row": 494,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "230"
+        },
+        {
+          "row": 392,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "0"
+        },
+        {
+          "row": 902,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "999"
+        },
+        {
+          "row": 412,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "999"
+        },
+        {
+          "row": 1435,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "230"
+        },
+        {
+          "row": 1485,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "0"
+        },
+        {
+          "row": 1425,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "0"
+        },
+        {
+          "row": 1512,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "999"
+        },
+        {
+          "row": 1560,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "999"
+        },
+        {
+          "row": 1407,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "0"
+        },
+        {
+          "row": 140,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "230"
+        },
+        {
+          "row": 277,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "999"
+        },
+        {
+          "row": 98,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "230"
+        },
+        {
+          "row": 1195,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "230"
+        },
+        {
+          "row": 1294,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "0"
+        },
+        {
+          "row": 168,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "230"
+        },
+        {
+          "row": 288,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "999"
+        }
+      ],
+      "false_positives": []
+    },
+    {
+      "format": "zip",
+      "rows": 2020,
+      "planted": 280,
+      "found": 246,
+      "false_positive_cells": 0,
+      "precision": 1.0,
+      "recall": 0.8786,
+      "fixable": 120,
+      "repaired_correctly": 120,
+      "repair_accuracy": 1.0,
+      "untouched_cells_unchanged": 1.0,
+      "valid_rows_preserved": 1.0,
+      "rows_out": 2020,
+      "reproducible": true,
+      "verification_passed": true,
+      "review_items": 22,
+      "representation_fixes": 0,
+      "seconds": 1.1,
+      "recall_by_kind": {
+        "whitespace": "40/40",
+        "case_variant": "40/40",
+        "placeholder": "40/40",
+        "out_of_range": "6/40",
+        "invalid_email": "40/40",
+        "bad_label": "40/40",
+        "invalid_date": "20/20",
+        "exact_duplicate": "20/20"
+      },
+      "missed": [
+        {
+          "row": 1602,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "999"
+        },
+        {
+          "row": 1211,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "999"
+        },
+        {
+          "row": 900,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "230"
+        },
+        {
+          "row": 494,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "230"
+        },
+        {
+          "row": 392,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "0"
+        },
+        {
+          "row": 902,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "999"
+        },
+        {
+          "row": 412,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "999"
+        },
+        {
+          "row": 1435,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "230"
+        },
+        {
+          "row": 1485,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "0"
+        },
+        {
+          "row": 1425,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "0"
+        },
+        {
+          "row": 1512,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "999"
+        },
+        {
+          "row": 1560,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "999"
+        },
+        {
+          "row": 1407,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "0"
+        },
+        {
+          "row": 140,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "230"
+        },
+        {
+          "row": 277,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "999"
+        },
+        {
+          "row": 98,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "230"
+        },
+        {
+          "row": 1195,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "230"
+        },
+        {
+          "row": 1294,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "0"
+        },
+        {
+          "row": 168,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "230"
+        },
+        {
+          "row": 288,
+          "column": "age",
+          "kind": "out_of_range",
+          "value": "999"
+        }
+      ],
+      "false_positives": []
+    },
+    {
+      "format": "csv + domain rule",
+      "rows": 2020,
+      "planted": 280,
+      "found": 280,
+      "false_positive_cells": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "fixable": 120,
+      "repaired_correctly": 120,
+      "repair_accuracy": 1.0,
+      "untouched_cells_unchanged": 1.0,
+      "valid_rows_preserved": 1.0,
+      "rows_out": 2020,
+      "reproducible": true,
+      "verification_passed": true,
+      "review_items": 20,
+      "representation_fixes": 0,
+      "seconds": 1.1,
+      "recall_by_kind": {
+        "whitespace": "40/40",
+        "case_variant": "40/40",
+        "placeholder": "40/40",
+        "out_of_range": "40/40",
+        "invalid_email": "40/40",
+        "bad_label": "40/40",
+        "invalid_date": "20/20",
+        "exact_duplicate": "20/20"
+      },
+      "missed": [],
+      "false_positives": []
+    }
+  ]
+}

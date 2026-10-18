@@ -10,10 +10,11 @@ from typing import Any
 import numpy as np
 
 from .models import jsonable
-from .reader import SheetData, WorkbookData
+from .reader import SheetData, WorkbookData, text_values
 from .values import (
     DEFAULT_NULLS,
     is_email,
+    is_null,
     is_serial_candidate,
     looks_like_phone,
     parse_number_text,
@@ -26,7 +27,8 @@ from .values import (
 
 _ID_NAME = re.compile(r"(^|[_\s-])(id|code|no|num|number|ref|key)$", re.IGNORECASE)
 _CAMEL_ID = re.compile(r"[a-z]ID$")
-_PLAIN_NUMBER = re.compile(r"^-?\d+(\.\d+)?$")
+SEMANTIC_SAMPLE = 2000
+_PLAIN_NUMBER = re.compile(r"^-?(\d+(\.\d+)?|\.\d+)([eE][+-]?\d+)?$")
 _ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}([ T]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?)?$")
 
 
@@ -90,16 +92,19 @@ def profile_workbook(
     wb: WorkbookData, nulls: frozenset[str] | tuple[str, ...] = DEFAULT_NULLS
 ) -> dict[str, SheetProfile]:
     profiles = {name: profile_sheet(s, nulls) for name, s in wb.sheets.items()}
-    if wb.file_type == "csv":
-        # Every CSV value is text: only count numbers/dates written in a non-standard way.
-        for name, prof in profiles.items():
-            df = wb.sheets[name].df
-            for col, c in prof.columns.items():
-                vals = [v for v in df[col] if isinstance(v, str)]
+    # Every CSV value is text (JSON dates too): only count numbers/dates written in a non-standard way.
+    for name, prof in profiles.items():
+        tv = text_values(wb, name)
+        if tv is None:
+            continue
+        df = wb.sheets[name].df
+        for col, c in prof.columns.items():
+            vals = [v for v in df[col] if isinstance(v, str)]
+            if tv == "all":
                 c.n_numeric_text = sum(1 for v in vals if value_kind(v, nulls) == "numeric_text"
                                        and not _PLAIN_NUMBER.match(v.strip()))
-                c.n_date_text = sum(1 for v in vals if value_kind(v, nulls) == "date_text"
-                                    and not _ISO_DATE.match(v.strip()))
+            c.n_date_text = sum(1 for v in vals if value_kind(v, nulls) == "date_text"
+                                and not _ISO_DATE.match(v.strip()))
     return profiles
 
 
@@ -163,8 +168,28 @@ def infer_type(kinds: Counter, values: list[Any], n_distinct: int) -> tuple[str,
     return "mixed", best[1] / n
 
 
+def _kinds(values: list[Any], nulls) -> Counter:
+    """value_kind for every value, with a fast path for the plain numbers of binary formats."""
+    kinds: Counter = Counter()
+    numeric_codes = getattr(nulls, "numeric", None)
+    for v in values:
+        t = type(v)
+        if t is float:
+            if v != v or (numeric_codes and v in numeric_codes):
+                kinds["null"] += 1
+            else:
+                kinds["int" if v.is_integer() else "float"] += 1
+        elif t is int:
+            kinds["null" if numeric_codes and v in numeric_codes else "int"] += 1
+        elif v is None:
+            kinds["null"] += 1
+        else:
+            kinds[value_kind(v, nulls)] += 1
+    return kinds
+
+
 def profile_column(name: str, letter: str, values: list[Any], nulls=DEFAULT_NULLS) -> ColumnProfile:
-    kinds: Counter = Counter(value_kind(v, nulls) for v in values)
+    kinds = _kinds(values, nulls)
     n_rows = len(values)
     n_missing = kinds["null"]
     texts = [to_text(v, nulls) for v in values]
@@ -200,10 +225,17 @@ def profile_column(name: str, letter: str, values: list[Any], nulls=DEFAULT_NULL
             med = float(np.median(nums))
             mad = float(np.median(np.abs(nums - med)))
             bulk = nums[np.abs(0.6745 * (nums - med) / mad) <= 3.5] if mad > 0 else nums
+            b_lo, b_hi = float(bulk.min()), float(bulk.max())
+            width = (b_hi - b_lo) or abs(b_hi) or 1.0
             prof.numeric = {
-                "bulk_min": float(bulk.min()),
-                "bulk_max": float(bulk.max()),
+                "bulk_min": b_lo,
+                "bulk_max": b_hi,
+                "count": int(nums.size),
                 "negative_share": round(float((nums < 0).mean()), 4),
+                "n_negative": int((nums < 0).sum()),
+                # values outside the bulk widened by its own width (what a suggested bound would flag)
+                "n_below_window": int((nums < b_lo - width).sum()),
+                "n_above_window": int((nums > b_hi + width).sum()),
                 "min": float(nums.min()),
                 "max": float(nums.max()),
                 "mean": float(nums.mean()),
@@ -225,7 +257,7 @@ def profile_column(name: str, letter: str, values: list[Any], nulls=DEFAULT_NULL
         if ds:
             prof.dates = {"min": min(ds).isoformat(), "max": max(ds).isoformat()}
 
-    raw_strings = [v for v in values if isinstance(v, str) and not value_kind(v, nulls) == "null"]
+    raw_strings = [v for v in values if isinstance(v, str) and not is_null(v, nulls)]
     if raw_strings:
         lengths = [len(s) for s in raw_strings]
         mode, mode_n = Counter(lengths).most_common(1)[0]
@@ -370,13 +402,22 @@ def is_sequential_id(texts: list[str]) -> bool:
 
 
 def detect_semantic(name: str, texts: list[str]) -> str | None:
-    """Recognise email and phone columns from their values (and, more leniently, their name)."""
+    """Recognise email and phone columns from their values (and, more leniently, their name).
+
+    Decided on an evenly spread sample: the result is a share, and scanning a million measurement
+    values for '@' or phone shapes would cost seconds for nothing."""
     if not texts:
         return None
+    if len(texts) > SEMANTIC_SAMPLE:
+        step = len(texts) / SEMANTIC_SAMPLE
+        texts = [texts[int(i * step)] for i in range(SEMANTIC_SAMPLE)]
     lname = name.lower()
-    email_share = sum(1 for t in texts if is_email(t)) / len(texts)
-    if email_share >= 0.8 or ("mail" in lname and email_share >= 0.5):
-        return "email"
+    if any("@" in t for t in texts):
+        email_share = sum(1 for t in texts if is_email(t)) / len(texts)
+        if email_share >= 0.8 or ("mail" in lname and email_share >= 0.5):
+            return "email"
+    if sum(1 for t in texts if "." in t and t.replace(".", "", 1).lstrip("-").isdigit()) > 0.5 * len(texts):
+        return None  # decimal numbers are measurements, not phone numbers
     phone_share = sum(1 for t in texts if looks_like_phone(t)) / len(texts)
     named = any(k in lname for k in ("phone", "mobile", "tel", "contact no", "cell"))
     if (named and phone_share >= 0.6) or (phone_share >= 0.9 and any(not t.isdigit() for t in texts)):

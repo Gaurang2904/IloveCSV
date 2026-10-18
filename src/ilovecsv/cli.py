@@ -39,6 +39,12 @@ def main(argv: list[str] | None = None) -> int:
                     help="valid target labels, comma separated (e.g. No,Yes); default: inferred from the data")
     pr.add_argument("--format", action="append", choices=["csv", "parquet"], default=None,
                     help="dataset format; repeat for several (default: csv)")
+    _source_args(pr)
+
+    pi = sub.add_parser("inspect", help="structure first: tables, rows, columns, samples, documentation")
+    pi.add_argument("file")
+    pi.add_argument("--json", action="store_true", help="print the inspection as JSON")
+    _source_args(pi)
 
     pp = sub.add_parser("profile", help="print column profiles as JSON")
     pp.add_argument("file")
@@ -64,6 +70,8 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.cmd == "prepare":
             return _prepare(args)
+        if args.cmd == "inspect":
+            return _inspect(args)
         if args.cmd == "profile":
             profiles = profile_workbook(read_workbook(args.file))
             print(json.dumps([s.to_dict() for s in profiles.values()], indent=2, default=str))
@@ -93,12 +101,67 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
+def _source_args(p: argparse.ArgumentParser) -> None:
+    g = p.add_argument_group("how the file becomes tables (saved in the recipe)")
+    g.add_argument("--sheet", action="append", default=None, help="Excel sheet to process; repeat for several")
+    g.add_argument("--table", action="append", default=None,
+                   help="table to process from an archive / MATLAB / HDF5 file; repeat for several")
+    g.add_argument("--json-records", default=None, help="dot path to the records array in a JSON file")
+    g.add_argument("--max-rows", type=int, default=None, help="process only the first N rows (a sample)")
+    g.add_argument("--delimiter", default=None, help="CSV delimiter (default: detected)")
+    g.add_argument("--encoding", default=None, help="text encoding (default: utf-8, then cp1252)")
+    g.add_argument("--mat-layout", choices=["auto", "nasa_battery", "generic"], default=None)
+
+
+def _source_from(args) -> dict | None:
+    opts = {"sheets": args.sheet, "tables": args.table, "json_records": args.json_records,
+            "max_rows": args.max_rows, "delimiter": args.delimiter, "encoding": args.encoding,
+            "mat_layout": args.mat_layout}
+    opts = {k: v for k, v in opts.items() if v is not None}
+    return opts or None
+
+
+def _inspect(args) -> int:
+    from .adapters import inspect_file
+    from .sources import SourceOptions
+
+    insp = inspect_file(args.file, options=SourceOptions(**(_source_from(args) or {})), sibling_docs=True)
+    if args.json:
+        print(json.dumps(insp.to_dict(), indent=2, default=str))
+        return 0
+    print(f"{insp.filename}: {insp.format}, {insp.size_bytes / 1e6:.1f} MB; "
+          f"estimated memory to process: {insp.memory_estimate_mb:,.0f} MB")
+    for t in insp.tables:
+        rows = f"{t.rows:,}" if t.rows is not None else "?"
+        print(f"  table {t.name}: {rows} rows{'' if t.rows_exact else ' (estimated)'} x {len(t.columns)} columns"
+              + (f"  [{t.source}]" if t.source else ""))
+        print("    columns: " + ", ".join(f"{c['name']} ({c['kind']})" for c in t.columns[:12])
+              + (" ..." if len(t.columns) > 12 else ""))
+        for n in t.notes[:3]:
+            print(f"    note: {n}")
+    if not insp.full_processing_ok:
+        print(f"  ! some tables exceed the {insp.row_limit:,}-row processing limit: use --max-rows N for a sample")
+    for u in insp.unsupported:
+        print(f"  ! not converted: {u['path']}: {u['reason']}")
+    for d in insp.docs:
+        print(f"  doc: {d['path']} ({d['kind']})")
+        for h in d.get("missing_value_hints", []):
+            print(f"    possible missing-value code {h['token']!r}: \"{h['context'][:90]}\"")
+    for w in insp.warnings:
+        print(f"  ! {w}")
+    if insp.tree and not insp.tables:
+        print("  structure:")
+        for node in insp.tree[:40]:
+            print(f"    {'  ' * node.get('depth', 0)}{node['path']}: {node['kind']} {node['shape']}")
+    return 0
+
+
 def _prepare(args) -> int:
     try:
         res = prepare(args.file, args.out, target=args.target, config=args.config,
                       remove_exact_duplicates=True if args.remove_exact_duplicates else None,
                       target_labels=[x.strip() for x in args.labels.split(",") if x.strip()] if args.labels else None,
-                      formats=tuple(args.format or ["csv"]))
+                      formats=tuple(args.format or ["csv"]), source=_source_from(args))
     except ValueError as e:
         print(f"error: {e}", file=sys.stderr)
         return 2
@@ -129,13 +192,29 @@ def _prepare(args) -> int:
     print(f"  {'NOT FULLY CLEAN' if a['errors'] or a['warnings'] else 'clean'}; files in {ex.out_dir}:")
     if ex.corrected_path.suffix == ".xlsx":
         print(f"    cleaned workbook (changes highlighted): {ex.corrected_path.name}")
+    elif ex.corrected_path.suffix == ".zip":
+        print(f"    all cleaned tables (bundle): {ex.corrected_path.name}")
     for files in ex.datasets.values():
         for fmt, name in files.items():
             print(f"    ML-ready dataset ({fmt}): {name}")
     for kind, path in ex.reports.items():
         print(f"    report ({kind}): {path.name}")
-    if ex.config_path:
-        print(f"    config: {ex.config_path.name}  (reuse with --config on new batches)")
+    for label, path in (("manifest", ex.manifest_path), ("feature schema", ex.schema_path),
+                        ("recipe", ex.config_path), ("reproduce", ex.script_path)):
+        if path:
+            print(f"    {label}: {path.name}")
+    v = ex.verification or {}
+    failed = [c for c in v.get("checks", []) if not c["passed"]]
+    print(f"  verification of the exported files: {'passed' if v.get('passed') else 'FAILED'} "
+          f"({len(v.get('checks', [])) - len(failed)}/{len(v.get('checks', []))} checks)")
+    for c in failed:
+        print(f"    ! {c['check']}: {c['detail']}")
+    if run.recipe_decisions:
+        d = run.recipe_decisions
+        print(f"  recipe decisions: {d['applied']} of {d['recorded']} applied ({d['not_applicable']} did not match "
+              "this data)")
+    if run.wb.partial:
+        print(f"  ! PARTIAL: only the first {run.wb.partial.get('rows')} rows of each table were processed")
     return 1 if a["errors"] else 0
 
 

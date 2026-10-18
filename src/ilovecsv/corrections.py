@@ -110,7 +110,7 @@ def suggest_corrections(
                                   rule_id=issue.rule_id))
 
         rid = issue.rule_id
-        if rid == "format.null_token" and isinstance(raw, str):
+        if rid == "format.null_token" and raw is not None:
             sug("null_token_to_empty", None, 0.99)
         elif rid == "format.whitespace" and isinstance(raw, str):
             sug("trim_whitespace", collapse_ws(raw), 0.99)
@@ -302,6 +302,60 @@ def apply_corrections(
     else:
         applied, skipped = _apply_xlsx(wb, approved, out_path, annotate)
     return ApplyResult(out_path, sha256_file(out_path), applied, skipped)
+
+
+def cell_writeback(wb: WorkbookData) -> bool:
+    """Spreadsheets and whole CSV files are corrected cell by cell in their own format; everything else
+    (JSON, Parquet, MATLAB, archives, samples) is corrected as tables and exported as CSV."""
+    return wb.file_type in ("xlsx", "csv") and not wb.partial
+
+
+def apply_to_tables(wb: WorkbookData, suggestions: list[Suggestion], out_dir: Path,
+                    names: dict[str, str], bundle_stem: str) -> tuple[ApplyResult, dict[str, Path]]:
+    """Apply APPROVED suggestions to the in-memory tables and write each as a cleaned CSV.
+
+    `names` maps table -> output file stem. Returns the ApplyResult (out_path = the single CSV, or a
+    ZIP bundling several) and {table: csv path}.
+    """
+    from .dataset import write_table_csv
+
+    approved = [s for s in suggestions if s.status == APPROVED]
+    applied, skipped = [], []
+    frames = {name: sheet.df.copy() for name, sheet in wb.sheets.items()}
+    for s in approved:
+        if s.action != "set":
+            continue
+        df = frames.get(s.sheet)
+        if df is None or s.column not in df.columns or s.xl_row not in df.index:
+            skipped.append({**_record(s), "reason": "cell not found"})
+            continue
+        if jsonable(df.at[s.xl_row, s.column]) != s.old:
+            skipped.append({**_record(s), "reason": "cell changed since validation"})
+            continue
+        df.at[s.xl_row, s.column] = s.new_raw
+        applied.append(_record(s))
+    for s in sorted((x for x in approved if x.action == "delete_row"), key=lambda x: -(x.xl_row or 0)):
+        df = frames.get(s.sheet)
+        if df is not None and s.xl_row in df.index:
+            frames[s.sheet] = df.drop(index=s.xl_row)
+            applied.append(_record(s))
+        else:
+            skipped.append({**_record(s), "reason": "row not found"})
+    files = {}
+    for name, df in frames.items():
+        path = out_dir / f"{names[name]}.csv"
+        write_table_csv(df, path)
+        files[name] = path
+    if len(files) == 1:
+        out_path = next(iter(files.values()))
+    else:
+        out_path = out_dir / f"{bundle_stem}_cleaned_tables.zip"
+        import zipfile
+
+        with zipfile.ZipFile(out_path, "w", compression=zipfile.ZIP_DEFLATED) as z:
+            for p in files.values():
+                z.write(p, arcname=p.name)
+    return ApplyResult(out_path, sha256_file(out_path), applied, skipped), files
 
 
 def _record(s: Suggestion) -> dict[str, Any]:

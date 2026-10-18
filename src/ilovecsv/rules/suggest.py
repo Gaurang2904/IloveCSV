@@ -62,7 +62,7 @@ def suggest_rules(profiles: dict[str, SheetProfile], for_ml: bool = False) -> st
 
 def with_prepare_options(rules_text: str, sheet_columns: dict[str, list[str]], target: str | None = None,
                          remove_exact_duplicates: bool | None = None,
-                         target_labels: list[str] | None = None) -> str:
+                         target_labels: list[str] | None = None, source: Any = None) -> str:
     """Set the target and the exact-duplicate policy in a rule file (suggested or saved).
 
     `sheet_columns` maps sheet name -> column names; the target goes to the first validated sheet
@@ -91,9 +91,21 @@ def with_prepare_options(rules_text: str, sheet_columns: dict[str, list[str]], t
     if remove_exact_duplicates is not None:
         for b in blocks:
             b["duplicates"] = {"exact": "remove" if remove_exact_duplicates else "review"}
-    header = "# IloveCSV prepare config: rules + policy. Re-use with `ilovecsv prepare --config` to clean new\n" \
-             "# batches (e.g. later scoring data) exactly the same way.\n"
-    return header + yaml.safe_dump(doc, sort_keys=False, allow_unicode=True, default_flow_style=None, width=100)
+    if source is not None:
+        chosen = source.model_dump(exclude_defaults=True)
+        if chosen:
+            doc["source"] = chosen
+        else:
+            doc.pop("source", None)
+    return RECIPE_HEADER + yaml.safe_dump(doc, sort_keys=False, allow_unicode=True, default_flow_style=None,
+                                          width=100)
+
+
+RECIPE_HEADER = (
+    "# IloveCSV recipe (prepare config): how the source becomes tables, the rules, the cleaning policy and\n"
+    "# the review decisions. Re-use it with `ilovecsv prepare --config` to prepare new batches (e.g. later\n"
+    "# scoring data) exactly the same way; the report says which recorded decisions still applied.\n"
+)
 
 
 def _sheet_rules(p: SheetProfile, for_ml: bool = False) -> dict[str, Any]:
@@ -117,15 +129,21 @@ def _sheet_rules(p: SheetProfile, for_ml: bool = False) -> dict[str, Any]:
         if c.inferred_type in _TYPE_MAP and c.type_share >= 0.9:
             r["type"] = _TYPE_MAP[c.inferred_type]
         if c.inferred_type in ("int", "float") and c.numeric and not c.is_identifier:
-            lo, hi = c.numeric["bulk_min"], c.numeric["bulk_max"]
-            # A column that is (almost) never negative gets min 0: in a small file a stray -4 can sit
-            # inside the robust bulk, and an age, count or price below zero is an error, not a range.
-            mostly_positive = c.numeric.get("negative_share", 0) <= 0.05 and c.numeric["median"] >= 0
-            if mostly_positive:
-                lo = max(lo, 0)
+            num = c.numeric
+            lo, hi = num["bulk_min"], num["bulk_max"]
             width = (hi - lo) or abs(hi) or 1.0
-            r["min"] = 0 if lo >= 0 else _round_down(lo - width)
-            r["max"] = _round_up(hi + width)
+            # A suggested bound is a claim that values beyond it are errors. Keep it only if the data
+            # itself barely violates it: a "valid range" broken by 6% of the measurements is a summary
+            # of the distribution (heavy tails, signed signals), not a validity rule.
+            allowed = max(2, int(0.005 * num.get("count", 0)))
+            # (Almost) never negative -> min 0: in a small file a stray -4 can sit inside the robust
+            # bulk, and an age, count or price below zero is an error, not part of the range.
+            if num["median"] >= 0 and num.get("negative_share", 0) <= 0.05 and num.get("n_negative", 0) <= allowed:
+                r["min"] = 0
+            elif num.get("n_below_window", 0) <= allowed:
+                r["min"] = _round_down(lo - width)
+            if num.get("n_above_window", 0) <= allowed:
+                r["max"] = _round_up(hi + width)
         if c.inferred_type == "category":
             r["allowed"] = _canonical_values(c.categories or c.top_values, c.case_variants)
         if c.is_identifier and c.inferred_type == "text" and c.lengths and c.lengths["mode_share"] >= 0.99:

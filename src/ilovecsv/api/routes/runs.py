@@ -301,7 +301,8 @@ def corrected(run_id: str, user: User = Depends(current_user), db: Session = Dep
     path = Path(run.corrected_path)
     audit(db, user, "corrected.downloaded", run_id=run_id)
     db.commit()
-    return FileResponse(path, media_type=MEDIA["csv" if path.suffix == ".csv" else "xlsx"], filename=path.name)
+    media = {".csv": MEDIA["csv"], ".zip": "application/zip"}.get(path.suffix, MEDIA["xlsx"])
+    return FileResponse(path, media_type=media, filename=path.name)
 
 
 @router.get("/{run_id}/dataset", summary="Download the cleaned dataset (CSV or Parquet)")
@@ -329,6 +330,19 @@ def config(run_id: str, user: User = Depends(current_user), db: Session = Depend
     if not path:
         raise Problem(409, "not-exported", "Export or prepare the run first.")
     return FileResponse(Path(path), media_type="application/yaml", filename=Path(path).name)
+
+
+HANDOFF = {"manifest": "application/json", "feature_schema": "application/json", "script": "text/x-python"}
+
+
+@router.get("/{run_id}/handoff/{kind}", summary="Download a handoff file: manifest, feature_schema or script")
+def handoff(run_id: str, kind: Literal["manifest", "feature_schema", "script"], user: User = Depends(current_user),
+            db: Session = Depends(get_db)):
+    run = get_run(db, user, run_id)
+    path = (run.reports or {}).get(kind)
+    if not path:
+        raise Problem(409, "not-exported", "Export or prepare the run first.")
+    return FileResponse(Path(path), media_type=HANDOFF[kind], filename=Path(path).name)
 
 
 @router.get("/{run_id}/audit-log", summary="Every action recorded for this run")

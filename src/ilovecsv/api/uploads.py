@@ -10,10 +10,12 @@ from pathlib import Path
 from fastapi import UploadFile
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from ..adapters import SUPPORTED_EXTENSIONS, signature_problem
 from .errors import PROBLEM_JSON, Problem, problem_body
 from .settings import Settings
 
-ALLOWED_EXT = {".xlsx", ".csv"}
+ALLOWED_EXT = set(SUPPORTED_EXTENSIONS)
+ZIP_BASED = {".xlsx", ".xlsm", ".zip", ".npz"}
 CHUNK = 1 << 16
 
 
@@ -67,11 +69,9 @@ async def save_upload(file: UploadFile, settings: Settings) -> tuple[Path, int, 
     """Validate and store an upload under a random name. Returns (path, size, extension)."""
     name = file.filename or ""
     ext = Path(name).suffix.lower()
-    if ext in (".xls", ".xlsm", ".xlsb"):
-        raise Problem(415, "unsupported-media-type",
-                      f"'{ext}' files are not accepted. Save the workbook as .xlsx (macro-free) or .csv.")
     if ext not in ALLOWED_EXT:
-        raise Problem(415, "unsupported-media-type", "Only .xlsx and .csv files are accepted.")
+        raise Problem(415, "unsupported-media-type",
+                      f"'{ext or 'no extension'}' is not supported. Supported: {', '.join(sorted(ALLOWED_EXT))}.")
     upload_dir = settings.data_dir / "uploads"
     upload_dir.mkdir(parents=True, exist_ok=True)
     dest = upload_dir / f"{uuid.uuid4().hex}{ext}"
@@ -94,20 +94,17 @@ async def save_upload(file: UploadFile, settings: Settings) -> tuple[Path, int, 
 
 
 def _sniff(path: Path, ext: str, settings: Settings) -> None:
-    with path.open("rb") as f:
-        head = f.read(8192)
-    if ext == ".csv":
-        if b"\x00" in head or head.startswith(b"PK\x03\x04"):
-            raise Problem(415, "content-mismatch", "The file content is not plain-text CSV.")
+    problem = signature_problem(path, f"x{ext}")
+    if problem:
+        raise Problem(415, "content-mismatch", f"The file content does not match '{ext}': {problem}.")
+    if ext not in ZIP_BASED:
         return
-    if not head.startswith(b"PK\x03\x04"):
-        raise Problem(415, "content-mismatch", "The file content is not an .xlsx workbook.")
     try:
         with zipfile.ZipFile(path) as z:
             infos = z.infolist()
             names = {i.filename for i in infos}
     except zipfile.BadZipFile as e:
-        raise Problem(415, "content-mismatch", "The .xlsx file is corrupt.") from e
+        raise Problem(415, "content-mismatch", f"The {ext} file is corrupt.") from e
     if len(infos) > settings.max_zip_entries:
         raise Problem(422, "unsafe-archive", "The workbook contains too many internal parts.")
     total = sum(i.file_size for i in infos)
@@ -116,7 +113,10 @@ def _sniff(path: Path, ext: str, settings: Settings) -> None:
     for i in infos:
         if i.compress_size and i.file_size / i.compress_size > settings.max_compression_ratio and i.file_size > 1 << 20:
             raise Problem(422, "unsafe-archive", "The workbook has a suspicious compression ratio.")
-    if "xl/vbaProject.bin" in names:
-        raise Problem(415, "unsupported-media-type", "Macro-enabled workbooks are not accepted.")
+    if ext not in (".xlsx", ".xlsm"):
+        return  # .zip / .npz members are checked again when the archive is read
+    if "xl/vbaProject.bin" in names and ext == ".xlsx":
+        raise Problem(415, "unsupported-media-type",
+                      "This .xlsx contains macros (disguised .xlsm). Upload it as .xlsm: macros are never run.")
     if "[Content_Types].xml" not in names or "xl/workbook.xml" not in names:
         raise Problem(415, "content-mismatch", "The file is a zip archive but not an Excel workbook.")

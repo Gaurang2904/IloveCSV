@@ -70,6 +70,12 @@ def build_audit(run: RunResult, exported: ExportResult | None = None) -> dict[st
         "ml": ml_section(run, schema_run),
         "removed_rows": [],
         "review_required": review_queue(run),
+        "source": {"format": run.wb.source_format or run.wb.file_type,
+                   "options": run.rules.source.model_dump(exclude_defaults=True),
+                   "tables": {n: m for n, m in run.wb.tables_meta.items()},
+                   "documentation": run.wb.docs, "unsupported": run.wb.unsupported, "partial": run.wb.partial},
+        "recipe_decisions": run.recipe_decisions,
+        "verification": exported.verification if exported else None,
     }
     if exported:
         to_cleaned = exported.to_cleaned_row
@@ -159,8 +165,9 @@ def not_verified_columns(run: RunResult) -> list[dict[str, str]]:
     return out
 
 
-def write_reports(run: RunResult, exported: ExportResult | None, out_dir: Path) -> dict[str, Path]:
-    audit = build_audit(run, exported)
+def write_reports(run: RunResult, exported: ExportResult | None, out_dir: Path,
+                  audit: dict[str, Any] | None = None) -> dict[str, Path]:
+    audit = audit or build_audit(run, exported)
     stem = Path(run.wb.filename).stem
     paths = {
         "json": out_dir / f"{stem}_cleaning_report.json",
