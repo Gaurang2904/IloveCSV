@@ -125,6 +125,26 @@ pre { white-space: pre-wrap; background: var(--surface-0); padding: 12px; border
       {% for c in a.not_verified %}{{ c.sheet }}.{{ c.column }}{% if not loop.last %}, {% endif %}{% endfor %}. Typos that never appear correctly elsewhere in these columns cannot be detected; add <span class="mono">aliases</span> or <span class="mono">allowed</span> to the rules.</p>{% endif %}
   </div>
 
+  {% if a.findings %}
+  <h2 id="findings">Findings by category</h2>
+  <div class="card"><p class="why" style="margin-top:0">Grouped the way you would check them. A category that is missing means nothing of that kind was found.</p>
+    <table><thead><tr><th>Category</th><th>Finding</th><th>Count</th><th>Where</th><th>Detail</th></tr></thead><tbody>
+    {% for f in a.findings %}<tr><td>{{ f.category }}</td><td class="mono">{{ f.finding }}</td><td>{{ f.count }}</td><td class="mono">{{ f.where }}</td><td>{{ f.detail }}</td></tr>{% endfor %}
+    </tbody></table></div>
+  {% endif %}
+
+  {% if a.source and (a.source.tables or a.source.unsupported or a.source.structure) %}
+  <h2 id="source">Source &amp; structure</h2>
+  <div class="card"><p style="margin-top:0">Format <span class="mono">{{ a.source.format }}</span>{% if a.source.partial %} · <strong>PARTIAL</strong>: a sample of rows was processed{% endif %}</p>
+    <table><thead><tr><th>Table</th><th>From</th><th>How it was formed</th></tr></thead><tbody>
+    {% for name, m in a.source.tables.items() %}<tr><td class="mono">{{ name }}</td><td class="mono">{{ m.source }}</td><td>{{ (m.notes or []) | join("; ") }}</td></tr>{% endfor %}
+    </tbody></table>
+    {% for u in a.source.unsupported %}<p class="warn"><strong>Not converted:</strong> <span class="mono">{{ u.path }}</span>: {{ u.reason }}</p>{% endfor %}
+    {% if a.source.structure %}<details><summary>Structure of the file ({{ a.source.structure | length }} nodes)</summary><pre class="mono">{% for n in a.source.structure %}{{ "  " * (n.depth or 0) }}{{ n.path }}: {{ n.kind }} {{ n.shape }}{% if n.attrs %}  {{ n.attrs }}{% endif %}
+{% endfor %}</pre></details>{% endif %}
+  </div>
+  {% endif %}
+
   {% if a.output %}
   <h2 id="unresolved">Unresolved after cleaning ({{ a.unresolved | length }})</h2>
   <div class="card scroll">

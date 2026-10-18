@@ -103,7 +103,77 @@ def build_audit(run: RunResult, exported: ExportResult | None = None) -> dict[st
             "config_file": exported.config_path.name if exported.config_path else None,
         }
     mark_needs_review(audit["columns"], audit["ml"], (audit["dataset"] or {}).get("kept_as_text", []))
+    audit["findings"] = findings_overview(audit)
     return audit
+
+
+_FINDING_GROUPS = [  # (category, rule ids or prefixes), first match wins
+    ("labels", ("target.",)),
+    ("duplicates", ("row.duplicate", "unique", "key.duplicate")),
+    ("suspicious readings", ("range", "not_future")),
+    ("representation (safe conversions)", ("type.stored_as_text", "type.date_as_text", "type.date_serial",
+                                           "format.whitespace", "format.null_token", "allowed.noncanonical",
+                                           "allowed.alias", "format.email_case", "format.phone_style",
+                                           "format.phone_numeric", "format.case_variant")),
+]  # everything else (type, allowed, format.email, format.phone, required, regex, length, ...) is "invalid values"
+
+
+def _category(rule_id: str) -> str:
+    for category, ids in _FINDING_GROUPS:
+        if any(rule_id.startswith(x) if x.endswith(".") else rule_id == x for x in ids):
+            return category
+    return "invalid values"
+
+
+def findings_overview(audit: dict[str, Any]) -> list[dict[str, Any]]:
+    """One row per kind of finding, grouped the way a reviewer checks them: structure, missing values,
+    invalid values, suspicious readings, duplicates, labels, conversions applied, review queue.
+    An empty category means nothing of that kind was found, not that it was not checked."""
+    rows: list[dict[str, Any]] = []
+
+    def add(category: str, finding: str, count: int, where: str = "", detail: str = "") -> None:
+        rows.append({"category": category, "finding": finding, "count": count, "where": where[:500],
+                     "detail": detail[:500]})
+
+    src = audit.get("source") or {}
+    for w in src.get("warnings", []):
+        add("structure", "source warning", 1, "", w)
+    for u in src.get("unsupported", []):
+        meta = str(u.get("reason", "")).startswith(("metadata", "single value"))
+        add("structure", "metadata (kept in the manifest)" if meta else "not converted to a table", 1,
+            u.get("path", ""), u.get("reason", ""))
+    for d in src.get("documentation", []):
+        hints = ", ".join(str(h.get("token")) for h in d.get("missing_value_hints", []))
+        if hints:
+            add("structure", "documentation mentions missing-value codes", 1, d.get("path", ""),
+                f"{hints} (not applied automatically: add them to null_values if they apply)")
+    for sch in audit.get("columns", []):
+        for c in sch.get("columns", []):
+            if c.get("missing"):
+                add("missing values", "missing values (kept, never imputed)", c["missing"],
+                    f"{sch['sheet']}.{c['name']}", f"{c.get('missing_rate', 0):.1%} of rows")
+    groups: dict[tuple[str, str], list[dict]] = {}
+    for i in audit.get("issues", []):
+        cat = "suspicious readings" if i.get("kind") == "anomaly" else _category(i.get("rule_id", ""))
+        groups.setdefault((cat, i.get("rule_id", "")), []).append(i)
+    for (cat, rid), items in sorted(groups.items()):
+        where = ", ".join(str(i.get("cell_ref") or "") for i in items[:12]) + (" ..." if len(items) > 12 else "")
+        values = ", ".join(repr(i.get("value")) for i in items[:8] if i.get("value") is not None)
+        add(cat, rid, len(items), where, (items[0].get("message") or "") + (f" Values: {values}" if values else ""))
+    for sch in audit.get("columns", []):
+        for r in sch.get("needs_review", []):
+            add("labels" if any("leakage" in x for x in r["reasons"]) else "invalid values",
+                "review before using as a feature", 1, f"{sch['sheet']}.{r['column']}", "; ".join(r["reasons"]))
+    methods: dict[str, int] = {}
+    for c in audit.get("changes", []):
+        methods[c["method"]] = methods.get(c["method"], 0) + 1
+    for m, n in sorted(methods.items()):
+        add("conversions applied", m, n)
+    if audit.get("removed_rows"):
+        add("conversions applied", "rows removed", len(audit["removed_rows"]))
+    if audit.get("review_required"):
+        add("review queue", "items waiting for a person", len(audit["review_required"]))
+    return rows
 
 
 def _row_of(ref: str | None) -> int | None:
@@ -228,7 +298,23 @@ def write_xlsx(audit: dict[str, Any], path: Path) -> None:
         ("Suggestions still pending (not applied)", s["suggestions_by_status"]["pending"]),
         ("Suggestions rejected", s["suggestions_by_status"]["rejected"]),
         ("Spelling not verified (no reference list)", not_verified or "-"),
+        ("Source format", (audit.get("source") or {}).get("format")),
+        ("Post-export verification", _verification_text(audit.get("verification"))),
     ]
+    src = audit.get("source") or {}
+    source_rows = [{"section": "table", "name": n, "detail": m.get("source", ""),
+                    "notes": "; ".join(m.get("notes", []))} for n, m in src.get("tables", {}).items()]
+    source_rows += [{"section": "warning", "name": "", "detail": w, "notes": ""} for w in src.get("warnings", [])]
+    source_rows += [{"section": "not converted", "name": u.get("path", ""), "detail": u.get("reason", ""),
+                     "notes": ""} for u in src.get("unsupported", [])]
+    source_rows += [{"section": "documentation", "name": d.get("path", ""), "detail": d.get("kind", ""),
+                     "notes": "missing-value codes mentioned: " + ", ".join(str(h.get("token")) for h in
+                                                                         d.get("missing_value_hints", []))}
+                    for d in src.get("documentation", [])]
+    source_rows += [{"section": "structure", "name": "  " * n.get("depth", 0) + str(n.get("path")),
+                     "detail": f"{n.get('kind')} {n.get('shape')}",
+                     "notes": json.dumps(n["attrs"], ensure_ascii=False) if n.get("attrs") else ""}
+                    for n in src.get("structure", [])]
     profile_rows = []
     for sheet in audit["profiles"]:
         for c in sheet["columns"]:
@@ -253,6 +339,10 @@ def write_xlsx(audit: dict[str, Any], path: Path) -> None:
                    "approved_by", "approved_at"]
     with pd.ExcelWriter(path, engine="openpyxl") as xw:
         pd.DataFrame(summary_rows, columns=["item", "value"]).to_excel(xw, sheet_name="Summary", index=False)
+        pd.DataFrame(audit.get("findings", []), columns=["category", "finding", "count", "where", "detail"]).to_excel(
+            xw, sheet_name="Findings", index=False)
+        pd.DataFrame(source_rows, columns=["section", "name", "detail", "notes"]).to_excel(
+            xw, sheet_name="Source & structure", index=False)
         pd.DataFrame(audit.get("unresolved", []), columns=unresolved_cols).to_excel(
             xw, sheet_name="Unresolved", index=False)
         review_cols = ["type", "cell_ref", "action", "old", "new", "method", "safety", "confidence", "rule_id",
@@ -277,6 +367,15 @@ def write_xlsx(audit: dict[str, Any], path: Path) -> None:
             for col in ws.columns:
                 width = max((len(str(c.value)) for c in col if c.value is not None), default=8)
                 ws.column_dimensions[col[0].column_letter].width = min(60, max(10, width + 2))
+
+
+def _verification_text(v: dict[str, Any] | None) -> str:
+    if not v:
+        return "not run (nothing exported yet)"
+    failed = [c for c in v.get("checks", []) if not c["passed"]]
+    if failed:
+        return "FAILED: " + "; ".join(f"{c['check']}: {c['detail']}" for c in failed)
+    return f"passed ({len(v.get('checks', []))} checks: files reopened, rows/columns match, fixes present, re-validated)"
 
 
 def _capped(items, sep: str, limit: int = 50) -> str:

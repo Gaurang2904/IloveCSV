@@ -157,8 +157,9 @@ def _sheet_rules(p: SheetProfile, for_ml: bool = False) -> dict[str, Any]:
             if key is None:
                 key = [name]
         elif (non_null >= 5 and c.inferred_type in ("int", "text") and _INDEX_NAME.search(name.strip())
-              and 0 < non_null - c.n_distinct <= max(1, int(0.02 * non_null))):
+              and 0 < non_null - c.n_distinct - p.n_duplicate_rows <= max(1, int(0.02 * non_null))):
             # An id / index column that is unique except for a stray repeat (cycle 6, 6): flag the repeat.
+            # Repeats that come from exact copies of whole rows are already one duplicate-row finding.
             r["unique"] = True
         columns[name] = r
     out: dict[str, Any] = {"sheet": p.name}

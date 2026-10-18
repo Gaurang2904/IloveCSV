@@ -100,23 +100,44 @@ def one_d_frame(name: str, a: np.ndarray) -> pd.DataFrame:
 
 
 def align_or_split(arrays: dict[str, np.ndarray], table: str, where: str, options: SourceOptions,
-                   tables: dict[str, pd.DataFrame], notes: dict[str, list[str]], warnings: list[str]) -> dict:
+                   tables: dict[str, pd.DataFrame], notes: dict[str, list[str]], warnings: list[str],
+                   metadata: list[dict[str, Any]] | None = None) -> dict:
     """Same-length 1-D arrays side by side *may* be the columns of one table, but equal length is the
     only evidence. They are combined only when asked (align_arrays); otherwise each stays its own
-    table and the possibility is pointed out. Returns the arrays that were not combined."""
-    by_len: dict[int, list[str]] = {}
+    table and the possibility is pointed out. Returns the arrays that were not combined.
+
+    A text array that only lists the names of its sibling arrays (sensor_names = ['voltage', ...])
+    describes the others: it becomes metadata, not a table of observations."""
+    rest = dict(arrays)
+    leaves = {_leaf(k): k for k in arrays}
+    described: dict[str, set[str]] = {}
     for k, a in arrays.items():
+        if is_1d(a) and a.dtype.kind in "US":
+            values = {str(v) for v in _text_values(a)}
+            if len(values) >= 2 and values <= set(leaves) - {_leaf(k)}:
+                described[_leaf(k)] = values
+                rest.pop(k)
+                if metadata is not None:
+                    metadata.append({"path": k, "reason": f"metadata: lists the names of the arrays "
+                                                          f"{', '.join(sorted(values))}; kept in the manifest, "
+                                                          "not exported as a table",
+                                     "values": sorted(values)})
+    by_len: dict[int, list[str]] = {}
+    for k, a in rest.items():
         if is_1d(a):
             by_len.setdefault(a.size, []).append(k)
-    rest = dict(arrays)
     groups = [(n, keys) for n, keys in by_len.items() if len(keys) >= 2]
     for n, keys in groups:
         names = ", ".join(_leaf(k) for k in keys)
         if not options.align_arrays:
+            listed = next((m for m, vals in described.items() if vals == {_leaf(k) for k in keys}), None)
+            evidence = (f" '{listed}' lists exactly these arrays, which supports that they belong together."
+                        if listed else " Equal length alone does not prove it, so")
             warnings.append(f"{where}: {names} each have {n} elements. They may be the columns of one table "
-                            "(element k of each = one record), but equal length alone does not prove it, so "
-                            "they are kept as separate tables. If they are aligned, prepare with align_arrays "
-                            "(CLI --align-arrays).")
+                            f"(element k of each = one record).{evidence}"
+                            + (" They are" if listed else " they are")
+                            + " kept as separate tables. If they are aligned, prepare with align_arrays "
+                              "(CLI --align-arrays).")
             continue
         name = table if len(groups) == 1 else f"{table}_{n}"
         cols: dict[str, Any] = {}
@@ -130,8 +151,10 @@ def align_or_split(arrays: dict[str, np.ndarray], table: str, where: str, option
 
 
 def generic_tables(name: str, obj: Any, tables: dict[str, pd.DataFrame], notes: dict[str, list[str]],
-                   unsupported: list[dict[str, Any]], depth: int = 0, warnings: list[str] | None = None) -> None:
-    """Find the parts of a structure that have exactly one obvious table form."""
+                   unsupported: list[dict[str, Any]], depth: int = 0, warnings: list[str] | None = None,
+                   context: list[str] | None = None) -> None:
+    """Find the parts of a structure that have exactly one obvious table form. `context`: numeric
+    per-element fields to repeat on every sample row of a struct array's series table."""
     warnings = [] if warnings is None else warnings
     if isinstance(obj, np.ndarray) and obj.dtype.names:  # structured array
         flat = obj.reshape(-1)
@@ -171,9 +194,9 @@ def generic_tables(name: str, obj: Any, tables: dict[str, pd.DataFrame], notes: 
         for k, v in rest.items():
             if k in scalars:
                 continue
-            generic_tables(f"{name}.{k}", v, tables, notes, unsupported, depth + 1, warnings)
+            generic_tables(f"{name}.{k}", v, tables, notes, unsupported, depth + 1, warnings, context)
     elif isinstance(obj, list) and obj and all(isinstance(x, dict) for x in obj):
-        _struct_array(name, obj, tables, notes, unsupported, warnings)
+        _struct_array(name, obj, tables, notes, unsupported, warnings, context or [])
     elif isinstance(obj, list):
         unsupported.append({"path": name, "reason": "cell array of mixed content: no safe table form"})
     elif isinstance(obj, np.ndarray) and obj.ndim == 1 and obj.dtype.kind in "USO" and obj.size > 1:
@@ -187,7 +210,7 @@ def generic_tables(name: str, obj: Any, tables: dict[str, pd.DataFrame], notes: 
 
 
 def _struct_array(name: str, obj: list[dict], tables: dict[str, pd.DataFrame], notes: dict[str, list[str]],
-                  unsupported: list[dict[str, Any]], warnings: list[str]) -> None:
+                  unsupported: list[dict[str, Any]], warnings: list[str], context: list[str]) -> None:
     """Struct array (e.g. battery.cycle(1..n)): scalar fields -> one row per element; per-element 1-D
     series -> one long table (element index, sample index, one column per series), so element
     identity is kept and nothing is squeezed into one cell."""
@@ -203,6 +226,11 @@ def _struct_array(name: str, obj: list[dict], tables: dict[str, pd.DataFrame], n
     series_fields = [f for f in fields if f not in scalar_fields and all(is_series(x.get(f)) for x in obj)]
     other = [f for f in fields if f not in scalar_fields and f not in series_fields]
     index = f"{_leaf(name)}_index"
+    # Repeated on every sample row so the series table can be used without a join: descriptive text
+    # fields (cycle type) always; numeric fields only when named, because a per-element number such
+    # as Capacity is often the quantity to predict and must not be copied onto every sample by default.
+    text_fields = [f for f in scalar_fields if all(x.get(f) is None or isinstance(_scalar(x.get(f)), str) for x in obj)]
+    ctx = [f for f in scalar_fields if f in text_fields or f in context]
     if scalar_fields:
         rows = [{index: i, **{f: _scalar(x.get(f)) for f in scalar_fields}} for i, x in enumerate(obj, start=1)]
         tables[name] = pd.DataFrame(rows)
@@ -219,7 +247,8 @@ def _struct_array(name: str, obj: list[dict], tables: dict[str, pd.DataFrame], n
                 warnings.append(f"{name}({i}): series lengths differ ({detail}); the shorter ones are padded with "
                                 "missing values at the end. Check that the samples line up before using them "
                                 "together.")
-            frame: dict[str, Any] = {index: np.full(n, i), "sample_index": np.arange(n)}
+            frame: dict[str, Any] = {index: np.full(n, i), **{f: [_scalar(x.get(f))] * n for f in ctx},
+                                     "sample_index": np.arange(n)}
             for f, a in series.items():
                 for col, part in _complex_split(f, a).items():
                     padded = np.full(n, np.nan)
@@ -230,6 +259,12 @@ def _struct_array(name: str, obj: list[dict], tables: dict[str, pd.DataFrame], n
         tables[long_name] = pd.concat(frames, ignore_index=True)
         notes[long_name] = [f"per-element series ({', '.join(series_fields)}) in long format: one row per sample; "
                             f"{index} links each sample to its row in {name}"]
+        skipped = [f for f in scalar_fields if f not in ctx]
+        if ctx:
+            notes[long_name].append(f"copied from {name} onto every sample row: {', '.join(ctx)}")
+        if skipped:
+            notes[long_name].append(f"not copied (numeric per-element values, possibly an outcome such as capacity): "
+                                    f"{', '.join(skipped)}; join on {index}, or list them in series_context")
     if other:
         unsupported.append({"path": f"{name}[].({', '.join(other)})",
                             "reason": "fields hold multi-dimensional arrays or nested structures; no safe "
@@ -288,7 +323,8 @@ def nasa_battery_tables(battery: str, var: dict[str, Any]) -> tuple[dict[str, pd
             if len(set(lengths.values())) > 1:
                 notes.append(f"cycle {idx}: series of different lengths {lengths}; shorter ones padded with "
                              "missing values")
-            frame = {"battery": battery, "cycle_index": idx, "type": ctype, "sample_index": np.arange(n)}
+            frame = {"battery": battery, "cycle_index": idx, "type": ctype, "ambient_temperature": row["ambient_temperature"],
+                     "sample_index": np.arange(n)}
             for k, a in series.items():
                 col = "time_s" if k == "Time" else k.lower()
                 padded = np.full(n, np.nan)
@@ -296,7 +332,8 @@ def nasa_battery_tables(battery: str, var: dict[str, Any]) -> tuple[dict[str, pd
                 frame[col] = padded
             meas.append(pd.DataFrame(frame))
         elif ctype == "impedance" and series:
-            frame = {"battery": battery, "cycle_index": idx, "sample_index": np.arange(n)}
+            frame = {"battery": battery, "cycle_index": idx, "ambient_temperature": row["ambient_temperature"],
+                     "sample_index": np.arange(n)}
             for k, a in series.items():
                 for col, part in _complex_split(k.lower(), a.astype(complex) if np.iscomplexobj(a) else a).items():
                     padded = np.full(n, np.nan)
@@ -315,7 +352,8 @@ NASA_NOTES = {
     "cycles": "one row per cycle in file order (cycle_index 1..n); capacity only on discharge cycles, "
               "re / rct only on impedance cycles; start_time from MATLAB clock vectors",
     "measurements": "charge and discharge time series in long format: one row per sample "
-                    "(battery, cycle_index, sample_index); current_charge/voltage_charge only on charge cycles, "
+                    "(battery, cycle_index, sample_index), with the cycle type and ambient_temperature repeated "
+                    "on each row; current_charge/voltage_charge only on charge cycles, "
                     "current_load/voltage_load only on discharge cycles",
     "impedance": "impedance spectra, one row per frequency sample; complex values split into _re/_im",
 }
@@ -369,9 +407,10 @@ class MATAdapter(Adapter):
             raise ReadError("mat_layout is nasa_battery, but the file does not have the NASA battery structure.")
         tables: dict[str, pd.DataFrame] = {}
         notes: dict[str, list[str]] = {}
-        variables = align_or_split(variables, Path(filename).stem, filename, options, tables, notes, wb.warnings)
+        variables = align_or_split(variables, Path(filename).stem, filename, options, tables, notes, wb.warnings,
+                               metadata=wb.unsupported)
         for k, v in variables.items():
-            generic_tables(k, v, tables, notes, wb.unsupported, warnings=wb.warnings)
+            generic_tables(k, v, tables, notes, wb.unsupported, warnings=wb.warnings, context=options.series_context)
         for t, df in tables.items():
             if options.tables and t not in options.tables:
                 continue
@@ -417,7 +456,8 @@ class NumpyAdapter(Adapter):
             wb.tree.append({"path": k, "kind": f"array {a.dtype}", "shape": _shape(a), "depth": 0})
         tables: dict[str, pd.DataFrame] = {}
         notes: dict[str, list[str]] = {}
-        arrays = align_or_split(arrays, Path(filename).stem, filename, options, tables, notes, wb.warnings)
+        arrays = align_or_split(arrays, Path(filename).stem, filename, options, tables, notes, wb.warnings,
+                               metadata=wb.unsupported)
         for k, a in arrays.items():
             generic_tables(k, a, tables, notes, wb.unsupported, warnings=wb.warnings)
         for t, df in tables.items():
@@ -489,7 +529,8 @@ class HDF5Adapter(Adapter):
             f.visititems(visit)
         for parent, arrays in one_d.items():
             table = parent.replace("/", ".") or Path(filename).stem
-            rest = align_or_split(arrays, table, f"{filename} /{parent}", options, tables, notes, wb.warnings)
+            rest = align_or_split(arrays, table, f"{filename} /{parent}", options, tables, notes, wb.warnings,
+                               metadata=wb.unsupported)
             for k, a in rest.items():
                 generic_tables(k, a, tables, notes, wb.unsupported, warnings=wb.warnings)
         for t, df in tables.items():

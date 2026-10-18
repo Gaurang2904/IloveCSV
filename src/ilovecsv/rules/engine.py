@@ -26,6 +26,7 @@ from ..profiling import (
 )
 from ..reader import SheetData, WorkbookData, text_values
 from ..values import (
+    NullSet,
     is_email,
     is_null,
     is_serial_candidate,
@@ -124,20 +125,48 @@ class TypedColumns:
         return expr.evaluate(self, self.sheet.df.index)
 
 
+def _closest_hint(value: str, allowed: list[Any]) -> str:
+    """Name the clearly closest allowed value ('bangalore' -> 'Bengaluru') without changing anything.
+    Close spellings (>= 0.8) already get a fuzzy fix for review; this covers likely aliases."""
+    import difflib
+
+    v = collapse_ws(str(value)).casefold()
+    scored = sorted(((difflib.SequenceMatcher(None, v, collapse_ws(str(a)).casefold()).ratio(), str(a))
+                     for a in allowed), reverse=True)
+    if not scored or scored[0][0] < 0.6 or (len(scored) > 1 and scored[0][0] - scored[1][0] < 0.25):
+        return ""
+    return (f" Closest allowed value: '{scored[0][1]}' (possible alias; declare it under `aliases` "
+            "to fix it automatically).")
+
+
 class SheetValidator:
     def __init__(self, wb: WorkbookData, sheet: SheetData, srules: SheetRules, rules: RuleSet,
                  profile: SheetProfile, nulls):
         self.wb, self.sheet, self.srules, self.rules = wb, sheet, srules, rules
         self.profile, self.nulls = profile, nulls
         self.typed_nulls = nulls | normalise_nulls(rules.typed_null_values)
+        self._col_nulls: dict[str, frozenset[str]] = {}
         self.typed = TypedColumns(sheet, srules, profile, nulls, rules.dayfirst)
         self.issues: list[Issue] = []
         self.rule_errors: list[dict[str, Any]] = []
 
     def col_nulls(self, col: str) -> frozenset[str]:
-        """Placeholders for this column: typed words such as 'unknown' only count as missing where a
-        real value can't be a word (numeric, date and boolean columns)."""
-        return self.typed_nulls if self.typed.column_type(col) in (*NUMERIC_TYPES, "date", "bool") else self.nulls
+        """Placeholders for this column. Words such as 'unknown' count as missing where a real value
+        can't be a word (numeric, date and boolean columns), and in a category column whose allowed
+        list does not contain them. A category actually named 'Unknown' is declared in `allowed`
+        (the suggested rules keep it there when it is an established value) and is never erased."""
+        if col not in self._col_nulls:
+            if self.typed.column_type(col) in (*NUMERIC_TYPES, "date", "bool"):
+                out = self.typed_nulls
+            else:
+                rule = self.srules.columns.get(col)
+                if rule is not None and rule.allowed:
+                    declared = {collapse_ws(str(a)).casefold() for a in rule.allowed}
+                    out = self.nulls | NullSet(t for t in self.typed_nulls - self.nulls if t not in declared)
+                else:
+                    out = self.nulls
+            self._col_nulls[col] = out
+        return self._col_nulls[col]
 
     # ------------------------------------------------------------------ emit helpers
     def emit(self, rule_id: str, severity: str, message: str, xl_row: int | None = None,
@@ -276,7 +305,8 @@ class SheetValidator:
                               f"'{t}' is not a recognised label for '{col}' (expected one of "
                               f"{', '.join(rule.allowed)}).", xl_row, col, v)
                 else:
-                    self.emit("allowed", sev, msg or f"'{t}' is not an allowed value for '{col}'.", xl_row, col, v)
+                    self.emit("allowed", sev, msg or f"'{t}' is not an allowed value for '{col}'.{_closest_hint(t, rule.allowed)}",
+                              xl_row, col, v)
 
         if rule.regex:
             pattern = re.compile(rule.regex)
@@ -314,7 +344,14 @@ class SheetValidator:
                 continue
             if text_dates and isinstance(v, str):
                 if csv and k == "numeric_text" and _CANONICAL_NUMBER.match(v.strip()):
-                    k = "float" if "." in v and not float(v).is_integer() else "int"
+                    whole = not ("." in v and not float(v).is_integer())
+                    if t == "int" and whole and "." in v:
+                        # '999.00' in a whole-number column: written as 999 (as Excel/JSON input is), so
+                        # the column stays an integer column instead of turning into floats.
+                        self.emit("type.stored_as_text", "warning",
+                                  f"Whole number written with decimals: '{v.strip()}'.", xl_row, col, v)
+                        continue
+                    k = "int" if whole else "float"
                 elif k == "date_text" and _CANONICAL_DATE.match(v.strip()):
                     k = "date"
                 elif csv and k == "bool_text" and v.strip().upper() in ("TRUE", "FALSE"):

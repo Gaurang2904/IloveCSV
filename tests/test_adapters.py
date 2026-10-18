@@ -215,10 +215,12 @@ def test_equal_length_arrays_are_aligned_only_on_request(tmp_path):
     np.savez(path, voltage=np.array([4.1, 4.0, np.nan, 4.0, 4.1, 12.5]), temp=np.array([24.0, 24.5, 25.0, 24.6, 24.4, 130.0]),
              cycle_index=np.array([1, 2, 3, 4, 5, 5]), names=np.array(["voltage", "temp", "cycle_index"]))
     wb, t = tables(path)
-    assert {"voltage", "temp", "cycle_index", "names"} == set(t) and list(t["voltage"].columns) == ["voltage"]
-    assert any("align_arrays" in w for w in wb.warnings)
+    assert {"voltage", "temp", "cycle_index"} == set(t) and list(t["voltage"].columns) == ["voltage"]
+    # names only lists the other arrays: metadata (and evidence they belong together), not observations
+    assert any(u["path"] == "names" and u["reason"].startswith("metadata") for u in wb.unsupported)
+    assert any("align_arrays" in w and "'names' lists exactly these arrays" in w for w in wb.warnings)
     wb, t = tables(path, align_arrays=True)
-    assert list(t["s"].columns) == ["voltage", "temp", "cycle_index"] and "names" in t
+    assert list(t["s"].columns) == ["voltage", "temp", "cycle_index"] and set(t) == {"s"}
     res = prepare(path, tmp_path / "out", source={"align_arrays": True})
     found = {(i.column, i.rule_id) for i in res.run.issues}
     assert ("cycle_index", "unique") in found  # the repeated cycle 5
@@ -262,6 +264,85 @@ def test_one_off_category_next_to_established_ones_is_flagged(tmp_path):
     assert [i.value for i in flagged] == ["Hydrabad"]
     fix = next(s for s in res.run.suggestions if s.column == "city")
     assert fix.method == "fuzzy_category" and fix.new == "Hyderabad" and fix.status == "pending"
+
+
+def _messy_frame() -> pd.DataFrame:
+    cities = (["Pune", "Mumbai", "Delhi", "Chennai"] * 6)[:22] + ["unknown", "bangalore"]
+    return pd.DataFrame({
+        "record_id": [f"C{i:03d}" for i in range(24)],
+        "city": cities,
+        "spend": [str(100 + i) for i in range(22)] + ["999.00", " 1,299 "],
+        "visits": [str(i % 5) for i in range(23)] + ["N/A"],
+    }, dtype=object)
+
+
+def test_csv_and_xlsx_give_the_same_ml_dataset(tmp_path):
+    df = _messy_frame()
+    df.to_csv(tmp_path / "m.csv", index=False)
+    df.to_excel(tmp_path / "m.xlsx", index=False, sheet_name="m")
+    out = {}
+    for ext in ("csv", "xlsx"):
+        ex = prepare(tmp_path / f"m.{ext}", tmp_path / f"out_{ext}").exported
+        out[ext] = (ex.out_dir / next(iter(ex.datasets.values()))["csv"]).read_text(encoding="utf-8")
+    assert out["csv"] == out["xlsx"]
+    rows = pd.read_csv(tmp_path / "out_csv" / "m_cleaned.csv", dtype=str, keep_default_na=False)
+    assert rows.loc[22, "spend"] == "999" and rows.loc[23, "spend"] == "1299"
+    assert rows.loc[22, "city"] == ""  # one-off 'unknown' among real cities: a placeholder, cleared
+
+
+def test_unknown_kept_when_it_is_an_established_category(tmp_path):
+    src = tmp_path / "k.csv"
+    status = ["Active", "Closed", "Unknown"] * 10
+    src.write_text("id,status\n" + "".join(f"{i},{s}\n" for i, s in enumerate(status)))
+    res = prepare(src, tmp_path / "out")
+    cleaned = pd.read_csv(res.exported.out_dir / "k_cleaned.csv", dtype=str, keep_default_na=False)
+    assert (cleaned["status"] == "Unknown").sum() == 10
+    assert not [i for i in res.run.issues if i.column == "status"]
+
+
+def test_alias_hint_names_closest_value_without_changing_it(tmp_path):
+    from ilovecsv.rules.engine import _closest_hint
+
+    cities = ["Mumbai", "Delhi", "Bengaluru", "Hyderabad"]
+    assert "'Bengaluru'" in _closest_hint("bangalore", cities)
+    assert _closest_hint("unknown", cities) == "" and _closest_hint("Bombay", cities) == ""  # no guess
+    src = tmp_path / "c.csv"
+    src.write_text("id,city\n" + "".join(f"{i},{c}\n" for i, c in enumerate(cities * 8 + ["bangalore"])))
+    res = prepare(src, tmp_path / "out")
+    issue = next(i for i in res.run.issues if i.rule_id == "allowed")
+    assert issue.value == "bangalore" and "Closest allowed value: 'Bengaluru'" in issue.message
+    cleaned = pd.read_csv(res.exported.out_dir / "c_cleaned.csv", dtype=str)
+    assert cleaned["city"].iloc[-1] == "bangalore"  # flagged, never changed
+
+
+def test_series_context_copies_text_fields_and_named_numbers(tmp_path):
+    from scipy.io import savemat
+
+    dt = [("type", "O"), ("ambient_temperature", "O"), ("Capacity", "O"), ("V", "O")]
+    cyc = np.empty((1, 2), dtype=dt)
+    cyc[0, 0] = ("discharge", 24.0, 1.8, np.array([4.1, 4.0]))
+    cyc[0, 1] = ("charge", 24.0, np.nan, np.array([3.5, 3.8, 4.0]))
+    path = tmp_path / "b.mat"
+    savemat(path, {"B": {"cycle": cyc}})
+    _, t = tables(path)
+    series = t["B.cycle.series"]
+    assert "type" in series.columns and "Capacity" not in series.columns and "ambient_temperature" not in series
+    _, t = tables(path, series_context=["ambient_temperature"])
+    assert list(t["B.cycle.series"]["ambient_temperature"]) == [24.0] * 5
+
+
+def test_report_findings_group_structure_missing_and_suspicious(tmp_path):
+    path = tmp_path / "s.npz"
+    np.savez(path, voltage=np.array([4.1, 4.0, np.nan, 4.0, 4.1, 4.05, 12.5]),
+             current=np.array([1.0, 1.0, 1.0, np.nan, 1.0, 0.9, 1.0]))
+    res = prepare(path, tmp_path / "out", source={"align_arrays": True})
+    findings = json.loads(res.report.read_text())["findings"]
+    cats = {f["category"] for f in findings}
+    assert {"missing values", "suspicious readings"} <= cats
+    assert any(f["category"] == "suspicious readings" and "12.5" in f["detail"] for f in findings)
+    import openpyxl
+
+    assert "Findings" in openpyxl.load_workbook(res.exported.reports["xlsx"]).sheetnames
 
 
 # ----------------------------------------------------------------------------- large files

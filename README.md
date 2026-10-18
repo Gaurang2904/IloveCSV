@@ -18,8 +18,8 @@ Every format is read by an **adapter** that turns it into clearly defined tables
 | 1 | `.json` `.jsonl` `.ndjson` | Records found automatically or by dot path (`--json-records data.items`); nested objects flattened to `customer.city`; lists kept as JSON text |
 | 1 | `.parquet` `.feather` `.arrow` | Read from metadata first; row-group sampling for large files |
 | 1 | `.zip` | Every supported member becomes a table; same-named tables with identical columns are merged with a `source_file` column. README / data-dictionary members are read as **documentation** (e.g. "missing values are coded as -999"). Unsafe paths, too many members and zip bombs are refused |
-| 2 | `.mat` (v4–v7.2 via SciPy, v7.3 via h5py) | Known layouts (NASA battery aging: `cycles`, `measurements`, `impedance`) or generic rules: 2-D arrays, equal-length fields of one struct, struct arrays (one row per element, plus a long-format `…series` table for per-element series, keyed by element index; series of different lengths are reported) |
-| 2 | `.npy` `.npz` | 1-D and 2-D arrays, each array its own table; pickled objects are never loaded |
+| 2 | `.mat` (v4–v7.2 via SciPy, v7.3 via h5py) | Known layouts (NASA battery aging: `cycles`, `measurements`, `impedance`) or generic rules: 2-D arrays, equal-length fields of one struct, struct arrays (one row per element, plus a long-format `…series` table for per-element series, keyed by element index; series of different lengths are reported). Text fields such as the cycle type are repeated on each series row. Numeric per-element fields are repeated only when named (`--series-context ambient_temperature`), because one may be the outcome (capacity) |
+| 2 | `.npy` `.npz` | 1-D and 2-D arrays, each array its own table (or one table with `--align-arrays`). A text array that only lists the other arrays' names is kept as metadata. Pickled objects are never loaded |
 | 2 | `.h5` `.hdf5` | Every 1-D/2-D dataset becomes a table; groups, shapes, dtypes and attributes are listed by `inspect` and kept in the manifest |
 | 2 | `.arff` | Via SciPy; `?` is missing |
 
@@ -77,7 +77,9 @@ It stays in the dataset; you decide.
 
 **Placeholders.**
 * `N/A`, `-`, `null`, `?` and similar become empty cells in every column.
-* Words such as `unknown`, `missing` or `not available` become empty only in numeric, date and boolean columns, where a real value can't be a word. In a text column, `Unknown` can be a genuine category.
+* Words such as `unknown`, `missing` or `not available` are **field-aware**. They become empty in numeric, date and boolean columns, where a real value can't be a word. In a category column, they become empty only when they are not a declared category: a one-off `unknown` among city names is cleared, while a real `Unknown` status that is one of the column's established values stays.
+* A whole number written with decimals (`999.00`) in a whole-number column becomes `999` in every format, so CSV, Excel and JSON input give the same dataset (and the column stays an integer column).
+* A value outside a category list is flagged, never replaced. A close spelling (`Hydrabad`) gets a fix suggestion for review; a likely alias (`bangalore`) gets a hint naming the closest allowed value (`Bengaluru`), applied only if you declare it under `aliases`.
 * Both lists are configurable (`null_values`, `typed_null_values`).
 * Missing values are reported, never imputed.
 
@@ -98,6 +100,8 @@ It stays in the dataset; you decide.
 | `prepare_dataset.py` | A script that re-runs this exact preparation (`python prepare_dataset.py new_file.mat`) |
 | `{name}_cleaned_tables.zip` | Non-spreadsheet sources: every corrected table as CSV |
 | `original/{file}` | Untouched copy of the input (its SHA-256 is in the report) |
+
+**Reports you can check.** The Excel and HTML reports open with **Findings**, grouped by category: structure, missing values, invalid values, suspicious readings, duplicates, labels, conversions applied and the review queue, each with cell references and values. **Source & structure** shows how every table was formed, the file's internal structure (groups, shapes, attributes), parts not converted, and documentation hints. `python scripts/check_testpack.py PATH` checks all 84 expectations of the SheetSense preprocessing test pack against the reports.
 
 **Post-export verification.** After writing, IloveCSV reopens every dataset it exported. It checks columns and row counts against the run, confirms each applied fix is present, and re-validates the files themselves. The result is in the report and the manifest; the CLI prints it.
 
@@ -138,7 +142,7 @@ Recipes are plain YAML you can write by hand. [`examples/recipes/nasa_battery.ya
 
 ### Entry points
 
-* **CLI:** `ilovecsv inspect FILE [--json]`, and `ilovecsv prepare FILE [--target COL] [--labels No,Yes] [--out DIR] [--config CFG] [--remove-exact-duplicates] [--format csv --format parquet]`. Source options: `--sheet`, `--table`, `--json-records`, `--max-rows`, `--delimiter`, `--encoding`, `--mat-layout`, `--align-arrays`. Exits with code 1 while unresolved errors remain, so it can gate a data pipeline in CI.
+* **CLI:** `ilovecsv inspect FILE [--json]`, and `ilovecsv prepare FILE [--target COL] [--labels No,Yes] [--out DIR] [--config CFG] [--remove-exact-duplicates] [--format csv --format parquet]`. Source options: `--sheet`, `--table`, `--json-records`, `--max-rows`, `--delimiter`, `--encoding`, `--mat-layout`, `--align-arrays`, `--series-context`. Exits with code 1 while unresolved errors remain, so it can gate a data pipeline in CI.
 * **Python:** `from ilovecsv.pipeline import prepare; res = prepare("data.csv", target="churn")`, then `res.dataset_path()`, `res.report` and `res.unresolved`.
 * **API:** `POST /v1/workbooks` (any supported format), `GET /v1/workbooks/{id}/inspect`, `POST /v1/workbooks/{id}/prepare` (with optional `source` options), then `GET /v1/runs/{id}/dataset`, `/report`, `/config` and `/handoff/{manifest|feature_schema|script}`.
 * **UI:** the first page, **★ One-click prepare**: upload, inspect (tables, sample rows, documentation, unsupported parts), choose tables or a sample, pick the target (auto-guessed), Prepare, then download. The numbered pages are the advanced review flow for working through the review queue.
@@ -158,7 +162,7 @@ On the demo churn table (`python scripts/make_demo.py`: 403 rows, planted proble
 | **Anomaly detection** | Robust z-score (median/MAD) per numeric column, an IQR fallback, rare categories, and a row-level **Isolation Forest** after PCA whitening, which catches combinations that are each normal on their own. Anomalies are **kept separate from errors**: never auto-fixed, never deleted; a reviewer confirms or dismisses each one. |
 | **Review workflow** | Each issue's outcome is decided by re-validating the cleaned output: resolved, open, pending_review, approved, rejected or dismissed. Duplicate pairs are shown side by side before removal. Unresolved cells are marked in the cleaned workbook. |
 | **API engineering** | FastAPI with API-key auth (keys stored as SHA-256 hashes), per-user isolation, a streaming body-size limit, extension and magic-byte checks, zip-bomb and macro rejection, RFC 9457 `application/problem+json` errors, and a SQL-backed audit log. |
-| **Testing** | 170 tests, including every format adapter and the ZIP safety limits. Seeded synthetic datasets carry **known planted problems and a ground-truth manifest**. Tests check that each rule catches *exactly* the cells it should, across several seeds; that a clean file produces zero issues; that Safe Auto-Clean changes only safe things; and the report contract. |
+| **Testing** | 175 tests, including every format adapter and the ZIP safety limits. Seeded synthetic datasets carry **known planted problems and a ground-truth manifest**. Tests check that each rule catches *exactly* the cells it should, across several seeds; that a clean file produces zero issues; that Safe Auto-Clean changes only safe things; and the report contract. |
 
 ## Architecture
 
@@ -197,7 +201,7 @@ pip install -e ".[ui,dev,parquet]"
 
 python scripts/make_demo.py      # builds examples/churn_demo.xlsx + the orders demo, writes reports/
 ilovecsv prepare examples/churn_demo.xlsx --target churn --out prepared/
-pytest                           # 170 tests
+pytest                           # 175 tests
 ```
 
 ### CLI: rule-file workflow
@@ -456,7 +460,7 @@ I also ran it on the public [BODMAS](https://whyisyoung.github.io/BODMAS/) malwa
 ```
 src/ilovecsv/        core engine, format adapters (adapters/), API (api/), report template (templates/)
 app/                 Streamlit UI
-tests/               170 tests: per-rule ground truth, adapters, anomalies, corrections, prepare, ML checks, audit, API, CLI
+tests/               175 tests: per-rule ground truth, adapters, anomalies, corrections, prepare, ML checks, audit, API, CLI
 scripts/             make_demo.py, create_api_key.py
 benchmarks/          run_benchmark.py: planted problems in 7 formats, precision/recall, reproducibility
 examples/            churn_demo.xlsx (ML demo), demo_orders.xlsx + rule file (rule-engine demo); all synthetic

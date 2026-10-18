@@ -31,6 +31,10 @@ class SourceOptions(BaseModel):
     align_arrays: bool = Field(
         default=False, description="Combine same-length 1-D arrays (NumPy, HDF5 group, MATLAB variables) into one "
                                    "table. Off by default: equal length alone does not prove the arrays are aligned.")
+    series_context: list[str] | None = Field(
+        default=None, description="MATLAB struct arrays: numeric per-element fields (e.g. ambient_temperature) to "
+                                  "repeat on every row of the series table. Text fields are always repeated; "
+                                  "numbers are not by default, since one may be the outcome (e.g. capacity).")
     mat_layout: Literal["auto", "nasa_battery", "generic"] = Field(
         default="auto", description="How MATLAB files become tables: auto-detect a known layout, or generic.")
     row_limit: int = Field(default=DEFAULT_MAX_ROWS, ge=1,

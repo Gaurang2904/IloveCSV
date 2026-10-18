@@ -114,6 +114,8 @@ def _source_args(p: argparse.ArgumentParser) -> None:
     g.add_argument("--delimiter", default=None, help="CSV delimiter (default: detected)")
     g.add_argument("--encoding", default=None, help="text encoding (default: utf-8, then cp1252)")
     g.add_argument("--mat-layout", choices=["auto", "nasa_battery", "generic"], default=None)
+    g.add_argument("--series-context", action="append", default=None,
+                   help="MATLAB struct arrays: numeric per-element field to repeat on every series row; repeatable")
     g.add_argument("--align-arrays", action="store_true", default=None,
                    help="combine same-length 1-D arrays into one table (only if you know they are aligned)")
 
@@ -121,7 +123,8 @@ def _source_args(p: argparse.ArgumentParser) -> None:
 def _source_from(args) -> dict | None:
     opts = {"sheets": args.sheet, "tables": args.table, "json_records": args.json_records,
             "max_rows": args.max_rows, "delimiter": args.delimiter, "encoding": args.encoding,
-            "mat_layout": args.mat_layout, "align_arrays": args.align_arrays}
+            "mat_layout": args.mat_layout, "align_arrays": args.align_arrays,
+            "series_context": args.series_context}
     opts = {k: v for k, v in opts.items() if v is not None}
     return opts or None
 

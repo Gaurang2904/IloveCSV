@@ -4,14 +4,14 @@ One synthetic customer dataset with planted problems (whitespace, case variants,
 
 | run | precision | recall | repair accuracy | untouched cells unchanged | valid rows kept | reproducible | verified | review items | representation fixes | seconds |
 |---|---|---|---|---|---|---|---|---|---|---|
-| csv | 1.000 | 0.879 | 1.000 | 1.0000 | 1.000 | yes | yes | 22 | 0 | 1.15 |
-| tsv | 1.000 | 0.879 | 1.000 | 1.0000 | 1.000 | yes | yes | 22 | 0 | 1.13 |
-| xlsx | 1.000 | 0.879 | 1.000 | 1.0000 | 1.000 | yes | yes | 22 | 2000 | 3.32 |
-| json | 1.000 | 0.879 | 1.000 | 1.0000 | 1.000 | yes | yes | 22 | 0 | 1.1 |
-| jsonl | 1.000 | 0.879 | 1.000 | 1.0000 | 1.000 | yes | yes | 22 | 0 | 1.13 |
-| parquet | 1.000 | 0.879 | 1.000 | 1.0000 | 1.000 | yes | yes | 21 | 3980 | 2.57 |
-| zip | 1.000 | 0.879 | 1.000 | 1.0000 | 1.000 | yes | yes | 22 | 0 | 1.22 |
-| csv + domain rule | 1.000 | 1.000 | 1.000 | 1.0000 | 1.000 | yes | yes | 20 | 0 | 1.11 |
+| csv | 1.000 | 0.879 | 1.000 | 1.0000 | 1.000 | yes | yes | 22 | 0 | 1.17 |
+| tsv | 1.000 | 0.879 | 1.000 | 1.0000 | 1.000 | yes | yes | 22 | 0 | 1.65 |
+| xlsx | 1.000 | 0.879 | 1.000 | 1.0000 | 1.000 | yes | yes | 22 | 2000 | 4.5 |
+| json | 1.000 | 0.879 | 1.000 | 1.0000 | 1.000 | yes | yes | 22 | 0 | 1.55 |
+| jsonl | 1.000 | 0.879 | 1.000 | 1.0000 | 1.000 | yes | yes | 22 | 0 | 1.17 |
+| parquet | 1.000 | 0.879 | 1.000 | 1.0000 | 1.000 | yes | yes | 21 | 3980 | 2.66 |
+| zip | 1.000 | 0.879 | 1.000 | 1.0000 | 1.000 | yes | yes | 22 | 0 | 1.25 |
+| csv + domain rule | 1.000 | 1.000 | 1.000 | 1.0000 | 1.000 | yes | yes | 20 | 0 | 1.24 |
 
 Recall by problem type:
 

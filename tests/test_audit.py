@@ -30,7 +30,7 @@ def test_reports_carry_provenance(orders, rules_text, tmp_path):
     from openpyxl import load_workbook
 
     sheets = load_workbook(ex.reports["xlsx"]).sheetnames
-    assert sheets == ["Summary", "Unresolved", "Review required", "Dataset for ML", "Profile", "Issues", "Anomalies",
+    assert sheets == ["Summary", "Findings", "Source & structure", "Unresolved", "Review required", "Dataset for ML", "Profile", "Issues", "Anomalies",
                       "Changes", "Removed rows", "Skipped"]
 
 

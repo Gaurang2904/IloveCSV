@@ -106,7 +106,8 @@ def test_placeholder_words_only_cleared_in_typed_columns(result):
     res, _, df = result
     assert pd.isna(df.loc[df.record_id == "CUST-009", "age"].iloc[0])
     assert pd.isna(df.loc[df.record_id == "CUST-019", "support_tickets_90d"].iloc[0])
-    assert df.loc[df.record_id == "CUST-041", "city"].iloc[0] == "unknown"  # a category, kept
+    # a one-off 'unknown' among real cities is a placeholder (not in the allowed list): cleared
+    assert pd.isna(df.loc[df.record_id == "CUST-041", "city"].iloc[0])
     assert df.loc[df.record_id == "CUST-042", "support_tickets_90d"].iloc[0] == "two"  # flagged instead
     assert ("ChurnData!H43", "two") in issues(res, "type")
 
